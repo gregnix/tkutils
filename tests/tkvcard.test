@@ -1,0 +1,104 @@
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+set haveTk 1
+if {[catch {package require Tk 8.6-}]} { set haveTk 0 }
+set here [file dirname [file normalize [info script]]]
+set tmDir [file normalize [file join $here .. lib tm]]
+tcl::tm::path add $tmDir
+# locate the tclutils dependency for in-tree/dev use
+# (installed systems already have tclutils on the module path)
+if {[info exists ::env(TCLUTILS_TM)]} {
+    tcl::tm::path add $::env(TCLUTILS_TM)
+} else {
+    set _tkuRoot [file dirname [file dirname $tmDir]]
+    foreach _c [lsort -decreasing [glob -nocomplain [file join [file dirname $_tkuRoot] tclutils*/lib/tm]]] {
+        tcl::tm::path add $_c
+        break
+    }
+}
+set haveEng [expr {$haveTk && ![catch {package require tclutils::tuvcard 0.1}]}]
+testConstraint vcard $haveEng
+if {$haveEng} { package require tkutils::tkvcard }
+
+set vcf "BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Alice Smith\r\nN:Smith;Alice;;;\r\nEMAIL;TYPE=work:alice@ex.com\r\nEMAIL;TYPE=home:a@home.com\r\nTEL;TYPE=cell:123\r\nEND:VCARD\r\nBEGIN:VCARD\r\nFN:Bob\r\nEND:VCARD\r\n"
+
+test tkvcard-1.1 {loadText counts cards and nodes} -constraints vcard -body {
+    catch {destroy .v}
+    set w [::tkutils::tkvcard::widget .v]
+    set n [::tkutils::tkvcard::loadText $w $vcf]
+    set tv [::tkutils::tkvcard::treeWidget $w]
+    list $n [llength [$tv children {}]]
+} -result {2 2}
+
+test tkvcard-1.2 {card node labelled with FN} -constraints vcard -body {
+    catch {destroy .v}
+    set w [::tkutils::tkvcard::widget .v]
+    ::tkutils::tkvcard::loadText $w $vcf
+    set tv [::tkutils::tkvcard::treeWidget $w]
+    $tv item [lindex [$tv children {}] 0] -text
+} -result {Alice Smith}
+
+test tkvcard-1.3 {all properties shown as children} -constraints vcard -body {
+    catch {destroy .v}
+    set w [::tkutils::tkvcard::widget .v]
+    ::tkutils::tkvcard::loadText $w $vcf
+    set tv [::tkutils::tkvcard::treeWidget $w]
+    set first [lindex [$tv children {}] 0]
+    llength [$tv children $first]
+} -result 6
+
+test tkvcard-1.4 {EMAIL row shows value and TYPE hint} -constraints vcard -body {
+    catch {destroy .v}
+    set w [::tkutils::tkvcard::widget .v]
+    ::tkutils::tkvcard::loadText $w $vcf
+    set tv [::tkutils::tkvcard::treeWidget $w]
+    set first [lindex [$tv children {}] 0]
+    set found ""
+    foreach c [$tv children $first] {
+        if {[$tv item $c -text] eq "EMAIL"} { set found [$tv item $c -values]; break }
+    }
+    set found
+} -result {alice@ex.com work}
+
+test tkvcard-1.5 {cards accessor} -constraints vcard -body {
+    catch {destroy .v}
+    set w [::tkutils::tkvcard::widget .v]
+    ::tkutils::tkvcard::loadText $w $vcf
+    ::tkutils::tkvcard::count $w
+} -result 2
+
+test tkvcard-2.1 {addCard grows list and FN shows} -constraints vcard -body {
+    catch {destroy .v}; set w [::tkutils::tkvcard::widget .v]
+    ::tkutils::tkvcard::loadText $w $vcf
+    set idx [::tkutils::tkvcard::addCard $w "Carol"]
+    list [::tkutils::tkvcard::count $w] $idx \
+         [::tclutils::tuvcard::fullName [lindex [::tkutils::tkvcard::cards $w] $idx]]
+} -result {3 2 Carol}
+
+test tkvcard-2.2 {addProperty / setProperty / removeProperty} -constraints vcard -body {
+    catch {destroy .v}; set w [::tkutils::tkvcard::widget .v]
+    ::tkutils::tkvcard::loadText $w $vcf
+    ::tkutils::tkvcard::addProperty $w 1 EMAIL bob@x.com work
+    set v1 [::tclutils::tuvcard::property [lindex [::tkutils::tkvcard::cards $w] 1] EMAIL]
+    ::tkutils::tkvcard::setProperty $w 1 1 EMAIL bob2@x.com home
+    set v2 [::tclutils::tuvcard::property [lindex [::tkutils::tkvcard::cards $w] 1] EMAIL]
+    ::tkutils::tkvcard::removeProperty $w 1 1
+    list $v1 $v2 [::tclutils::tuvcard::names [lindex [::tkutils::tkvcard::cards $w] 1]]
+} -result {bob@x.com bob2@x.com FN}
+
+test tkvcard-2.3 {removeCard} -constraints vcard -body {
+    catch {destroy .v}; set w [::tkutils::tkvcard::widget .v]
+    ::tkutils::tkvcard::loadText $w $vcf
+    ::tkutils::tkvcard::removeCard $w 1
+    ::tkutils::tkvcard::count $w
+} -result 1
+
+test tkvcard-2.4 {toText round-trips edits} -constraints vcard -body {
+    catch {destroy .v}; set w [::tkutils::tkvcard::widget .v]
+    ::tkutils::tkvcard::loadText $w $vcf
+    ::tkutils::tkvcard::addCard $w "Zoe"
+    llength [::tclutils::tuvcard::parse [::tkutils::tkvcard::toText $w]]
+} -result 3
+
+cleanupTests

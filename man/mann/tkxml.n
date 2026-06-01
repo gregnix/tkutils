@@ -1,0 +1,14 @@
+.TH tkxml n 0.28.0 tkutils "Tcl/Tk Utility Library"
+.SH NAME
+tkutils::tkxml \- XML tree viewer (optional; requires tDOM)
+.SH SYNOPSIS
+package require tkutils::tkxml
+.br
+set w [::tkutils::tkxml::widget .w]
+.SH DESCRIPTION
+Shows an XML document as a nested tree. Parsing uses the external tDOM package, so
+this widget is optional and not loaded by the umbrella. See docs/tkxml.md.
+.SH "SEE ALSO"
+tclutils(n)
+.SH KEYWORDS
+Tk, widget, xml, tdom

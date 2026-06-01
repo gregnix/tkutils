@@ -1,0 +1,112 @@
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+set haveTk 1
+if {[catch {package require Tk 8.6-}]} { set haveTk 0 }
+testConstraint haveTk $haveTk
+set here [file dirname [file normalize [info script]]]
+set tmDir [file normalize [file join $here .. lib tm]]
+tcl::tm::path add $tmDir
+# locate the tclutils dependency for in-tree/dev use
+# (installed systems already have tclutils on the module path)
+if {[info exists ::env(TCLUTILS_TM)]} {
+    tcl::tm::path add $::env(TCLUTILS_TM)
+} else {
+    set _tkuRoot [file dirname [file dirname $tmDir]]
+    foreach _c [lsort -decreasing [glob -nocomplain [file join [file dirname $_tkuRoot] tclutils*/lib/tm]]] {
+        tcl::tm::path add $_c
+        break
+    }
+}
+if {$haveTk} { package require tkutils::tkeditor }
+
+test tkeditor-1.1 {setText/getText round-trip} -constraints haveTk -body {
+    catch {destroy .e}
+    set w [::tkutils::tkeditor::widget .e]
+    ::tkutils::tkeditor::setText $w "Hello\nWorld"
+    ::tkutils::tkeditor::getText $w
+} -result "Hello\nWorld"
+
+test tkeditor-1.2 {modified flag} -constraints haveTk -body {
+    catch {destroy .e}
+    set w [::tkutils::tkeditor::widget .e]
+    ::tkutils::tkeditor::setText $w "abc"
+    set b [::tkutils::tkeditor::isModified $w]
+    $w.t insert end "X"
+    set c [::tkutils::tkeditor::isModified $w]
+    list $b $c
+} -result {0 1}
+
+test tkeditor-1.3 {find returns index} -constraints haveTk -body {
+    catch {destroy .e}
+    set w [::tkutils::tkeditor::widget .e]
+    ::tkutils::tkeditor::setText $w "foo bar baz"
+    ::tkutils::tkeditor::find $w "bar"
+} -result 1.4
+
+test tkeditor-1.4 {find -nocase} -constraints haveTk -body {
+    catch {destroy .e}
+    set w [::tkutils::tkeditor::widget .e]
+    ::tkutils::tkeditor::setText $w "Hello"
+    list [::tkutils::tkeditor::find $w "hello"] [::tkutils::tkeditor::find $w "hello" -nocase]
+} -result {{} 1.0}
+
+test tkeditor-1.5 {loadFile/saveFile round-trip} -constraints haveTk -body {
+    catch {destroy .e}
+    set w [::tkutils::tkeditor::widget .e]
+    set dir [makeDirectory ed]
+    set in [file join $dir in.txt]
+    set out [file join $dir out.txt]
+    ::tclutils::common::writeFile $in "alpha\nbeta\ngamma\n"
+    ::tkutils::tkeditor::loadFile $w $in
+    ::tkutils::tkeditor::saveFile $w $out
+    expr {[::tclutils::common::readFile $out] eq [::tclutils::common::readFile $in]}
+} -result 1
+
+test tkeditor-2.1 {context menu is a Menu widget} -constraints haveTk -body {
+    catch {destroy .e}
+    set w [::tkutils::tkeditor::widget .e]
+    winfo class [::tkutils::tkeditor::menuWidget $w]
+} -result Menu
+
+test tkeditor-2.2 {menu has standard edit entries} -constraints haveTk -body {
+    catch {destroy .e}
+    set w [::tkutils::tkeditor::widget .e]
+    expr {![catch {$w.ctx index "Copy"}] && ![catch {$w.ctx index "Paste"}]}
+} -result 1
+
+test tkeditor-2.3 {selectAll selects whole buffer} -constraints haveTk -body {
+    catch {destroy .e}
+    set w [::tkutils::tkeditor::widget .e]
+    ::tkutils::tkeditor::setText $w "abcdef"
+    ::tkutils::tkeditor::selectAll $w
+    $w.t tag ranges sel
+} -result {1.0 1.6}
+
+test tkeditor-2.4 {Select All via menu entry} -constraints haveTk -body {
+    catch {destroy .e}
+    set w [::tkutils::tkeditor::widget .e]
+    ::tkutils::tkeditor::setText $w "hello"
+    $w.ctx invoke [$w.ctx index "Select All"]
+    $w.t tag ranges sel
+} -result {1.0 1.5}
+
+test tkeditor-2.5 {Undo via menu entry} -constraints haveTk -body {
+    catch {destroy .e}
+    set w [::tkutils::tkeditor::widget .e]
+    ::tkutils::tkeditor::setText $w "x"
+    $w.t edit separator
+    $w.t insert end-1c "Y"
+    $w.t edit separator
+    $w.ctx invoke [$w.ctx index "Undo"]
+    ::tkutils::tkeditor::getText $w
+} -result x
+
+test tkeditor-2.6 {addMenuItem extends the menu} -constraints haveTk -body {
+    catch {destroy .e}
+    set w [::tkutils::tkeditor::widget .e]
+    ::tkutils::tkeditor::addMenuItem $w "Reformat" {list}
+    expr {![catch {$w.ctx index "Reformat"}]}
+} -result 1
+
+cleanupTests

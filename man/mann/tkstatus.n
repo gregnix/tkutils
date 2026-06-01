@@ -1,0 +1,14 @@
+.TH tkstatus n 0.28.0 tkutils "Tcl/Tk Utility Library"
+.SH NAME
+tkutils::tkstatus \- status bar widget
+.SH SYNOPSIS
+package require tkutils::tkstatus
+.br
+set st [::tkutils::tkstatus::widget .st]
+.SH DESCRIPTION
+A status bar with a main message, named fields and an optional progress bar. See
+docs/tkstatus.md.
+.SH "SEE ALSO"
+tclutils(n)
+.SH KEYWORDS
+Tk, widget, statusbar

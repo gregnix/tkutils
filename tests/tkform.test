@@ -1,0 +1,79 @@
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+set haveTk 1
+if {[catch {package require Tk 8.6-}]} { set haveTk 0 }
+testConstraint haveTk $haveTk
+set here [file dirname [file normalize [info script]]]
+set tmDir [file normalize [file join $here .. lib tm]]
+tcl::tm::path add $tmDir
+# locate the tclutils dependency for in-tree/dev use
+# (installed systems already have tclutils on the module path)
+if {[info exists ::env(TCLUTILS_TM)]} {
+    tcl::tm::path add $::env(TCLUTILS_TM)
+} else {
+    set _tkuRoot [file dirname [file dirname $tmDir]]
+    foreach _c [lsort -decreasing [glob -nocomplain [file join [file dirname $_tkuRoot] tclutils*/lib/tm]]] {
+        tcl::tm::path add $_c
+        break
+    }
+}
+if {$haveTk} { package require tkutils::tkform }
+
+set spec {
+    {name user  label "User"  type entry  default "alice"}
+    {name pass  label "Pass"  type password}
+    {name admin label "Admin" type check   default 1}
+    {name role  label "Role"  type combo   values {guest user admin} default user}
+    {name age   label "Age"   type spin    from 0 to 120 default 30}
+    {name notes label "Notes" type text    height 3 default "hello"}
+}
+
+test tkform-1.1 {fieldNames in order} -constraints haveTk -body {
+    catch {destroy .f}
+    set w [::tkutils::tkform::widget .f $spec]
+    ::tkutils::tkform::fieldNames $w
+} -result {user pass admin role age notes}
+
+test tkform-1.2 {defaults collected as a dict} -constraints haveTk -body {
+    catch {destroy .f}
+    set w [::tkutils::tkform::widget .f $spec]
+    ::tkutils::tkform::values $w
+} -result {user alice pass {} admin 1 role user age 30 notes hello}
+
+test tkform-1.3 {get/set entry} -constraints haveTk -body {
+    catch {destroy .f}
+    set w [::tkutils::tkform::widget .f $spec]
+    ::tkutils::tkform::set $w user "bob"
+    ::tkutils::tkform::get $w user
+} -result bob
+
+test tkform-1.4 {get/set text field} -constraints haveTk -body {
+    catch {destroy .f}
+    set w [::tkutils::tkform::widget .f $spec]
+    ::tkutils::tkform::set $w notes "line1\nline2"
+    ::tkutils::tkform::get $w notes
+} -result "line1\nline2"
+
+test tkform-1.5 {setValues updates several, ignores unknown} -constraints haveTk -body {
+    catch {destroy .f}
+    set w [::tkutils::tkform::widget .f $spec]
+    ::tkutils::tkform::setValues $w {user carol admin 0 bogus x}
+    list [::tkutils::tkform::get $w user] [::tkutils::tkform::get $w admin]
+} -result {carol 0}
+
+test tkform-1.6 {check control is a checkbutton} -constraints haveTk -body {
+    catch {destroy .f}
+    set w [::tkutils::tkform::widget .f $spec]
+    winfo class [::tkutils::tkform::widgetOf $w admin]
+} -result TCheckbutton
+
+test tkform-1.7 {does not shadow builtin set elsewhere} -constraints haveTk -body {
+    catch {destroy .f}
+    set w [::tkutils::tkform::widget .f $spec]
+    # values must round-trip after a setValues
+    ::tkutils::tkform::setValues $w {role admin age 41}
+    list [::tkutils::tkform::get $w role] [::tkutils::tkform::get $w age]
+} -result {admin 41}
+
+cleanupTests

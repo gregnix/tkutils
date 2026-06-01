@@ -1,0 +1,54 @@
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+
+set haveTk 1
+if {[catch {package require Tk 8.6-}]} { set haveTk 0 }
+testConstraint haveTk $haveTk
+
+set here [file dirname [file normalize [info script]]]
+set tmDir [file normalize [file join $here .. lib tm]]
+tcl::tm::path add $tmDir
+# locate the tclutils dependency for in-tree/dev use
+# (installed systems already have tclutils on the module path)
+if {[info exists ::env(TCLUTILS_TM)]} {
+    tcl::tm::path add $::env(TCLUTILS_TM)
+} else {
+    set _tkuRoot [file dirname [file dirname $tmDir]]
+    foreach _c [lsort -decreasing [glob -nocomplain [file join [file dirname $_tkuRoot] tclutils*/lib/tm]]] {
+        tcl::tm::path add $_c
+        break
+    }
+}
+if {$haveTk} { package require tkutils::tkdiff }
+
+proc countOps {ops kind} {
+    set n 0
+    foreach p $ops { if {[lindex $p 0] eq $kind} { incr n } }
+    return $n
+}
+
+test tkdiff-1.1 {diff yields ops} -constraints haveTk -body {
+    catch {destroy .d}
+    set w [::tkutils::tkdiff::widget .d]
+    ::tkutils::tkdiff::setTexts $w "a\nb\nc" "a\nB\nc\nd"
+    expr {[llength [::tkutils::tkdiff::getOps $w]] > 0}
+} -result 1
+
+test tkdiff-1.2 {insert and delete counts} -constraints haveTk -body {
+    catch {destroy .d}
+    set w [::tkutils::tkdiff::widget .d]
+    ::tkutils::tkdiff::setTexts $w "a\nb\nc" "a\nB\nc\nd"
+    set ops [::tkutils::tkdiff::getOps $w]
+    list [countOps $ops insert] [countOps $ops delete]
+} -result {2 1}
+
+test tkdiff-1.3 {identical texts -> only equal ops} -constraints haveTk -body {
+    catch {destroy .d}
+    set w [::tkutils::tkdiff::widget .d]
+    ::tkutils::tkdiff::setTexts $w "x\ny" "x\ny"
+    set ops [::tkutils::tkdiff::getOps $w]
+    list [countOps $ops insert] [countOps $ops delete]
+} -result {0 0}
+
+cleanupTests

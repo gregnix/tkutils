@@ -1,0 +1,15 @@
+.TH tksqlite n 0.28.0 tkutils "Tcl/Tk Utility Library"
+.SH NAME
+tkutils::tksqlite \- SQLite table browser (optional; requires sqlite3)
+.SH SYNOPSIS
+package require tkutils::tksqlite
+.br
+set w [::tkutils::tksqlite::widget .w]
+.SH DESCRIPTION
+Lists database tables and shows rows of the selected table. Uses the external
+sqlite3 package, so this widget is optional and not loaded by the umbrella.
+See docs/tksqlite.md.
+.SH "SEE ALSO"
+tclutils(n)
+.SH KEYWORDS
+Tk, widget, sqlite, database

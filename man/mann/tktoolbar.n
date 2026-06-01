@@ -1,0 +1,14 @@
+.TH tktoolbar n 0.28.0 tkutils "Tcl/Tk Utility Library"
+.SH NAME
+tkutils::tktoolbar \- toolbar widget
+.SH SYNOPSIS
+package require tkutils::tktoolbar
+.br
+set tb [::tkutils::tktoolbar::widget .tb]
+.SH DESCRIPTION
+A horizontal toolbar of buttons, toggles, separators and embedded widgets. See
+docs/tktoolbar.md.
+.SH "SEE ALSO"
+tclutils(n)
+.SH KEYWORDS
+Tk, widget, toolbar

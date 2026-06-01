@@ -1,0 +1,14 @@
+.TH tknotes n 0.28.0 tkutils "Tcl/Tk Utility Library"
+.SH NAME
+tkutils::tknotes \- hierarchical notes widget
+.SH SYNOPSIS
+package require tkutils::tknotes
+.br
+set w [::tkutils::tknotes::widget .w]
+.SH DESCRIPTION
+A notes tree with an editor, built on the tclutils tunotes engine (requires
+tclutils 0.30.0+). See docs/tknotes.md.
+.SH "SEE ALSO"
+tclutils(n), tunotes
+.SH KEYWORDS
+Tk, widget, notes, tree

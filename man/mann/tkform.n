@@ -1,0 +1,14 @@
+.TH tkform n 0.28.0 tkutils "Tcl/Tk Utility Library"
+.SH NAME
+tkutils::tkform \- declarative form widget
+.SH SYNOPSIS
+package require tkutils::tkform
+.br
+set w [::tkutils::tkform::widget .w \$fieldspec]
+.SH DESCRIPTION
+Builds a labelled form from a field specification (entry, password, check,
+combo, spin, text) and collects the values as a dict. See docs/tkform.md.
+.SH "SEE ALSO"
+tclutils(n)
+.SH KEYWORDS
+Tk, widget, form, dialog

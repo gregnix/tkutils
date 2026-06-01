@@ -1,0 +1,80 @@
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+
+set haveTk 1
+if {[catch {package require Tk 8.6-}]} {
+    set haveTk 0
+}
+testConstraint haveTk $haveTk
+
+set here [file dirname [file normalize [info script]]]
+set tmDir [file normalize [file join $here .. lib tm]]
+tcl::tm::path add $tmDir
+# locate the tclutils dependency for in-tree/dev use
+# (installed systems already have tclutils on the module path)
+if {[info exists ::env(TCLUTILS_TM)]} {
+    tcl::tm::path add $::env(TCLUTILS_TM)
+} else {
+    set _tkuRoot [file dirname [file dirname $tmDir]]
+    foreach _c [lsort -decreasing [glob -nocomplain [file join [file dirname $_tkuRoot] tclutils*/lib/tm]]] {
+        tcl::tm::path add $_c
+        break
+    }
+}
+
+
+if {$haveTk} {
+    package require tkutils::tkhexedit
+}
+
+test tkhexedit-1.1 {create widget and set data} -constraints haveTk -body {
+    catch {destroy .h}
+    set w [::tkutils::tkhexedit::widget .h]
+    ::tkutils::tkhexedit::setData $w ABC
+    string length [::tkutils::tkhexedit::getData $w]
+} -result 3
+
+test tkhexedit-1.2 {find text} -constraints haveTk -body {
+    catch {destroy .h}
+    set w [::tkutils::tkhexedit::widget .h]
+    ::tkutils::tkhexedit::setData $w "Hello PDF"
+    ::tkutils::tkhexedit::findText $w PDF
+} -result 6
+
+test tkhexedit-1.3 {find hex} -constraints haveTk -body {
+    catch {destroy .h}
+    set w [::tkutils::tkhexedit::widget .h]
+    ::tkutils::tkhexedit::setData $w "PK\x03\x04demo"
+    ::tkutils::tkhexedit::findHex $w {50 4B 03 04}
+} -result 0
+
+test tkhexedit-1.4 {patch hex length preserving} -constraints haveTk -body {
+    catch {destroy .h}
+    set w [::tkutils::tkhexedit::widget .h]
+    ::tkutils::tkhexedit::setData $w ABCD
+    ::tkutils::tkhexedit::patchHex $w 1 {58 59}
+    ::tkutils::tkhexedit::getData $w
+} -result AXYD
+
+test tkhexedit-1.5 {load and save file} -constraints haveTk -body {
+    catch {destroy .h}
+    set w [::tkutils::tkhexedit::widget .h]
+    set dir [makeDirectory hexedit]
+    set in [file join $dir in.bin]
+    set out [file join $dir out.bin]
+    set ch [open $in wb]
+    fconfigure $ch -translation binary -encoding iso8859-1
+    puts -nonewline $ch ABC
+    close $ch
+    ::tkutils::tkhexedit::loadFile $w $in
+    ::tkutils::tkhexedit::patchHex $w 1 {58}
+    ::tkutils::tkhexedit::saveFile $w $out
+    set ch [open $out rb]
+    fconfigure $ch -translation binary -encoding iso8859-1
+    set data [read $ch]
+    close $ch
+    set data
+} -result AXC
+
+cleanupTests

@@ -1,0 +1,14 @@
+.TH tkjson n 0.28.0 tkutils "Tcl/Tk Utility Library"
+.SH NAME
+tkutils::tkjson \- JSON tree viewer
+.SH SYNOPSIS
+package require tkutils::tkjson
+.br
+set w [::tkutils::tkjson::widget .w]
+.SH DESCRIPTION
+Tk front-end built on tclutils::tujson::parseTyped (tclutils 0.28.0+). Shows JSON
+as a nested tree distinguishing objects, arrays and scalars. See docs/tkjson.md.
+.SH "SEE ALSO"
+tclutils(n)
+.SH KEYWORDS
+Tk, widget, json

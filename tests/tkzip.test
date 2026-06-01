@@ -1,0 +1,56 @@
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+set haveTk 1
+if {[catch {package require Tk 8.6-}]} { set haveTk 0 }
+testConstraint haveTk $haveTk
+set here [file dirname [file normalize [info script]]]
+set tmDir [file normalize [file join $here .. lib tm]]
+tcl::tm::path add $tmDir
+# locate the tclutils dependency for in-tree/dev use
+# (installed systems already have tclutils on the module path)
+if {[info exists ::env(TCLUTILS_TM)]} {
+    tcl::tm::path add $::env(TCLUTILS_TM)
+} else {
+    set _tkuRoot [file dirname [file dirname $tmDir]]
+    foreach _c [lsort -decreasing [glob -nocomplain [file join [file dirname $_tkuRoot] tclutils*/lib/tm]]] {
+        tcl::tm::path add $_c
+        break
+    }
+}
+if {$haveTk} { package require tkutils::tkzip }
+package require tclutils::tuzip
+
+proc makeZip {} {
+    set dir [makeDirectory zsrc]
+    foreach {n c} {readme.txt hello data.csv "a,b" note.md "# n"} {
+        ::tclutils::common::writeFile [file join $dir $n] $c
+    }
+    set zip [file join $dir test.zip]
+    ::tclutils::tuzip::create $zip [list         [file join $dir readme.txt] [file join $dir data.csv] [file join $dir note.md]]
+    return $zip
+}
+
+test tkzip-1.1 {openFile returns member count} -constraints haveTk -body {
+    catch {destroy .z}
+    set w [::tkutils::tkzip::widget .z]
+    ::tkutils::tkzip::openFile $w [makeZip]
+} -result 3
+
+test tkzip-1.2 {entries available} -constraints haveTk -body {
+    catch {destroy .z}
+    set w [::tkutils::tkzip::widget .z]
+    ::tkutils::tkzip::openFile $w [makeZip]
+    llength [::tkutils::tkzip::getEntries $w]
+} -result 3
+
+test tkzip-1.3 {member names listed} -constraints haveTk -body {
+    catch {destroy .z}
+    set w [::tkutils::tkzip::widget .z]
+    ::tkutils::tkzip::openFile $w [makeZip]
+    set names {}
+    foreach e [::tkutils::tkzip::getEntries $w] { lappend names [dict get $e name] }
+    lsort $names
+} -result {data.csv note.md readme.txt}
+
+cleanupTests

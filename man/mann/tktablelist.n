@@ -1,0 +1,15 @@
+.TH tktablelist n 0.28.0 tkutils "Tcl/Tk Utility Library"
+.SH NAME
+tkutils::tktablelist \- multi-column table (optional; requires Tablelist)
+.SH SYNOPSIS
+package require tkutils::tktablelist
+.br
+set w [::tkutils::tktablelist::widget .w -columns {Name Age}]
+.SH DESCRIPTION
+A wrapper around the Tablelist megawidget with a rows/columns API, click-to-sort
+headers, frozen title columns and CSV loading via tclutils::tucsv. OPTIONAL: not
+part of the umbrella. See docs/tktablelist.md.
+.SH "SEE ALSO"
+tclutils(n), tucsv
+.SH KEYWORDS
+Tk, widget, table, tablelist

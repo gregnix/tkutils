@@ -1,0 +1,14 @@
+.TH tkeditor n 0.28.0 tkutils "Tcl/Tk Utility Library"
+.SH NAME
+tkutils::tkeditor \- simple text editor
+.SH SYNOPSIS
+package require tkutils::tkeditor
+.br
+set w [::tkutils::tkeditor::widget .w]
+.SH DESCRIPTION
+Editable text widget with file load/save, search and modified tracking. File I/O
+uses the tclutils common helpers. See docs/tkeditor.md.
+.SH "SEE ALSO"
+tclutils(n)
+.SH KEYWORDS
+Tk, widget, editor

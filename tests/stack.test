@@ -1,0 +1,57 @@
+# Integration test: load tclutils + tkutils in ONE interpreter and drive a few
+# widgets against their engines. Constraint "stack" = Tk available AND tclutils
+# reachable on the module path (set TCLUTILS_TM or place siblings).
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+set haveTk 1
+if {[catch {package require Tk 8.6-}]} { set haveTk 0 }
+set here [file dirname [file normalize [info script]]]
+set tmDir [file normalize [file join $here .. lib tm]]
+tcl::tm::path add $tmDir
+# locate the tclutils dependency for in-tree/dev use
+# (installed systems already have tclutils on the module path)
+if {[info exists ::env(TCLUTILS_TM)]} {
+    tcl::tm::path add $::env(TCLUTILS_TM)
+} else {
+    set _tkuRoot [file dirname [file dirname $tmDir]]
+    foreach _c [lsort -decreasing [glob -nocomplain [file join [file dirname $_tkuRoot] tclutils*/lib/tm]]] {
+        tcl::tm::path add $_c
+        break
+    }
+}
+set haveStack [expr {$haveTk && ![catch {package require tclutils::tujson}]}]
+testConstraint stack $haveStack
+if {$haveStack} {
+    package require tkutils
+    package require tkutils::tknotes
+    package require tkutils::tkini
+    package require tkutils::tkical
+}
+
+test stack-1.1 {both libraries usable in one interpreter} -constraints stack -body {
+    expr {[package require tkutils] ne "" \
+          && [llength [::tclutils::tujson::parse {[1,2,3]}]] == 3}
+} -result 1
+
+test stack-1.2 {tknotes widget works against tunotes engine} -constraints stack -body {
+    catch {destroy .sn}
+    set w [::tkutils::tknotes::widget .sn]
+    ::tkutils::tknotes::addRoot $w "Root" ""
+    ::tkutils::tknotes::count $w
+} -result 1
+
+test stack-1.3 {tkini widget works against tuini engine} -constraints stack -body {
+    catch {destroy .si}
+    set w [::tkutils::tkini::widget .si]
+    ::tkutils::tkini::loadText $w "\[server\]\nhost=localhost\n"
+    ::tkutils::tkini::sections $w
+} -result {server}
+
+test stack-1.4 {tkical widget works against tuical engine} -constraints stack -body {
+    catch {destroy .sc}
+    set w [::tkutils::tkical::widget .sc]
+    ::tkutils::tkical::loadText $w "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nSUMMARY:X\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"
+} -result 1
+
+cleanupTests

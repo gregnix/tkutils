@@ -1,0 +1,118 @@
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+set haveTk 1
+if {[catch {package require Tk 8.6-}]} { set haveTk 0 }
+testConstraint haveTk $haveTk
+set here [file dirname [file normalize [info script]]]
+set tmDir [file normalize [file join $here .. lib tm]]
+tcl::tm::path add $tmDir
+# locate the tclutils dependency for in-tree/dev use
+# (installed systems already have tclutils on the module path)
+if {[info exists ::env(TCLUTILS_TM)]} {
+    tcl::tm::path add $::env(TCLUTILS_TM)
+} else {
+    set _tkuRoot [file dirname [file dirname $tmDir]]
+    foreach _c [lsort -decreasing [glob -nocomplain [file join [file dirname $_tkuRoot] tclutils*/lib/tm]]] {
+        tcl::tm::path add $_c
+        break
+    }
+}
+if {$haveTk} { package require tkutils::tkdialog }
+
+proc findDialog {} {
+    foreach w [winfo children .] {
+        if {[string match .tkdialog* $w]} { return $w }
+    }
+    return ""
+}
+
+test tkdialog-1.1 {build + getText} -constraints haveTk -body {
+    catch {destroy .d}
+    ::tkutils::tkdialog::build .d -message "Hello"
+    set r [::tkutils::tkdialog::getText .d]
+    destroy .d
+    set r
+} -result Hello
+
+test tkdialog-1.2 {detail stored} -constraints haveTk -body {
+    catch {destroy .d}
+    ::tkutils::tkdialog::build .d -message "M" -detail "stack trace"
+    set r [::tkutils::tkdialog::getDetail .d]
+    destroy .d
+    set r
+} -result {stack trace}
+
+test tkdialog-1.3 {copyText returns message and detail} -constraints haveTk -body {
+    catch {destroy .d}
+    ::tkutils::tkdialog::build .d -message "Msg" -detail "Det"
+    set r [::tkutils::tkdialog::copyText .d]
+    destroy .d
+    set r
+} -result "Msg\n\nDet"
+
+test tkdialog-1.4 {choose sets result} -constraints haveTk -body {
+    catch {destroy .d}
+    ::tkutils::tkdialog::build .d -buttons {OK Cancel}
+    ::tkutils::tkdialog::choose .d OK
+    set r [::tkutils::tkdialog::result .d]
+    destroy .d
+    set r
+} -result OK
+
+test tkdialog-1.5 {button invoke sets result} -constraints haveTk -body {
+    catch {destroy .d}
+    ::tkutils::tkdialog::build .d -buttons {OK Cancel}
+    .d.btns.b1 invoke
+    set r [::tkutils::tkdialog::result .d]
+    destroy .d
+    set r
+} -result Cancel
+
+test tkdialog-1.6 {modal show returns clicked label} -constraints haveTk -body {
+    catch {destroy .dm}
+    after 50 { .dm.btns.b1 invoke }
+    ::tkutils::tkdialog::show .dm -message "Question?" -buttons {OK Cancel}
+} -result Cancel
+
+test tkdialog-1.7 {confirm returns boolean} -constraints haveTk -body {
+    after 50 { set w [findDialog]; if {$w ne ""} { $w.btns.b0 invoke } }
+    ::tkutils::tkdialog::confirm "Proceed?"
+} -result 1
+
+test tkdialog-1.8 {input returns entered text} -constraints haveTk -body {
+    after 50 {
+        set w [findDialog]
+        if {$w ne ""} { $w.e insert end "typed"; $w.btns.b0 invoke }
+    }
+    ::tkutils::tkdialog::input -message "Name?"
+} -result typed
+
+test tkdialog-1.9 {input cancelled returns empty} -constraints haveTk -body {
+    after 50 {
+        set w [findDialog]
+        if {$w ne ""} { $w.e insert end "ignored"; $w.btns.b1 invoke }
+    }
+    ::tkutils::tkdialog::input -message "Name?"
+} -result {}
+
+test tkdialog-3.1 {form dialog returns values dict on OK} -constraints haveTk -body {
+    after 200 {
+        set ::DLG ""
+        foreach t [winfo children .] { if {[winfo exists $t.form]} { set ::DLG $t; break } }
+        ::tkutils::tkform::set $::DLG.form name "Zaphod"
+        ::tkutils::tkdialog::choose $::DLG OK
+    }
+    ::tkutils::tkdialog::form {{name name label "Name" default ""}} -title "Test"
+} -result {name Zaphod}
+
+test tkdialog-3.2 {form dialog returns empty on Cancel} -constraints haveTk -body {
+    after 200 {
+        set ::DLG ""
+        foreach t [winfo children .] { if {[winfo exists $t.form]} { set ::DLG $t; break } }
+        ::tkutils::tkdialog::choose $::DLG Cancel
+    }
+    ::tkutils::tkdialog::form {{name name label "Name" default "x"}}
+} -result {}
+
+cleanupTests

@@ -1,0 +1,10 @@
+.TH tkical n 0.28.0 tkutils "Tcl/Tk Utility Library"
+.SH NAME
+tkutils::tkical \- iCalendar event viewer
+.SH SYNOPSIS
+package require tkutils::tkical
+.SH DESCRIPTION
+Shows the VEVENTs of an iCalendar document in a table, via tclutils::tuical.
+See docs/tkical.md.
+.SH KEYWORDS
+Tk, widget, icalendar, ics

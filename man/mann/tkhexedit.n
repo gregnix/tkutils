@@ -1,0 +1,21 @@
+.TH tkhexedit n 0.28.0 tkutils "Tcl/Tk Utility Library"
+.SH NAME
+tkutils::tkhexedit \- small Tcl/Tk hex viewer/editor widget
+.SH SYNOPSIS
+package require tkutils::tkhexedit
+.br
+set w [::tkutils::tkhexedit::widget .hex]
+.br
+::tkutils::tkhexedit::loadFile $w file.bin
+.SH DESCRIPTION
+The tkutils::tkhexedit package creates a compact Tk widget for viewing and
+lightly editing binary data. It shows offset, hexadecimal bytes and printable
+ASCII text.
+.SH COMMANDS
+widget, loadFile, saveFile, setData, getData, gotoOffset, findText, findHex,
+patchHex, render.
+.SH LIMITS
+The editor keeps data in memory and patchHex is length-preserving. It does not
+insert or delete bytes.
+.SH SEE ALSO
+tclutils::tubin, tclutils::tuhexedit, tclutils::tuhexdump
