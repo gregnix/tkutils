@@ -10,7 +10,9 @@ package require tclutils::common 0.1
 namespace eval ::tkutils {}
 namespace eval ::tkutils::tkeditor {
     namespace export widget setText getText loadFile saveFile find isModified \
-        currentFile selectAll menuWidget addMenuItem addMenuSeparator
+        currentFile selectAll menuWidget addMenuItem addMenuSeparator \
+        findNext findAll replace highlightAll clearHighlight gotoLine cursor \
+        readonly
     variable state
 }
 
@@ -65,12 +67,16 @@ proc ::tkutils::tkeditor::widget {path args} {
 }
 
 # Replace the whole buffer. Resets the modified flag and undo history.
+# Works even when the editor is read-only (temporarily re-enabled).
 proc ::tkutils::tkeditor::setText {path text} {
     set t $path.t
+    set ro [expr {[$t cget -state] eq "disabled"}]
+    if {$ro} { $t configure -state normal }
     $t delete 1.0 end
     $t insert end $text
     $t edit reset
     $t edit modified 0
+    if {$ro} { $t configure -state disabled }
     return [string length $text]
 }
 
@@ -128,6 +134,172 @@ proc ::tkutils::tkeditor::find {path needle args} {
         }
     }
     return [$path.t search {*}$flags -- $needle $from end]
+}
+
+# All match start indices for $needle, in document order. Options: -nocase.
+proc ::tkutils::tkeditor::findAll {path needle args} {
+    set flags {}
+    foreach a $args {
+        if {$a eq "-nocase"} { lappend flags -nocase } else {
+            return -code error -errorcode {TKUTILS TKEDITOR OPT} "unknown option: $a"
+        }
+    }
+    set t $path.t
+    if {$needle eq ""} { return {} }
+    set res {}
+    set idx 1.0
+    while {1} {
+        set m [$t search {*}$flags -count cnt -- $needle $idx end]
+        if {$m eq ""} break
+        lappend res $m
+        set step [expr {$cnt > 0 ? $cnt : 1}]
+        set idx [$t index "$m + $step chars"]
+    }
+    return $res
+}
+
+# Interactive forward search from the cursor, wrapping to the top. On a hit the
+# match is selected, the insert mark is moved past it and it is scrolled into
+# view; returns the start index (so repeated calls walk through the matches), or
+# "" if there is no match anywhere. Options: -nocase.
+proc ::tkutils::tkeditor::findNext {path needle args} {
+    set flags {}
+    foreach a $args {
+        if {$a eq "-nocase"} { lappend flags -nocase } else {
+            return -code error -errorcode {TKUTILS TKEDITOR OPT} "unknown option: $a"
+        }
+    }
+    set t $path.t
+    if {$needle eq ""} { return "" }
+    set m [$t search {*}$flags -count cnt -- $needle insert end]
+    if {$m eq ""} {
+        set m [$t search {*}$flags -count cnt -- $needle 1.0 end]
+    }
+    if {$m eq ""} { return "" }
+    set end [$t index "$m + $cnt chars"]
+    $t tag remove sel 1.0 end
+    $t tag add sel $m $end
+    $t mark set insert $end
+    $t see $m
+    return $m
+}
+
+# Replace occurrences of $needle with $repl. Options: -nocase, -all (default is
+# the first match only), -from idx (default 1.0). One undo step. Returns the
+# number of replacements. The scan resumes past each replacement, so a $repl
+# that contains $needle is not re-matched.
+proc ::tkutils::tkeditor::replace {path needle repl args} {
+    set flags {}; set all 0; set from 1.0
+    set i 0; set n [llength $args]
+    while {$i < $n} {
+        switch -- [lindex $args $i] {
+            -nocase { lappend flags -nocase; incr i }
+            -all    { set all 1; incr i }
+            -from   { set from [lindex $args [expr {$i + 1}]]; incr i 2 }
+            default {
+                return -code error -errorcode {TKUTILS TKEDITOR OPT} \
+                    "unknown option: [lindex $args $i]"
+            }
+        }
+    }
+    set t $path.t
+    if {$needle eq ""} { return 0 }
+    set count 0
+    set idx $from
+    $t edit separator
+    while {1} {
+        set m [$t search {*}$flags -count cnt -- $needle $idx end]
+        if {$m eq "" || $cnt == 0} break
+        set end [$t index "$m + $cnt chars"]
+        $t delete $m $end
+        $t insert $m $repl
+        incr count
+        set idx [$t index "$m + [string length $repl] chars"]
+        if {!$all} break
+    }
+    $t edit separator
+    return $count
+}
+
+# Tag every match of $needle for visual highlighting. Options: -nocase,
+# -tag NAME (default "match"). Returns the number of matches. The tag is given a
+# default background the first time; callers may restyle it via the text widget.
+proc ::tkutils::tkeditor::highlightAll {path needle args} {
+    set flags {}; set tag match
+    set i 0; set n [llength $args]
+    while {$i < $n} {
+        switch -- [lindex $args $i] {
+            -nocase { lappend flags -nocase; incr i }
+            -tag    { set tag [lindex $args [expr {$i + 1}]]; incr i 2 }
+            default {
+                return -code error -errorcode {TKUTILS TKEDITOR OPT} \
+                    "unknown option: [lindex $args $i]"
+            }
+        }
+    }
+    set t $path.t
+    $t tag remove $tag 1.0 end
+    $t tag configure $tag -background "#fff2a8"
+    if {$needle eq ""} { return 0 }
+    set count 0
+    set idx 1.0
+    while {1} {
+        set m [$t search {*}$flags -count cnt -- $needle $idx end]
+        if {$m eq ""} break
+        set step [expr {$cnt > 0 ? $cnt : 1}]
+        $t tag add $tag $m "$m + $step chars"
+        incr count
+        set idx [$t index "$m + $step chars"]
+    }
+    return $count
+}
+
+# Remove a highlight tag's ranges (default tag "match"). Option: -tag NAME.
+proc ::tkutils::tkeditor::clearHighlight {path args} {
+    set tag match
+    set i 0; set n [llength $args]
+    while {$i < $n} {
+        switch -- [lindex $args $i] {
+            -tag    { set tag [lindex $args [expr {$i + 1}]]; incr i 2 }
+            default {
+                return -code error -errorcode {TKUTILS TKEDITOR OPT} \
+                    "unknown option: [lindex $args $i]"
+            }
+        }
+    }
+    $path.t tag remove $tag 1.0 end
+    return 1
+}
+
+# Move the cursor to the start of line $n and scroll it into view.
+# Returns the resulting insert index ("line.col").
+proc ::tkutils::tkeditor::gotoLine {path n} {
+    set t $path.t
+    if {![string is integer -strict $n] || $n < 1} {
+        return -code error -errorcode {TKUTILS TKEDITOR LINE} \
+            "line must be a positive integer: $n"
+    }
+    set idx [$t index $n.0]
+    $t mark set insert $idx
+    $t see $idx
+    return [$t index insert]
+}
+
+# Current cursor position as "line.col".
+proc ::tkutils::tkeditor::cursor {path} {
+    return [$path.t index insert]
+}
+
+# Get or set read-only mode. With no argument returns 1/0; with a boolean it
+# enables/disables editing (programmatic setText/loadFile still work).
+proc ::tkutils::tkeditor::readonly {path args} {
+    set t $path.t
+    if {[llength $args] == 0} {
+        return [expr {[$t cget -state] eq "disabled"}]
+    }
+    set on [expr {[lindex $args 0] ? 1 : 0}]
+    $t configure -state [expr {$on ? "disabled" : "normal"}]
+    return $on
 }
 
 proc ::tkutils::tkeditor::isModified {path} {

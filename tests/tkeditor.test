@@ -109,4 +109,82 @@ test tkeditor-2.6 {addMenuItem extends the menu} -constraints haveTk -body {
     expr {![catch {$w.ctx index "Reformat"}]}
 } -result 1
 
+test tkeditor-3.1 {findAll lists every match} -constraints haveTk -body {
+    catch {destroy .e}
+    set w [::tkutils::tkeditor::widget .e]
+    ::tkutils::tkeditor::setText $w "ab ab ab"
+    ::tkutils::tkeditor::findAll $w "ab"
+} -result {1.0 1.3 1.6}
+
+test tkeditor-3.2 {findNext walks matches and wraps} -constraints haveTk -body {
+    catch {destroy .e}
+    set w [::tkutils::tkeditor::widget .e]
+    ::tkutils::tkeditor::setText $w "ab ab"
+    $w.t mark set insert 1.0
+    set a [::tkutils::tkeditor::findNext $w "ab"]
+    set b [::tkutils::tkeditor::findNext $w "ab"]
+    set c [::tkutils::tkeditor::findNext $w "ab"]
+    list $a $b $c
+} -result {1.0 1.3 1.0}
+
+test tkeditor-3.3 {replace first match only} -constraints haveTk -body {
+    catch {destroy .e}
+    set w [::tkutils::tkeditor::widget .e]
+    ::tkutils::tkeditor::setText $w "ab ab ab"
+    set n [::tkutils::tkeditor::replace $w "ab" "X"]
+    list $n [::tkutils::tkeditor::getText $w]
+} -result {1 {X ab ab}}
+
+test tkeditor-3.4 {replace all matches} -constraints haveTk -body {
+    catch {destroy .e}
+    set w [::tkutils::tkeditor::widget .e]
+    ::tkutils::tkeditor::setText $w "ab ab ab"
+    set n [::tkutils::tkeditor::replace $w "ab" "X" -all]
+    list $n [::tkutils::tkeditor::getText $w]
+} -result {3 {X X X}}
+
+test tkeditor-3.5 {replace does not re-match its own replacement} -constraints haveTk -body {
+    catch {destroy .e}
+    set w [::tkutils::tkeditor::widget .e]
+    ::tkutils::tkeditor::setText $w "a a"
+    set n [::tkutils::tkeditor::replace $w "a" "aa" -all]
+    list $n [::tkutils::tkeditor::getText $w]
+} -result {2 {aa aa}}
+
+test tkeditor-3.6 {highlightAll tags all matches} -constraints haveTk -body {
+    catch {destroy .e}
+    set w [::tkutils::tkeditor::widget .e]
+    ::tkutils::tkeditor::setText $w "ab ab"
+    set n [::tkutils::tkeditor::highlightAll $w "ab"]
+    list $n [llength [$w.t tag ranges match]]
+} -result {2 4}
+
+test tkeditor-3.7 {clearHighlight removes the tag ranges} -constraints haveTk -body {
+    catch {destroy .e}
+    set w [::tkutils::tkeditor::widget .e]
+    ::tkutils::tkeditor::setText $w "ab ab"
+    ::tkutils::tkeditor::highlightAll $w "ab"
+    ::tkutils::tkeditor::clearHighlight $w
+    $w.t tag ranges match
+} -result {}
+
+test tkeditor-3.8 {gotoLine moves the cursor; cursor reports it} -constraints haveTk -body {
+    catch {destroy .e}
+    set w [::tkutils::tkeditor::widget .e]
+    ::tkutils::tkeditor::setText $w "l1\nl2\nl3"
+    ::tkutils::tkeditor::gotoLine $w 3
+    ::tkutils::tkeditor::cursor $w
+} -result 3.0
+
+test tkeditor-3.9 {readonly blocks typed edits but setText still works} -constraints haveTk -body {
+    catch {destroy .e}
+    set w [::tkutils::tkeditor::widget .e]
+    ::tkutils::tkeditor::setText $w "x"
+    ::tkutils::tkeditor::readonly $w 1
+    catch {$w.t insert end "Y"}
+    set afterInsert [::tkutils::tkeditor::getText $w]
+    ::tkutils::tkeditor::setText $w "new"
+    list [::tkutils::tkeditor::readonly $w] $afterInsert [::tkutils::tkeditor::getText $w]
+} -result {1 x new}
+
 cleanupTests

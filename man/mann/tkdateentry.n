@@ -1,0 +1,15 @@
+.TH tkdateentry n 0.29.0 tkutils "Tcl/Tk Utility Library"
+.SH NAME
+tkutils::tkdateentry \- date entry with calendar picker
+.SH SYNOPSIS
+package require tkutils::tkdateentry
+.br
+set w [::tkutils::tkdateentry::widget .d]
+.SH DESCRIPTION
+Entry showing a date plus a drop-down month grid of day buttons (Monday-first)
+with prev/next navigation, Today and Clear. Display uses \-dateformat; getDate
+returns the ISO date. See docs/tkdateentry.md.
+.SH "SEE ALSO"
+tkutils::tkcal(n), tclutils(n)
+.SH KEYWORDS
+Tk, widget, date, calendar

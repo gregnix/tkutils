@@ -1,0 +1,13 @@
+.TH tktree n 0.30.0 tkutils "Tcl/Tk Utility Library"
+.SH NAME
+tkutils::tktree \- thin ttk::treeview wrapper for hierarchical data
+.SH SYNOPSIS
+package require tkutils::tktree
+.br
+set w [::tkutils::tktree::widget .w]
+.SH DESCRIPTION
+See docs/tktree.md.
+.SH "SEE ALSO"
+tkutils::tktablelist(n), tclutils(n)
+.SH KEYWORDS
+Tk, widget, tree, treeview

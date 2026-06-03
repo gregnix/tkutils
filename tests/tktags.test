@@ -1,0 +1,82 @@
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+set haveTk 1
+if {[catch {package require Tk 8.6-}]} { set haveTk 0 }
+testConstraint haveTk $haveTk
+set here [file dirname [file normalize [info script]]]
+tcl::tm::path add [file normalize [file join $here .. lib tm]]
+if {$haveTk} { package require tkutils::tktags }
+
+test tktags-1.1 {initial -tags, getTags} -constraints haveTk -body {
+    catch {destroy .t}
+    set w [::tkutils::tktags::widget .t -tags {red green}]
+    ::tkutils::tktags::getTags $w
+} -result {red green}
+
+test tktags-1.2 {setTags dedupes, trims, drops blanks} -constraints haveTk -body {
+    catch {destroy .t}
+    set w [::tkutils::tktags::widget .t]
+    ::tkutils::tktags::setTags $w {a "  b " a "" c}
+} -result {a b c}
+
+test tktags-1.3 {addTag adds; duplicate/blank ignored} -constraints haveTk -body {
+    catch {destroy .t}
+    set w [::tkutils::tktags::widget .t]
+    ::tkutils::tktags::addTag $w x
+    ::tkutils::tktags::addTag $w x
+    ::tkutils::tktags::addTag $w "  "
+    ::tkutils::tktags::addTag $w y
+    ::tkutils::tktags::getTags $w
+} -result {x y}
+
+test tktags-1.4 {removeTag removes} -constraints haveTk -body {
+    catch {destroy .t}
+    set w [::tkutils::tktags::widget .t -tags {a b c}]
+    ::tkutils::tktags::removeTag $w b
+    ::tkutils::tktags::getTags $w
+} -result {a c}
+
+test tktags-1.5 {clear empties} -constraints haveTk -body {
+    catch {destroy .t}
+    set w [::tkutils::tktags::widget .t -tags {a b}]
+    ::tkutils::tktags::clear $w
+    ::tkutils::tktags::getTags $w
+} -result {}
+
+test tktags-2.1 {-command fires with the tag list} -constraints haveTk -body {
+    catch {destroy .t}
+    set ::changed ""
+    set w [::tkutils::tktags::widget .t -command {set ::changed}]
+    ::tkutils::tktags::addTag $w hello
+    set ::changed
+} -result hello
+
+test tktags-2.2 {-textvariable mirrors the list} -constraints haveTk -body {
+    catch {destroy .t}
+    set ::tv ""
+    set w [::tkutils::tktags::widget .t -textvariable ::tv]
+    ::tkutils::tktags::setTags $w {p q}
+    set ::tv
+} -result {p q}
+
+test tktags-2.3 {seed from -textvariable} -constraints haveTk -body {
+    catch {destroy .t}
+    set ::tv {m n}
+    set w [::tkutils::tktags::widget .t -textvariable ::tv]
+    ::tkutils::tktags::getTags $w
+} -result {m n}
+
+test tktags-3.1 {readonly omits the input row} -constraints haveTk -body {
+    catch {destroy .t}
+    set w [::tkutils::tktags::widget .t -tags {a} -readonly 1]
+    winfo exists $w.in
+} -result 0
+
+test tktags-3.2 {one chip rendered per tag} -constraints haveTk -body {
+    catch {destroy .t}
+    set w [::tkutils::tktags::widget .t -tags {a b c}]
+    llength [winfo children $w.c]
+} -result 3
+
+cleanupTests

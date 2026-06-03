@@ -24,4 +24,10 @@ package require tkutils::tkical 0.1
 package require tkutils::tkldif 0.1
 package require tkutils::tkini 0.1
 package require tkutils::tkvcard 0.1
-package provide tkutils 0.28.0
+package require tkutils::tkdateentry 0.1
+package require tkutils::tktags 0.1
+package require tkutils::tksearchbar 0.1
+package require tkutils::tktimeentry 0.1
+package require tkutils::tknumentry 0.1
+package require tkutils::tktree 0.1
+package provide tkutils 0.30.0

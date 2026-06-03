@@ -1,4 +1,4 @@
-# tkutils 0.28.0
+# tkutils 0.30.0
 
 `tkutils` is a collection of Tcl/Tk GUI widgets that sit on top of the pure-Tcl
 engines in [`tclutils`](../tclutils-0.41.0/). It is intentionally separate from
@@ -42,7 +42,7 @@ package require tkutils::tknotes   ;# or a single widget
 | `tkmd`      | tumd      | Markdown structure / TOC |
 | `tkjson`    | tujson    | JSON tree (from `parseTyped`) |
 | `tkcal`     | tucal     | Calendar text view |
-| `tkeditor`  | common    | Simple text editor (+ context menu, undo/redo) |
+| `tkeditor`  | common    | Text editor (context menu, undo/redo, search/replace, goto, read-only) |
 | `tkzip`     | tuzip     | ZIP member tree |
 | `tkfuzzy`   | tufuzzy   | Fuzzy search / best matches |
 | `tkdialog`  | Tk        | message / confirm / warning / **form** dialogs |
@@ -56,6 +56,12 @@ package require tkutils::tknotes   ;# or a single widget
 | `tkldif`    | tuldif    | LDIF entry viewer/**editor** |
 | `tkini`     | tuini     | INI viewer/**editor** (sections + key/value) |
 | `tkvcard`   | tuvcard   | vCard contact viewer/**editor** |
+| `tkdateentry`| Tk (clock)| Date entry with a drop-down calendar picker |
+| `tktimeentry`| Tk        | Time entry (HH:MM[:SS]) with spinboxes |
+| `tknumentry` | Tk        | Validated numeric entry (decimals, min/max) |
+| `tktags`    | Tk        | Tag editor: removable chips + input (suggestions) |
+| `tksearchbar`| Tk        | Debounced search bar + optional filter |
+| `tktree`    | Tk        | ttk::treeview wrapper (load nested data, selection) |
 
 `tkical`, `tkldif`, `tkini`, `tkvcard` accept `-editable 0` for a read-only view.
 

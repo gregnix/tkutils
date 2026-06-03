@@ -12,8 +12,28 @@ set w [::tkutils::tkeditor::widget .w ?-width N? ?-height N? ?-wrap mode?]
 ::tkutils::tkeditor::saveFile    $w ?path?      ;# path optional if loaded from file
 ::tkutils::tkeditor::currentFile $w
 ::tkutils::tkeditor::find        $w needle ?-from idx? ?-nocase?   ;# index or ""
+::tkutils::tkeditor::findAll     $w needle ?-nocase?               ;# list of indices
+::tkutils::tkeditor::findNext    $w needle ?-nocase?               ;# select+see next, wraps
+::tkutils::tkeditor::replace     $w needle repl ?-all? ?-nocase? ?-from idx?  ;# count
+::tkutils::tkeditor::highlightAll $w needle ?-nocase? ?-tag NAME?  ;# tag matches, count
+::tkutils::tkeditor::clearHighlight $w ?-tag NAME?
+::tkutils::tkeditor::gotoLine    $w n            ;# move cursor to line n, scroll into view
+::tkutils::tkeditor::cursor      $w              ;# current "line.col"
+::tkutils::tkeditor::readonly    $w ?bool?       ;# get/set read-only (setText still works)
 ::tkutils::tkeditor::isModified  $w
 ```
+
+## Search and replace
+
+`find` returns the first match index from `-from` (default `1.0`); `findAll`
+returns every match. `findNext` is the interactive variant: it searches forward
+from the cursor, wraps to the top, selects the hit, moves the insert mark past
+it and scrolls it into view, so calling it repeatedly walks through the matches.
+`replace` changes the first match (or every match with `-all`) in a single undo
+step and returns how many it replaced; the scan resumes past each replacement,
+so a replacement that contains the needle is not re-matched. `highlightAll` tags
+all matches (default tag `match`, restyle it via the text widget) and
+`clearHighlight` removes them.
 
 ## Launcher
 ```bash
