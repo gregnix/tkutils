@@ -1,4 +1,4 @@
-# tkutils 0.33.0
+# tkutils 0.40.0
 
 `tkutils` is a collection of Tcl/Tk GUI widgets that sit on top of the pure-Tcl
 engines in [`tclutils`](../tclutils-0.41.0/). It is intentionally separate from
@@ -6,7 +6,7 @@ engines in [`tclutils`](../tclutils-0.41.0/). It is intentionally separate from
 
 - **Rule:** the engine lives in `tclutils`, the GUI in `tkutils`. Each widget is
   a package `tkutils::tk<name>` (file `lib/tm/tkutils/tk<name>-0.1.tm`).
-- **Tcl/Tk:** 8.6+ and 9.x. The umbrella package loads the **22 core widgets**;
+- **Tcl/Tk:** 8.6+ and 9.x. The umbrella package loads the **23 core widgets**;
   optional widgets that need external packages are not in the umbrella.
 
 ## Install / path setup
@@ -26,7 +26,7 @@ Then:
 
 ```tcl
 package require tkutils            ;# loads all core widgets
-package require tkutils::tknotes   ;# or a single widget
+package require tkutils::tkunotes   ;# or a single widget
 ```
 
 > Note: auto-discovery sorts sibling `tclutils-*` folders with
@@ -36,45 +36,46 @@ package require tkutils::tknotes   ;# or a single widget
 
 | Widget | Engine (tclutils) | What it does |
 |--------|-------------------|--------------|
-| `tkhexedit` | tubin, tuhexdump | Hex editor: offset/hex/ASCII, open/save, goto, find, patch |
-| `tkcsv`     | tucsv     | CSV viewer (treeview) |
-| `tkdiff`    | tudiff    | Side-by-side text diff |
-| `tkmd`      | tumd      | Markdown structure / TOC |
-| `tkjson`    | tujson    | JSON tree (from `parseTyped`) |
-| `tkcal`     | tucal     | Calendar text view |
-| `tkeditor`  | common    | Text editor (context menu, undo/redo, search/replace, goto, read-only) |
-| `tkzip`     | tuzip     | ZIP member tree |
-| `tkfuzzy`   | tufuzzy   | Fuzzy search / best matches |
-| `tkdialog`  | Tk        | message / confirm / warning / **form** dialogs |
-| `tkbase64`  | tubase64  | Encode/decode panes |
-| `tkstrings` | tustrings | Printable strings from binaries |
-| `tktoolbar` | Tk        | Toolbar (buttons, separators) |
-| `tkstatus`  | Tk        | Status bar (fields, flash) |
-| `tknotes`   | tunotes   | Hierarchical notes (tree + editor, tags, expand/collapse, subtree export) |
-| `tkform`    | Tk        | Declarative form (entry/combo/check/spin/text → dict) |
-| `tkical`    | tuical    | iCalendar event viewer/**editor** |
-| `tkldif`    | tuldif    | LDIF entry viewer/**editor** |
-| `tkini`     | tuini     | INI viewer/**editor** (sections + key/value) |
-| `tkvcard`   | tuvcard   | vCard contact viewer/**editor** |
-| `tkdateentry`| Tk (clock)| Date entry with a drop-down calendar picker |
-| `tktimeentry`| Tk        | Time entry (HH:MM[:SS]) with spinboxes |
-| `tknumentry` | Tk        | Validated numeric entry (decimals, min/max) |
-| `tktags`    | Tk        | Tag editor: removable chips + input (suggestions) |
-| `tksearchbar`| Tk        | Debounced search bar + optional filter |
-| `tktree`    | Tk        | ttk::treeview wrapper (load nested data, selection) |
-| `tkimage`   | Tk (imgtools opt.) | image fit/scale/thumbnail + zoom/scroll viewer |
-| `tktodo`    | tuical    | iCalendar VTODO task list (toggle done, due/priority/%) |
-| `tkdavaccount`| tudav   | DAV account form + connection test (PROPFIND) |
+| `tkuhexedit` | tubin, tuhexdump | Hex editor: offset/hex/ASCII, open/save, goto, find, patch |
+| `tkucsv`     | tucsv     | CSV viewer (treeview) |
+| `tkudiff`    | tudiff    | Side-by-side text diff |
+| `tkumd`      | tumd      | Markdown structure / TOC |
+| `tkujson`    | tujson    | JSON tree (from `parseTyped`) |
+| `tkucal`     | tucal     | Calendar text view |
+| `tkueditor`  | common    | Text editor (context menu, undo/redo, search/replace, goto, read-only) |
+| `tkuzip`     | tuzip     | ZIP member tree |
+| `tkufuzzy`   | tufuzzy   | Fuzzy search / best matches |
+| `tkudialog`  | Tk        | message / confirm / warning / **form** dialogs |
+| `tkubase64`  | tubase64  | Encode/decode panes |
+| `tkustrings` | tustrings | Printable strings from binaries |
+| `tkutoolbar` | Tk        | Toolbar (buttons, separators) |
+| `tkustatus`  | Tk        | Status bar (fields, flash) |
+| `tkunotes`   | tunotes   | Hierarchical notes (tree + editor, tags, expand/collapse, subtree export) |
+| `tkuform`    | Tk        | Declarative form (entry/combo/check/spin/text → dict) |
+| `tkuical`    | tuical    | iCalendar event viewer/**editor** |
+| `tkuldif`    | tuldif    | LDIF entry viewer/**editor** |
+| `tkuini`     | tuini     | INI viewer/**editor** (sections + key/value) |
+| `tkuvcard`   | tuvcard   | vCard contact viewer/**editor** |
+| `tkudateentry`| Tk (clock)| Date entry with a drop-down calendar picker |
+| `tkutimeentry`| Tk        | Time entry (HH:MM[:SS]) with spinboxes |
+| `tkunumentry` | Tk        | Validated numeric entry (decimals, min/max) |
+| `tkutags`    | Tk        | Tag editor: removable chips + input (suggestions) |
+| `tkusearchbar`| Tk        | Debounced search bar + optional filter |
+| `tkutree`    | Tk        | ttk::treeview wrapper (load nested data, selection) |
+| `tkuimage`   | Tk (imgtools opt.) | image fit/scale/thumbnail + zoom/scroll viewer |
+| `tkutodo`    | tuical    | iCalendar VTODO task list (toggle done, due/priority/%) |
+| `tkudavbrowser` | tudav  | read-only CalDAV/CardDAV collection browser (grouped, selection callback) |
+| `tkudavaccount`| tudav   | DAV account form + connection test (PROPFIND) |
 
-`tkical`, `tkldif`, `tkini`, `tkvcard` accept `-editable 0` for a read-only view.
+`tkuical`, `tkuldif`, `tkuini`, `tkuvcard` accept `-editable 0` for a read-only view.
 
 ## Optional widgets (not in the umbrella)
 
 | Widget | Needs | Notes |
 |--------|-------|-------|
-| `tkutils::tktablelist` | **Tablelist** (tklib) | Full editable/sortable table; CSV import/export; tests skip without Tablelist |
-| `tkutils::tkxml`       | **tDOM**     | XML tree |
-| `tkutils::tksqlite`    | **sqlite3**  | Lightweight DB browser |
+| `tkutils::tkutablelist` | **Tablelist** (tklib) | Full editable/sortable table; CSV import/export; tests skip without Tablelist |
+| `tkutils::tkuxml`       | **tDOM**     | XML tree |
+| `tkutils::tkusqlite`    | **sqlite3**  | Lightweight DB browser |
 
 These are pure-Tcl-engine-free GUIs that depend on an external package; on a
 stack without that package they are simply not loaded (and their tests skip).
@@ -83,9 +84,9 @@ stack without that package they are simply not loaded (and their tests skip).
 
 ```bash
 # a widget launcher
-tclsh bin/tknotes.tcl
+tclsh bin/tkunotes.tcl
 # a demo
-tclsh examples/demo-tkical.tcl
+tclsh examples/demo-tkuical.tcl
 ```
 
 There are **23 demos** under `examples/` and **23 launchers** under `bin/`.
@@ -107,7 +108,7 @@ skip cleanly when those packages are absent.
 ## Dependency summary
 
 `tkutils 0.28.0` works with `tclutils 0.35.0+` (editing helpers for
-`tkini`/`tkvcard`/`tkical`/`tkldif`); `tknotes` subtree/tags need `tclutils
+`tkuini`/`tkuvcard`/`tkuical`/`tkuldif`); `tkunotes` subtree/tags need `tclutils
 0.33.0+`. The recommended pairing is **tclutils 0.41.0 + tkutils 0.28.0**.
 
 ## License

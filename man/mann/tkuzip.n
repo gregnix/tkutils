@@ -1,0 +1,13 @@
+.TH tkuzip n 0.28.0 tkutils "Tcl/Tk Utility Library"
+.SH NAME
+tkutils::tkuzip \- ZIP archive browser
+.SH SYNOPSIS
+package require tkutils::tkuzip
+.br
+set w [::tkutils::tkuzip::widget .w]
+.SH DESCRIPTION
+Tk front-end built on the tclutils ZIP engine (tuzip). See docs/tkuzip.md.
+.SH "SEE ALSO"
+tclutils(n)
+.SH KEYWORDS
+Tk, widget, zip

@@ -1,0 +1,9 @@
+.TH tkudavbrowser n 0.34.0 tkutils "Tk Utility Widgets"
+.SH NAME
+tkutils::tkudavbrowser \- read-only CalDAV/CardDAV collection browser
+.SH SYNOPSIS
+package require tkutils::tkudavbrowser
+.SH DESCRIPTION
+See docs/tkudavbrowser.md.
+.SH KEYWORDS
+caldav, carddav, webdav, collection, browser, tudav, treeview

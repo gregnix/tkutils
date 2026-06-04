@@ -1,0 +1,30 @@
+# tkutils::tkuical
+
+iCalendar event viewer. Shows the VEVENTs of an iCalendar document in a table
+(Summary, Start, End, Location). Built on tclutils::tuical (requires tclutils
+0.31.0+).
+
+```tcl
+set w [::tkutils::tkuical::widget .w]
+::tkutils::tkuical::loadText      $w icsText   ;# -> event count
+::tkutils::tkuical::loadFile      $w file
+::tkutils::tkuical::setComponents $w comps
+::tkutils::tkuical::events        $w
+::tkutils::tkuical::count         $w
+::tkutils::tkuical::treeWidget    $w
+```
+
+## Editing (0.26.0)
+`-editable 1` (default) shows an edit bar (Summary/Start/End/Location +
+Set/Add/Delete). On save the events are written back into the calendar; its
+other properties and non-event components are preserved. Programmatic ops:
+```tcl
+tkuical::addEvent           $w ?summary?          ;# -> index
+tkuical::removeEvent        $w index
+tkuical::setField           $w index field value  ;# field: summary|start|end|location
+tkuical::setEventProperty   $w index name value ?params?
+tkuical::addEventProperty   $w index name value ?params?
+tkuical::removeEventProperty $w index name
+tkuical::toText             $w        ;# current calendar as iCalendar text
+tkuical::save               $w file
+```

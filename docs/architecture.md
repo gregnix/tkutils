@@ -17,7 +17,7 @@ tkutils
 Planned layering:
 
 ```text
-tkutils::tkhexedit
+tkutils::tkuhexedit
     GUI for binary inspection
     backend (in use): tclutils::tubin / tclutils::tuhexdump
 
@@ -34,25 +34,25 @@ tkutils::mdview
     backend idea: tclutils::tumd
 ```
 
-- tkcsv  -> ttk::treeview, backend (in use): tclutils::tucsv
-- tkdiff -> text widget, backend (in use): tclutils::tudiff
-- tkmd   -> ttk::treeview, backend (in use): tclutils::tumd
-- tkjson -> ttk::treeview, backend (in use): tclutils::tujson::parseTyped (0.28.0+)
-- tkcal -> text view, backend (in use): tclutils::tucal
-- tkeditor -> text widget, backend (in use): tclutils::common (file I/O)
-- tkzip -> ttk::treeview, backend (in use): tclutils::tuzip
-- tkfuzzy -> entry + listbox, backend (in use): tclutils::tufuzzy
-- tkxml (optional) -> ttk::treeview, backend: tDOM (external)
-- tksqlite (optional) -> listbox + ttk::treeview, backend: sqlite3 (external)
-- tkdialog -> toplevel dialogs, backend: pure Tk (copyable message text)
-- tkbase64 -> text panes, backend (in use): tclutils::tubase64
-- tkstrings -> listbox, backend (in use): tclutils::tustrings
-- tktoolbar -> ttk::frame of buttons, backend: pure Tk
-- tkstatus -> ttk::frame status bar, backend: pure Tk
-- tknotes -> ttk::treeview + editor, backend (in use): tclutils::tunotes
-- tkform -> ttk form controls, backend: pure Tk
-- tktablelist (optional) -> Tablelist megawidget, backend (in use): tclutils::tucsv
-- `tkical` - iCalendar event viewer (on tclutils::tuical).
-- `tkldif` - LDIF entry viewer (on tclutils::tuldif).
-- `tkini` - INI viewer (on tclutils::tuini).
-- `tkvcard` - vCard contact viewer (on tclutils::tuvcard).
+- tkucsv  -> ttk::treeview, backend (in use): tclutils::tucsv
+- tkudiff -> text widget, backend (in use): tclutils::tudiff
+- tkumd   -> ttk::treeview, backend (in use): tclutils::tumd
+- tkujson -> ttk::treeview, backend (in use): tclutils::tujson::parseTyped (0.28.0+)
+- tkucal -> text view, backend (in use): tclutils::tucal
+- tkueditor -> text widget, backend (in use): tclutils::common (file I/O)
+- tkuzip -> ttk::treeview, backend (in use): tclutils::tuzip
+- tkufuzzy -> entry + listbox, backend (in use): tclutils::tufuzzy
+- tkuxml (optional) -> ttk::treeview, backend: tDOM (external)
+- tkusqlite (optional) -> listbox + ttk::treeview, backend: sqlite3 (external)
+- tkudialog -> toplevel dialogs, backend: pure Tk (copyable message text)
+- tkubase64 -> text panes, backend (in use): tclutils::tubase64
+- tkustrings -> listbox, backend (in use): tclutils::tustrings
+- tkutoolbar -> ttk::frame of buttons, backend: pure Tk
+- tkustatus -> ttk::frame status bar, backend: pure Tk
+- tkunotes -> ttk::treeview + editor, backend (in use): tclutils::tunotes
+- tkuform -> ttk form controls, backend: pure Tk
+- tkutablelist (optional) -> Tablelist megawidget, backend (in use): tclutils::tucsv
+- `tkuical` - iCalendar event viewer (on tclutils::tuical).
+- `tkuldif` - LDIF entry viewer (on tclutils::tuldif).
+- `tkuini` - INI viewer (on tclutils::tuini).
+- `tkuvcard` - vCard contact viewer (on tclutils::tuvcard).

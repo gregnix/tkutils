@@ -1,0 +1,57 @@
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+set haveTk 1
+if {[catch {package require Tk 8.6-}]} { set haveTk 0 }
+testConstraint haveTk $haveTk
+set here [file dirname [file normalize [info script]]]
+set tmDir [file normalize [file join $here .. lib tm]]
+tcl::tm::path add $tmDir
+# locate the tclutils dependency for in-tree/dev use
+# (installed systems already have tclutils on the module path)
+if {[info exists ::env(TCLUTILS_TM)]} {
+    tcl::tm::path add $::env(TCLUTILS_TM)
+} else {
+    set _tkuRoot [file dirname [file dirname $tmDir]]
+    foreach _c [lsort -decreasing [glob -nocomplain [file join [file dirname $_tkuRoot] tclutils*/lib/tm]]] {
+        tcl::tm::path add $_c
+        break
+    }
+}
+if {$haveTk} { package require tkutils::tkustrings }
+
+set sample "ab\x00GoodLongString\x00Hi"
+
+test tkustrings-1.1 {default minlength keeps only long strings} -constraints haveTk -body {
+    catch {destroy .s}
+    set w [::tkutils::tkustrings::widget .s]
+    ::tkutils::tkustrings::setData $w $sample
+    ::tkutils::tkustrings::getStrings $w
+} -result GoodLongString
+
+test tkustrings-1.2 {count returned} -constraints haveTk -body {
+    catch {destroy .s}
+    set w [::tkutils::tkustrings::widget .s]
+    ::tkutils::tkustrings::setData $w $sample
+} -result 1
+
+test tkustrings-1.3 {minlength 2 keeps short strings too} -constraints haveTk -body {
+    catch {destroy .s}
+    set w [::tkutils::tkustrings::widget .s]
+    ::tkutils::tkustrings::setData $w $sample -minlength 2
+    ::tkutils::tkustrings::getStrings $w
+} -result {ab GoodLongString Hi}
+
+test tkustrings-1.4 {loadFile} -constraints haveTk -body {
+    catch {destroy .s}
+    set w [::tkutils::tkustrings::widget .s]
+    set f [file join [makeDirectory sd] data.bin]
+    set ch [open $f wb]
+    fconfigure $ch -translation binary -encoding iso8859-1
+    puts -nonewline $ch "xx\x00LongEnoughString\x00"
+    close $ch
+    ::tkutils::tkustrings::loadFile $w $f
+    ::tkutils::tkustrings::getStrings $w
+} -result LongEnoughString
+
+cleanupTests

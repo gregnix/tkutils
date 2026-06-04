@@ -1,0 +1,9 @@
+.TH tkutodo n 0.33.0 tkutils "Tk Utility Widgets"
+.SH NAME
+tkutils::tkutodo \- iCalendar VTODO task-list widget (viewer/editor)
+.SH SYNOPSIS
+package require tkutils::tkutodo
+.SH DESCRIPTION
+See docs/tkutodo.md.
+.SH KEYWORDS
+todo, task, vtodo, icalendar, tuical, treeview

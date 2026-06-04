@@ -1,0 +1,190 @@
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+set haveTk 1
+if {[catch {package require Tk 8.6-}]} { set haveTk 0 }
+testConstraint haveTk $haveTk
+set here [file dirname [file normalize [info script]]]
+set tmDir [file normalize [file join $here .. lib tm]]
+tcl::tm::path add $tmDir
+# locate the tclutils dependency for in-tree/dev use
+# (installed systems already have tclutils on the module path)
+if {[info exists ::env(TCLUTILS_TM)]} {
+    tcl::tm::path add $::env(TCLUTILS_TM)
+} else {
+    set _tkuRoot [file dirname [file dirname $tmDir]]
+    foreach _c [lsort -decreasing [glob -nocomplain [file join [file dirname $_tkuRoot] tclutils*/lib/tm]]] {
+        tcl::tm::path add $_c
+        break
+    }
+}
+if {$haveTk} { package require tkutils::tkueditor }
+
+test tkueditor-1.1 {setText/getText round-trip} -constraints haveTk -body {
+    catch {destroy .e}
+    set w [::tkutils::tkueditor::widget .e]
+    ::tkutils::tkueditor::setText $w "Hello\nWorld"
+    ::tkutils::tkueditor::getText $w
+} -result "Hello\nWorld"
+
+test tkueditor-1.2 {modified flag} -constraints haveTk -body {
+    catch {destroy .e}
+    set w [::tkutils::tkueditor::widget .e]
+    ::tkutils::tkueditor::setText $w "abc"
+    set b [::tkutils::tkueditor::isModified $w]
+    $w.t insert end "X"
+    set c [::tkutils::tkueditor::isModified $w]
+    list $b $c
+} -result {0 1}
+
+test tkueditor-1.3 {find returns index} -constraints haveTk -body {
+    catch {destroy .e}
+    set w [::tkutils::tkueditor::widget .e]
+    ::tkutils::tkueditor::setText $w "foo bar baz"
+    ::tkutils::tkueditor::find $w "bar"
+} -result 1.4
+
+test tkueditor-1.4 {find -nocase} -constraints haveTk -body {
+    catch {destroy .e}
+    set w [::tkutils::tkueditor::widget .e]
+    ::tkutils::tkueditor::setText $w "Hello"
+    list [::tkutils::tkueditor::find $w "hello"] [::tkutils::tkueditor::find $w "hello" -nocase]
+} -result {{} 1.0}
+
+test tkueditor-1.5 {loadFile/saveFile round-trip} -constraints haveTk -body {
+    catch {destroy .e}
+    set w [::tkutils::tkueditor::widget .e]
+    set dir [makeDirectory ed]
+    set in [file join $dir in.txt]
+    set out [file join $dir out.txt]
+    ::tclutils::common::writeFile $in "alpha\nbeta\ngamma\n"
+    ::tkutils::tkueditor::loadFile $w $in
+    ::tkutils::tkueditor::saveFile $w $out
+    expr {[::tclutils::common::readFile $out] eq [::tclutils::common::readFile $in]}
+} -result 1
+
+test tkueditor-2.1 {context menu is a Menu widget} -constraints haveTk -body {
+    catch {destroy .e}
+    set w [::tkutils::tkueditor::widget .e]
+    winfo class [::tkutils::tkueditor::menuWidget $w]
+} -result Menu
+
+test tkueditor-2.2 {menu has standard edit entries} -constraints haveTk -body {
+    catch {destroy .e}
+    set w [::tkutils::tkueditor::widget .e]
+    expr {![catch {$w.ctx index "Copy"}] && ![catch {$w.ctx index "Paste"}]}
+} -result 1
+
+test tkueditor-2.3 {selectAll selects whole buffer} -constraints haveTk -body {
+    catch {destroy .e}
+    set w [::tkutils::tkueditor::widget .e]
+    ::tkutils::tkueditor::setText $w "abcdef"
+    ::tkutils::tkueditor::selectAll $w
+    $w.t tag ranges sel
+} -result {1.0 1.6}
+
+test tkueditor-2.4 {Select All via menu entry} -constraints haveTk -body {
+    catch {destroy .e}
+    set w [::tkutils::tkueditor::widget .e]
+    ::tkutils::tkueditor::setText $w "hello"
+    $w.ctx invoke [$w.ctx index "Select All"]
+    $w.t tag ranges sel
+} -result {1.0 1.5}
+
+test tkueditor-2.5 {Undo via menu entry} -constraints haveTk -body {
+    catch {destroy .e}
+    set w [::tkutils::tkueditor::widget .e]
+    ::tkutils::tkueditor::setText $w "x"
+    $w.t edit separator
+    $w.t insert end-1c "Y"
+    $w.t edit separator
+    $w.ctx invoke [$w.ctx index "Undo"]
+    ::tkutils::tkueditor::getText $w
+} -result x
+
+test tkueditor-2.6 {addMenuItem extends the menu} -constraints haveTk -body {
+    catch {destroy .e}
+    set w [::tkutils::tkueditor::widget .e]
+    ::tkutils::tkueditor::addMenuItem $w "Reformat" {list}
+    expr {![catch {$w.ctx index "Reformat"}]}
+} -result 1
+
+test tkueditor-3.1 {findAll lists every match} -constraints haveTk -body {
+    catch {destroy .e}
+    set w [::tkutils::tkueditor::widget .e]
+    ::tkutils::tkueditor::setText $w "ab ab ab"
+    ::tkutils::tkueditor::findAll $w "ab"
+} -result {1.0 1.3 1.6}
+
+test tkueditor-3.2 {findNext walks matches and wraps} -constraints haveTk -body {
+    catch {destroy .e}
+    set w [::tkutils::tkueditor::widget .e]
+    ::tkutils::tkueditor::setText $w "ab ab"
+    $w.t mark set insert 1.0
+    set a [::tkutils::tkueditor::findNext $w "ab"]
+    set b [::tkutils::tkueditor::findNext $w "ab"]
+    set c [::tkutils::tkueditor::findNext $w "ab"]
+    list $a $b $c
+} -result {1.0 1.3 1.0}
+
+test tkueditor-3.3 {replace first match only} -constraints haveTk -body {
+    catch {destroy .e}
+    set w [::tkutils::tkueditor::widget .e]
+    ::tkutils::tkueditor::setText $w "ab ab ab"
+    set n [::tkutils::tkueditor::replace $w "ab" "X"]
+    list $n [::tkutils::tkueditor::getText $w]
+} -result {1 {X ab ab}}
+
+test tkueditor-3.4 {replace all matches} -constraints haveTk -body {
+    catch {destroy .e}
+    set w [::tkutils::tkueditor::widget .e]
+    ::tkutils::tkueditor::setText $w "ab ab ab"
+    set n [::tkutils::tkueditor::replace $w "ab" "X" -all]
+    list $n [::tkutils::tkueditor::getText $w]
+} -result {3 {X X X}}
+
+test tkueditor-3.5 {replace does not re-match its own replacement} -constraints haveTk -body {
+    catch {destroy .e}
+    set w [::tkutils::tkueditor::widget .e]
+    ::tkutils::tkueditor::setText $w "a a"
+    set n [::tkutils::tkueditor::replace $w "a" "aa" -all]
+    list $n [::tkutils::tkueditor::getText $w]
+} -result {2 {aa aa}}
+
+test tkueditor-3.6 {highlightAll tags all matches} -constraints haveTk -body {
+    catch {destroy .e}
+    set w [::tkutils::tkueditor::widget .e]
+    ::tkutils::tkueditor::setText $w "ab ab"
+    set n [::tkutils::tkueditor::highlightAll $w "ab"]
+    list $n [llength [$w.t tag ranges match]]
+} -result {2 4}
+
+test tkueditor-3.7 {clearHighlight removes the tag ranges} -constraints haveTk -body {
+    catch {destroy .e}
+    set w [::tkutils::tkueditor::widget .e]
+    ::tkutils::tkueditor::setText $w "ab ab"
+    ::tkutils::tkueditor::highlightAll $w "ab"
+    ::tkutils::tkueditor::clearHighlight $w
+    $w.t tag ranges match
+} -result {}
+
+test tkueditor-3.8 {gotoLine moves the cursor; cursor reports it} -constraints haveTk -body {
+    catch {destroy .e}
+    set w [::tkutils::tkueditor::widget .e]
+    ::tkutils::tkueditor::setText $w "l1\nl2\nl3"
+    ::tkutils::tkueditor::gotoLine $w 3
+    ::tkutils::tkueditor::cursor $w
+} -result 3.0
+
+test tkueditor-3.9 {readonly blocks typed edits but setText still works} -constraints haveTk -body {
+    catch {destroy .e}
+    set w [::tkutils::tkueditor::widget .e]
+    ::tkutils::tkueditor::setText $w "x"
+    ::tkutils::tkueditor::readonly $w 1
+    catch {$w.t insert end "Y"}
+    set afterInsert [::tkutils::tkueditor::getText $w]
+    ::tkutils::tkueditor::setText $w "new"
+    list [::tkutils::tkueditor::readonly $w] $afterInsert [::tkutils::tkueditor::getText $w]
+} -result {1 x new}
+
+cleanupTests

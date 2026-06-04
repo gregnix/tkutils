@@ -1,0 +1,73 @@
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+set haveTk 1
+if {[catch {package require Tk 8.6-}]} { set haveTk 0 }
+testConstraint haveTk $haveTk
+set here [file dirname [file normalize [info script]]]
+tcl::tm::path add [file normalize [file join $here .. lib tm]]
+if {$haveTk} { package require tkutils::tkusearchbar }
+
+test tkusearchbar-1.1 {empty initially} -constraints haveTk -body {
+    catch {destroy .s}
+    set w [::tkutils::tkusearchbar::widget .s]
+    ::tkutils::tkusearchbar::getText $w
+} -result ""
+
+test tkusearchbar-1.2 {setText sets text without firing} -constraints haveTk -body {
+    catch {destroy .s}
+    set ::fired 0
+    set w [::tkutils::tkusearchbar::widget .s -command {set ::fired 1}]
+    ::tkutils::tkusearchbar::setText $w abc
+    list [::tkutils::tkusearchbar::getText $w] $::fired
+} -result {abc 0}
+
+test tkusearchbar-1.3 {clear empties and fires} -constraints haveTk -body {
+    catch {destroy .s}
+    set ::got NONE
+    set w [::tkutils::tkusearchbar::widget .s -command [list apply {{t f} {set ::got [list $t $f]}}]]
+    ::tkutils::tkusearchbar::setText $w x
+    ::tkutils::tkusearchbar::clear $w
+    list [::tkutils::tkusearchbar::getText $w] $::got
+} -result {{} {{} {}}}
+
+test tkusearchbar-2.1 {debounced fire delivers text after the delay} -constraints haveTk -body {
+    catch {destroy .s}
+    set ::got NONE
+    set w [::tkutils::tkusearchbar::widget .s -delay 40 \
+        -command [list apply {{t f} {set ::got [list $t $f]}}]]
+    ::tkutils::tkusearchbar::setText $w hello
+    ::tkutils::tkusearchbar::_onChange $w
+    after 130 {set ::wait 1}; vwait ::wait
+    set ::got
+} -result {hello {}}
+
+test tkusearchbar-2.2 {Return-style fire is immediate} -constraints haveTk -body {
+    catch {destroy .s}
+    set ::got NONE
+    set w [::tkutils::tkusearchbar::widget .s \
+        -command [list apply {{t f} {set ::got [list $t $f]}}]]
+    ::tkutils::tkusearchbar::setText $w q
+    ::tkutils::tkusearchbar::_fire $w
+    set ::got
+} -result {q {}}
+
+test tkusearchbar-3.1 {filters: default is first; setFilter changes} -constraints haveTk -body {
+    catch {destroy .s}
+    set w [::tkutils::tkusearchbar::widget .s -filters {All Active Done}]
+    set a [::tkutils::tkusearchbar::getFilter $w]
+    ::tkutils::tkusearchbar::setFilter $w Done
+    list $a [::tkutils::tkusearchbar::getFilter $w]
+} -result {All Done}
+
+test tkusearchbar-3.2 {command receives text and filter} -constraints haveTk -body {
+    catch {destroy .s}
+    set ::got NONE
+    set w [::tkutils::tkusearchbar::widget .s -filters {A B} \
+        -command [list apply {{t f} {set ::got [list $t $f]}}]]
+    ::tkutils::tkusearchbar::setText $w z
+    ::tkutils::tkusearchbar::_fire $w
+    set ::got
+} -result {z A}
+
+cleanupTests

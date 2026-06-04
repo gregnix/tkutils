@@ -1,0 +1,165 @@
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+set haveTk 1
+if {[catch {package require Tk 8.6-}]} { set haveTk 0 }
+testConstraint haveTk $haveTk
+set here [file dirname [file normalize [info script]]]
+set tmDir [file normalize [file join $here .. lib tm]]
+tcl::tm::path add $tmDir
+# locate the tclutils dependency for in-tree/dev use
+# (installed systems already have tclutils on the module path)
+if {[info exists ::env(TCLUTILS_TM)]} {
+    tcl::tm::path add $::env(TCLUTILS_TM)
+} else {
+    set _tkuRoot [file dirname [file dirname $tmDir]]
+    foreach _c [lsort -decreasing [glob -nocomplain [file join [file dirname $_tkuRoot] tclutils*/lib/tm]]] {
+        tcl::tm::path add $_c
+        break
+    }
+}
+set haveNotes 1
+if {[catch {package require tclutils::tunotes 0.1}]} { set haveNotes 0 }
+testConstraint notes [expr {$haveTk && $haveNotes}]
+if {$haveTk && $haveNotes} { package require tkutils::tkunotes }
+
+test tkunotes-1.1 {addRoot returns id, count} -constraints notes -body {
+    catch {destroy .n}
+    set w [::tkutils::tkunotes::widget .n]
+    set id [::tkutils::tkunotes::addRoot $w "First" "body"]
+    list [::tkutils::tkunotes::count $w] [expr {$id ne ""}]
+} -result {1 1}
+
+test tkunotes-1.2 {addChild nests in the tree} -constraints notes -body {
+    catch {destroy .n}
+    set w [::tkutils::tkunotes::widget .n]
+    set r [::tkutils::tkunotes::addRoot $w "Root" ""]
+    set c [::tkutils::tkunotes::addChild $w $r "Kid" ""]
+    set tv [::tkutils::tkunotes::treeWidget $w]
+    list [llength [$tv children {}]] [llength [$tv children $r]] \
+         [expr {[$tv parent $c] eq $r}]
+} -result {1 1 1}
+
+test tkunotes-1.3 {select loads editor title} -constraints notes -body {
+    catch {destroy .n}
+    set w [::tkutils::tkunotes::widget .n]
+    set r [::tkutils::tkunotes::addRoot $w "Hello" "text"]
+    ::tkutils::tkunotes::select $w $r
+    set ::tkutils::tkunotes::state($w,title)
+} -result Hello
+
+test tkunotes-1.4 {commit persists editor edits} -constraints notes -body {
+    catch {destroy .n}
+    set w [::tkutils::tkunotes::widget .n]
+    set r [::tkutils::tkunotes::addRoot $w "Old" "oldbody"]
+    ::tkutils::tkunotes::select $w $r
+    set ::tkutils::tkunotes::state($w,title) "New Title"
+    set ::tkutils::tkunotes::state($w,tags) "a b"
+    $w.pw.r.content delete 1.0 end
+    $w.pw.r.content insert end "fresh body"
+    ::tkutils::tkunotes::commit $w
+    set n [::tclutils::tunotes::get [::tkutils::tkunotes::store $w] $r]
+    list [dict get $n title] [dict get $n tags] [dict get $n content]
+} -result {{New Title} {a b} {fresh body}}
+
+test tkunotes-1.5 {delete cascade clears subtree} -constraints notes -body {
+    catch {destroy .n}
+    set w [::tkutils::tkunotes::widget .n]
+    set r [::tkutils::tkunotes::addRoot $w "R" ""]
+    ::tkutils::tkunotes::addChild $w $r "C" ""
+    ::tkutils::tkunotes::delete $w $r 1
+    ::tkutils::tkunotes::count $w
+} -result 0
+
+test tkunotes-1.6 {search finds by content} -constraints notes -body {
+    catch {destroy .n}
+    set w [::tkutils::tkunotes::widget .n]
+    ::tkutils::tkunotes::addRoot $w "Alpha" "needle here"
+    ::tkutils::tkunotes::addRoot $w "Beta" "nothing"
+    llength [::tkutils::tkunotes::search $w "needle"]
+} -result 1
+
+test tkunotes-1.7 {save/load file round-trip} -constraints notes -body {
+    catch {destroy .n}
+    set w [::tkutils::tkunotes::widget .n]
+    set r [::tkutils::tkunotes::addRoot $w "Root" "x"]
+    ::tkutils::tkunotes::addChild $w $r "Kid" "y"
+    set f [file join [makeDirectory nd] notes.json]
+    ::tkutils::tkunotes::save $w $f
+    catch {destroy .n2}
+    set w2 [::tkutils::tkunotes::widget .n2]
+    set loaded [::tkutils::tkunotes::load $w2 $f]
+    set tv [::tkutils::tkunotes::treeWidget $w2]
+    list $loaded [llength [$tv children {}]] [llength [$tv children $r]]
+} -result {2 1 1}
+
+test tkunotes-1.8 {store getter returns the note dict} -constraints notes -body {
+    catch {destroy .n}
+    set w [::tkutils::tkunotes::widget .n]
+    set r [::tkutils::tkunotes::addRoot $w "T" "B"]
+    dict get [::tclutils::tunotes::get [::tkutils::tkunotes::store $w] $r] title
+} -result T
+
+test tkunotes-2.1 {-toolbar 0 hides the built-in bar but ops still work} -constraints notes -body {
+    catch {destroy .n}
+    set w [::tkutils::tkunotes::widget .n -toolbar 0]
+    set id [::tkutils::tkunotes::addRoot $w "X" ""]
+    list [winfo exists $w.bar] [::tkutils::tkunotes::count $w]
+} -result {0 1}
+
+test tkunotes-2.2 {move reparents within the widget} -constraints notes -body {
+    catch {destroy .n}
+    set w [::tkutils::tkunotes::widget .n]
+    set r1 [::tkutils::tkunotes::addRoot $w "R1" ""]
+    set r2 [::tkutils::tkunotes::addRoot $w "R2" ""]
+    set c  [::tkutils::tkunotes::addChild $w $r1 "C" ""]
+    ::tkutils::tkunotes::move $w $c $r2
+    set tv [::tkutils::tkunotes::treeWidget $w]
+    list [expr {[$tv parent $c] eq $r2}] [llength [$tv children $r1]]
+} -result {1 0}
+
+test tkunotes-2.1 {expandAll / collapseAll toggle -open} -constraints haveTk -body {
+    catch {destroy .n}
+    set w [::tkutils::tkunotes::widget .n]
+    set r [::tkutils::tkunotes::addRoot $w "r" ""]
+    ::tkutils::tkunotes::addChild $w $r "c" ""
+    ::tkutils::tkunotes::collapseAll $w
+    set tv [::tkutils::tkunotes::treeWidget $w]
+    set o1 [$tv item $r -open]
+    ::tkutils::tkunotes::expandAll $w
+    set o2 [$tv item $r -open]
+    list $o1 $o2
+} -result {0 1}
+
+test tkunotes-2.2 {tags + byTag} -constraints haveTk -body {
+    catch {destroy .n}
+    set w [::tkutils::tkunotes::widget .n]
+    set a [::tkutils::tkunotes::addRoot $w "a" ""]
+    ::tkutils::tkunotes::addTag $w $a urgent
+    list [::tkutils::tkunotes::tags $w] [expr {[::tkutils::tkunotes::byTag $w urgent] eq $a}]
+} -result {urgent 1}
+
+test tkunotes-2.3 {addTag / removeTag reflect in store} -constraints haveTk -body {
+    catch {destroy .n}
+    set w [::tkutils::tkunotes::widget .n]
+    set a [::tkutils::tkunotes::addRoot $w "a" ""]
+    ::tkutils::tkunotes::addTag $w $a x
+    ::tkutils::tkunotes::addTag $w $a y
+    ::tkutils::tkunotes::removeTag $w $a x
+    dict get [::tclutils::tunotes::get [::tkutils::tkunotes::store $w] $a] tags
+} -result y
+
+test tkunotes-2.4 {subtree + saveSubtree round-trip} -constraints haveTk -body {
+    catch {destroy .n}
+    set w [::tkutils::tkunotes::widget .n]
+    set r [::tkutils::tkunotes::addRoot $w "r" ""]
+    set c [::tkutils::tkunotes::addChild $w $r "c" ""]
+    ::tkutils::tkunotes::addChild $w $c "g" ""
+    set n1 [dict size [::tkutils::tkunotes::subtree $w $c]]
+    set ffile [file join [makeDirectory ntd] sub.json]
+    ::tkutils::tkunotes::saveSubtree $w $c $ffile
+    set n2 [::tclutils::tunotes::count [::tclutils::tunotes::load $ffile]]
+    list $n1 $n2
+} -result {2 2}
+
+cleanupTests

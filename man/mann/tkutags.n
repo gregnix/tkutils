@@ -1,0 +1,15 @@
+.TH tkutags n 0.29.0 tkutils "Tcl/Tk Utility Library"
+.SH NAME
+tkutils::tkutags \- tag editor with removable chips
+.SH SYNOPSIS
+package require tkutils::tkutags
+.br
+set w [::tkutils::tkutags::widget .t]
+.SH DESCRIPTION
+Tags shown as removable chips plus an input row (combobox with \-suggestions,
+else entry). Duplicates and blanks ignored; \-readonly omits editing controls.
+See docs/tkutags.md.
+.SH "SEE ALSO"
+tkutils::tkuform(n)
+.SH KEYWORDS
+Tk, widget, tags, chips

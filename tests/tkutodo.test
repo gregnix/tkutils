@@ -1,0 +1,93 @@
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+set haveTk 1
+if {[catch {package require Tk 8.6-}]} { set haveTk 0 }
+set here [file dirname [file normalize [info script]]]
+set tmDir [file normalize [file join $here .. lib tm]]
+tcl::tm::path add $tmDir
+if {[info exists ::env(TCLUTILS_TM)]} {
+    tcl::tm::path add $::env(TCLUTILS_TM)
+} else {
+    set _tkuRoot [file dirname [file dirname $tmDir]]
+    foreach _c [lsort -decreasing [glob -nocomplain [file join [file dirname $_tkuRoot] tclutils*/lib/tm]]] {
+        tcl::tm::path add $_c
+        break
+    }
+}
+set haveEng [expr {$haveTk && ![catch {package require tclutils::tuical 0.1}]}]
+testConstraint ical $haveEng
+if {$haveEng} { package require tkutils::tkutodo }
+
+set ICS "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VTODO\r\nUID:a\r\nSUMMARY:Open task\r\nSTATUS:NEEDS-ACTION\r\nPRIORITY:3\r\nDUE:20260110T000000Z\r\nEND:VTODO\r\nBEGIN:VTODO\r\nUID:b\r\nSUMMARY:Done task\r\nSTATUS:COMPLETED\r\nPERCENT-COMPLETE:100\r\nEND:VTODO\r\nEND:VCALENDAR\r\n"
+
+test tkutodo-1 {widget builds and loadText counts VTODOs} -constraints ical -body {
+    catch {destroy .t}
+    ::tkutils::tkutodo::widget .t
+    set n [::tkutils::tkutodo::loadText .t $ICS]
+    set r [list $n [::tkutils::tkutodo::count .t] [winfo exists .t.tv]]
+    destroy .t; set r
+} -result {2 2 1}
+
+test tkutodo-2 {rows render: open has no mark, completed shows check} -constraints ical -body {
+    catch {destroy .t}
+    ::tkutils::tkutodo::widget .t
+    ::tkutils::tkutodo::loadText .t $ICS
+    set tv .t.tv
+    set items [$tv children {}]
+    set r [list [$tv set [lindex $items 0] status] \
+                [expr {[$tv set [lindex $items 1] status] eq "\u2713"}] \
+                [$tv set [lindex $items 0] due]]
+    destroy .t; set r
+} -result {{} 1 20260110T000000Z}
+
+test tkutodo-3 {toggle marks the selected task done} -constraints ical -body {
+    catch {destroy .t}
+    ::tkutils::tkutodo::widget .t
+    ::tkutils::tkutodo::loadText .t $ICS
+    set tv .t.tv
+    $tv selection set [lindex [$tv children {}] 0]
+    ::tkutils::tkutodo::_onSelect .t
+    ::tkutils::tkutodo::toggle .t
+    set comp [lindex [::tkutils::tkutodo::todos .t] 0]
+    set r [list [::tclutils::tuical::property $comp STATUS] \
+                [::tclutils::tuical::property $comp PERCENT-COMPLETE] \
+                [expr {[::tclutils::tuical::property $comp COMPLETED] ne ""}]]
+    destroy .t; set r
+} -result {COMPLETED 100 1}
+
+test tkutodo-4 {toggle back to open clears completion} -constraints ical -body {
+    catch {destroy .t}
+    ::tkutils::tkutodo::widget .t
+    ::tkutils::tkutodo::loadText .t $ICS
+    ::tkutils::tkutodo::toggle .t 0
+    ::tkutils::tkutodo::toggle .t 0
+    set comp [lindex [::tkutils::tkutodo::todos .t] 0]
+    set r [list [::tclutils::tuical::property $comp STATUS] \
+                [::tclutils::tuical::property $comp PERCENT-COMPLETE] \
+                [::tclutils::tuical::property $comp COMPLETED]]
+    destroy .t; set r
+} -result {NEEDS-ACTION 0 {}}
+
+test tkutodo-5 {onchange callback fires on toggle} -constraints ical -body {
+    catch {destroy .t}
+    set ::tktodo_changed 0
+    ::tkutils::tkutodo::widget .t -onchange {apply {{p} {incr ::tktodo_changed}}}
+    ::tkutils::tkutodo::loadText .t $ICS
+    ::tkutils::tkutodo::toggle .t 1
+    set r $::tktodo_changed
+    destroy .t; set r
+} -result 1
+
+test tkutodo-6 {todos round-trips through toIcs} -constraints ical -body {
+    catch {destroy .t}
+    ::tkutils::tkutodo::widget .t
+    ::tkutils::tkutodo::loadText .t $ICS
+    ::tkutils::tkutodo::toggle .t 0
+    set ics [::tclutils::tuical::toIcs [list {*}[::tkutils::tkutodo::todos .t]]]
+    set back [::tclutils::tuical::todos [::tclutils::tuical::parse $ics]]
+    set r [::tclutils::tuical::property [lindex $back 0] STATUS]
+    destroy .t; set r
+} -result COMPLETED
+
+cleanupTests

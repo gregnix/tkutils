@@ -1,0 +1,13 @@
+.TH tkunumentry n 0.30.0 tkutils "Tcl/Tk Utility Library"
+.SH NAME
+tkutils::tkunumentry \- validated numeric entry with decimals and min/max
+.SH SYNOPSIS
+package require tkutils::tkunumentry
+.br
+set w [::tkutils::tkunumentry::widget .w]
+.SH DESCRIPTION
+See docs/tkunumentry.md.
+.SH "SEE ALSO"
+tkutils::tkuform(n), tclutils(n)
+.SH KEYWORDS
+Tk, widget, number, currency

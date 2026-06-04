@@ -1,0 +1,13 @@
+.TH tkucal n 0.28.0 tkutils "Tcl/Tk Utility Library"
+.SH NAME
+tkutils::tkucal \- calendar view
+.SH SYNOPSIS
+package require tkutils::tkucal
+.br
+set w [::tkutils::tkucal::widget .w]
+.SH DESCRIPTION
+Tk front-end built on the tclutils calendar engine (tucal). See docs/tkucal.md.
+.SH "SEE ALSO"
+tclutils(n)
+.SH KEYWORDS
+Tk, widget, calendar

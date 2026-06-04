@@ -1,0 +1,10 @@
+.TH tkuvcard n 0.28.0 tkutils "Tcl/Tk Utility Library"
+.SH NAME
+tkutils::tkuvcard \- vCard contact viewer
+.SH SYNOPSIS
+package require tkutils::tkuvcard
+.SH DESCRIPTION
+Shows vCard contacts in a tree (FN nodes with property children), via
+tclutils::tuvcard. See docs/tkuvcard.md.
+.SH KEYWORDS
+Tk, widget, vcard, contacts

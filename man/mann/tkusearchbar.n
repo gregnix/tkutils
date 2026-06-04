@@ -1,0 +1,14 @@
+.TH tkusearchbar n 0.29.0 tkutils "Tcl/Tk Utility Library"
+.SH NAME
+tkutils::tkusearchbar \- search bar with debounce and optional filter
+.SH SYNOPSIS
+package require tkutils::tkusearchbar
+.br
+set w [::tkutils::tkusearchbar::widget .s -command cmd]
+.SH DESCRIPTION
+Entry with a debounced change callback, a clear button, and an optional filter
+drop-down. \-command is called as "cmd text filter". See docs/tkusearchbar.md.
+.SH "SEE ALSO"
+tkutils::tkutablelist(n), tkutils::tkueditor(n)
+.SH KEYWORDS
+Tk, widget, search, filter

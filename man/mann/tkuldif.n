@@ -1,0 +1,10 @@
+.TH tkuldif n 0.28.0 tkutils "Tcl/Tk Utility Library"
+.SH NAME
+tkutils::tkuldif \- LDIF entry viewer
+.SH SYNOPSIS
+package require tkutils::tkuldif
+.SH DESCRIPTION
+Shows LDIF entries in a tree (dn nodes with attribute children), via
+tclutils::tuldif. See docs/tkuldif.md.
+.SH KEYWORDS
+Tk, widget, ldif, ldap

@@ -1,0 +1,9 @@
+.TH tkuimage n 0.32.0 tkutils "Tk Utility Widgets"
+.SH NAME
+tkutils::tkuimage \- image fit/scale/thumbnail helpers and a zoom/scroll viewer
+.SH SYNOPSIS
+package require tkutils::tkuimage
+.SH DESCRIPTION
+See docs/tkuimage.md.
+.SH KEYWORDS
+image, photo, scale, thumbnail, zoom, viewer, imgtools

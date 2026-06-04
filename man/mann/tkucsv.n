@@ -1,0 +1,13 @@
+.TH tkucsv n 0.28.0 tkutils "Tcl/Tk Utility Library"
+.SH NAME
+tkutils::tkucsv \- CSV table viewer
+.SH SYNOPSIS
+package require tkutils::tkucsv
+.br
+set w [::tkutils::tkucsv::widget .w]
+.SH DESCRIPTION
+Tk front-end built on the tclutils engine. See docs/tkucsv.md for the full API.
+.SH "SEE ALSO"
+tclutils(n)
+.SH KEYWORDS
+Tk, widget

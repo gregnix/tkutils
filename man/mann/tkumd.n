@@ -1,0 +1,13 @@
+.TH tkumd n 0.28.0 tkutils "Tcl/Tk Utility Library"
+.SH NAME
+tkutils::tkumd \- Markdown outline viewer
+.SH SYNOPSIS
+package require tkutils::tkumd
+.br
+set w [::tkutils::tkumd::widget .w]
+.SH DESCRIPTION
+Tk front-end built on the tclutils Markdown engine (tumd). See docs/tkumd.md.
+.SH "SEE ALSO"
+tclutils(n)
+.SH KEYWORDS
+Tk, widget, markdown

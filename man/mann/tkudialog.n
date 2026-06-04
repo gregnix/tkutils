@@ -1,0 +1,15 @@
+.TH tkudialog n 0.28.0 tkutils "Tcl/Tk Utility Library"
+.SH NAME
+tkutils::tkudialog \- dialogs with copyable message text
+.SH SYNOPSIS
+package require tkutils::tkudialog
+.br
+::tkutils::tkudialog::showInfo message
+.SH DESCRIPTION
+Modal dialogs whose message text is selectable and copyable, with a generic
+builder (build/show) and ready-made variants (showInfo, showWarning, showError,
+confirm, input). See docs/tkudialog.md.
+.SH "SEE ALSO"
+tclutils(n)
+.SH KEYWORDS
+Tk, dialog, clipboard

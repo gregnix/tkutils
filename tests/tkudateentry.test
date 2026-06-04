@@ -1,0 +1,69 @@
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+set haveTk 1
+if {[catch {package require Tk 8.6-}]} { set haveTk 0 }
+testConstraint haveTk $haveTk
+set here [file dirname [file normalize [info script]]]
+tcl::tm::path add [file normalize [file join $here .. lib tm]]
+if {$haveTk} { package require tkutils::tkudateentry }
+
+test tkudateentry-1.1 {setDate/getDate round-trip (ISO)} -constraints haveTk -body {
+    catch {destroy .de}
+    set w [::tkutils::tkudateentry::widget .de]
+    ::tkutils::tkudateentry::setDate $w 2024-03-15
+    list [::tkutils::tkudateentry::getText $w] [::tkutils::tkudateentry::getDate $w]
+} -result {2024-03-15 2024-03-15}
+
+test tkudateentry-1.2 {custom -dateformat: text formatted, getDate ISO} -constraints haveTk -body {
+    catch {destroy .de}
+    set w [::tkutils::tkudateentry::widget .de -dateformat "%d.%m.%Y"]
+    ::tkutils::tkudateentry::setDate $w 2024-03-15
+    list [::tkutils::tkudateentry::getText $w] [::tkutils::tkudateentry::getDate $w]
+} -result {15.03.2024 2024-03-15}
+
+test tkudateentry-1.3 {clear empties; getDate is ""} -constraints haveTk -body {
+    catch {destroy .de}
+    set w [::tkutils::tkudateentry::widget .de]
+    ::tkutils::tkudateentry::setDate $w 2024-03-15
+    ::tkutils::tkudateentry::clear $w
+    list [::tkutils::tkudateentry::getText $w] [::tkutils::tkudateentry::getDate $w]
+} -result {{} {}}
+
+test tkudateentry-1.4 {today matches system date} -constraints haveTk -body {
+    catch {destroy .de}
+    set w [::tkutils::tkudateentry::widget .de]
+    ::tkutils::tkudateentry::today $w
+    expr {[::tkutils::tkudateentry::getDate $w] eq [clock format [clock seconds] -format %Y-%m-%d]}
+} -result 1
+
+test tkudateentry-1.5 {invalid ISO errors} -constraints haveTk -body {
+    catch {destroy .de}
+    set w [::tkutils::tkudateentry::widget .de]
+    catch {::tkutils::tkudateentry::setDate $w "nope"} e o
+    dict get $o -errorcode
+} -result {TKUTILS TKDATEENTRY DATE}
+
+test tkudateentry-2.1 {popup opens and a pick sets the date, fires -command, closes} -constraints haveTk -body {
+    catch {destroy .de}
+    set ::picked ""
+    set w [::tkutils::tkudateentry::widget .de -command {set ::picked}]
+    ::tkutils::tkudateentry::setDate $w 2024-03-15
+    ::tkutils::tkudateentry::_show $w
+    set opened [winfo exists $w.pop]
+    ::tkutils::tkudateentry::_pick $w 2024-03-20
+    list $opened [winfo exists $w.pop] [::tkutils::tkudateentry::getDate $w] $::picked
+} -result {1 0 2024-03-20 2024-03-20}
+
+test tkudateentry-2.2 {month navigation wraps the year} -constraints haveTk -body {
+    catch {destroy .de}
+    set w [::tkutils::tkudateentry::widget .de]
+    ::tkutils::tkudateentry::setDate $w 2024-12-10
+    ::tkutils::tkudateentry::_show $w
+    ::tkutils::tkudateentry::_nav $w 1
+    set r [list $::tkutils::tkudateentry::state($w,py) $::tkutils::tkudateentry::state($w,pm)]
+    ::tkutils::tkudateentry::_hide $w
+    set r
+} -result {2025 1}
+
+cleanupTests

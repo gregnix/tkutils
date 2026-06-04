@@ -1,0 +1,13 @@
+.TH tkutimeentry n 0.30.0 tkutils "Tcl/Tk Utility Library"
+.SH NAME
+tkutils::tkutimeentry \- time entry (HH:MM[:SS]) with spinboxes
+.SH SYNOPSIS
+package require tkutils::tkutimeentry
+.br
+set w [::tkutils::tkutimeentry::widget .w]
+.SH DESCRIPTION
+See docs/tkutimeentry.md.
+.SH "SEE ALSO"
+tkutils::tkucal(n), tclutils(n)
+.SH KEYWORDS
+Tk, widget, time, spinbox
