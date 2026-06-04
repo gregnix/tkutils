@@ -26,3 +26,11 @@ tkvcard::removeProperty $w cardIndex propIndex
 tkvcard::toText         $w           ;# current contacts as vCard text
 tkvcard::save           $w file
 ```
+
+## Photo pane
+
+The widget shows a photo pane to the right of the tree. When a contact is
+selected, its `PHOTO` is rendered: inline PNG/GIF photos appear as a thumbnail
+(via `tuvcard::photo` + `tkutils::tkimage`), URI photos are shown as text, and
+formats Tk cannot decode (e.g. JPEG without the Img extension) show a note.
+The `-photosize` option (default 120) sets the thumbnail box in pixels.

@@ -1,0 +1,119 @@
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+set haveTk 1
+if {[catch {package require Tk 8.6-}]} { set haveTk 0 }
+set here [file dirname [file normalize [info script]]]
+set tmDir [file normalize [file join $here .. lib tm]]
+tcl::tm::path add $tmDir
+if {[info exists ::env(TCLUTILS_TM)]} {
+    tcl::tm::path add $::env(TCLUTILS_TM)
+} else {
+    set _r [file dirname [file dirname $tmDir]]
+    foreach _c [lsort -decreasing [glob -nocomplain [file join [file dirname $_r] tclutils*/lib/tm]]] {
+        tcl::tm::path add $_c; break
+    }
+}
+set haveEng [expr {$haveTk && ![catch {package require tclutils::tudav 0.1}]}]
+testConstraint dav $haveEng
+if {$haveEng} { package require tkutils::tkdavbrowser }
+
+set COLS {
+    {href /u/cal1/ displayname Personal kind calendar}
+    {href /u/cal2/ displayname Work     kind calendar}
+    {href /u/ab1/  displayname Contacts kind addressbook}
+}
+
+test tkdavbrowser-1 {widget builds; nothing selected} -constraints dav -body {
+    catch {destroy .b}
+    ::tkutils::tkdavbrowser::widget .b
+    set r [list [winfo exists .b.tv] [::tkutils::tkdavbrowser::selected .b]]
+    destroy .b; set r
+} -result {1 {}}
+
+test tkdavbrowser-2 {setData groups collections by kind} -constraints dav -body {
+    catch {destroy .b}
+    ::tkutils::tkdavbrowser::widget .b
+    set n [::tkutils::tkdavbrowser::setData .b $COLS]
+    set tv .b.tv
+    set groups [$tv children {}]
+    set labels {}
+    set counts {}
+    foreach g $groups {
+        lappend labels [$tv item $g -text]
+        lappend counts [llength [$tv children $g]]
+    }
+    set r [list $n $labels $counts]
+    destroy .b; set r
+} -result {3 {Calendars {Address Books}} {2 1}}
+
+test tkdavbrowser-3 {selecting a collection fires -oncollection} -constraints dav -body {
+    catch {destroy .b}
+    set ::dbsel {}
+    ::tkutils::tkdavbrowser::widget .b -oncollection {apply {{w info} {set ::dbsel $info}}}
+    ::tkutils::tkdavbrowser::setData .b $COLS
+    set tv .b.tv
+    set g [lindex [$tv children {}] 0]
+    set c [lindex [$tv children $g] 1]
+    $tv selection set $c
+    ::tkutils::tkdavbrowser::_onSelect .b
+    set r [list [dict get $::dbsel kind] [dict get $::dbsel displayname] \
+                [dict get [::tkutils::tkdavbrowser::selected .b] href]]
+    destroy .b; set r
+} -result {calendar Work /u/cal2/}
+
+test tkdavbrowser-4 {refresh without a client errors} -constraints dav -body {
+    catch {destroy .b}
+    ::tkutils::tkdavbrowser::widget .b
+    catch {::tkutils::tkdavbrowser::refresh .b} e o
+    destroy .b
+    dict get $o -errorcode
+} -result {TKUTILS TKDAVBROWSER NOCLIENT}
+
+test tkdavbrowser-5 {empty displayname falls back to href leaf} -constraints dav -body {
+    catch {destroy .b}
+    ::tkutils::tkdavbrowser::widget .b
+    ::tkutils::tkdavbrowser::setData .b {{href /u/work/ displayname {} kind addressbook}}
+    set tv .b.tv
+    set g [lindex [$tv children {}] 0]
+    set r [$tv item [lindex [$tv children $g] 0] -text]
+    destroy .b; set r
+} -result work
+
+test tkdavbrowser-6 {collections returns the flat list} -constraints dav -body {
+    catch {destroy .b}
+    ::tkutils::tkdavbrowser::widget .b
+    ::tkutils::tkdavbrowser::setData .b $COLS
+    set r [llength [::tkutils::tkdavbrowser::collections .b]]
+    destroy .b; set r
+} -result 3
+
+test tkdavbrowser-7 {editable build adds the provisioning bar} -constraints dav -body {
+    catch {destroy .b}
+    ::tkutils::tkdavbrowser::widget .b -editable 1
+    set r [list [winfo exists .b.bb.nc] [winfo exists .b.bb.del]]
+    destroy .b; set r
+} -result {1 1}
+
+test tkdavbrowser-8 {_slug normalises a display name} -constraints dav -body {
+    list [::tkutils::tkdavbrowser::_slug "My Calendar!"]          [::tkutils::tkdavbrowser::_slug "  Work / Home  "]
+} -result {my-calendar work-home}
+
+test tkdavbrowser-9 {createCalendar without client errors} -constraints dav -body {
+    catch {destroy .b}
+    ::tkutils::tkdavbrowser::widget .b
+    catch {::tkutils::tkdavbrowser::createCalendar .b X} e o
+    destroy .b
+    dict get $o -errorcode
+} -result {TKUTILS TKDAVBROWSER NOCLIENT}
+
+test tkdavbrowser-10 {createCalendar before refresh errors NOHOME} -constraints dav -body {
+    catch {destroy .b}
+    ::tkutils::tkdavbrowser::widget .b
+    ::tkutils::tkdavbrowser::setClient .b dummyClient
+    catch {::tkutils::tkdavbrowser::createCalendar .b X} e o
+    destroy .b
+    dict get $o -errorcode
+} -result {TKUTILS TKDAVBROWSER NOHOME}
+
+cleanupTests

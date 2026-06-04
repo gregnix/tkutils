@@ -1,4 +1,4 @@
-# tkutils 0.33.0
+# tkutils 0.34.0
 
 `tkutils` is a collection of Tcl/Tk GUI widgets that sit on top of the pure-Tcl
 engines in [`tclutils`](../tclutils-0.41.0/). It is intentionally separate from
@@ -6,7 +6,7 @@ engines in [`tclutils`](../tclutils-0.41.0/). It is intentionally separate from
 
 - **Rule:** the engine lives in `tclutils`, the GUI in `tkutils`. Each widget is
   a package `tkutils::tk<name>` (file `lib/tm/tkutils/tk<name>-0.1.tm`).
-- **Tcl/Tk:** 8.6+ and 9.x. The umbrella package loads the **22 core widgets**;
+- **Tcl/Tk:** 8.6+ and 9.x. The umbrella package loads the **23 core widgets**;
   optional widgets that need external packages are not in the umbrella.
 
 ## Install / path setup
@@ -64,6 +64,7 @@ package require tkutils::tknotes   ;# or a single widget
 | `tktree`    | Tk        | ttk::treeview wrapper (load nested data, selection) |
 | `tkimage`   | Tk (imgtools opt.) | image fit/scale/thumbnail + zoom/scroll viewer |
 | `tktodo`    | tuical    | iCalendar VTODO task list (toggle done, due/priority/%) |
+| `tkdavbrowser` | tudav  | read-only CalDAV/CardDAV collection browser (grouped, selection callback) |
 | `tkdavaccount`| tudav   | DAV account form + connection test (PROPFIND) |
 
 `tkical`, `tkldif`, `tkini`, `tkvcard` accept `-editable 0` for a read-only view.

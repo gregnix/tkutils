@@ -30,4 +30,8 @@ package require tkutils::tksearchbar 0.1
 package require tkutils::tktimeentry 0.1
 package require tkutils::tknumentry 0.1
 package require tkutils::tktree 0.1
-package provide tkutils 0.30.0
+package require tkutils::tkdavaccount 0.1
+package require tkutils::tkimage 0.1
+package require tkutils::tktodo 0.1
+package require tkutils::tkdavbrowser 0.1
+package provide tkutils 0.34.0

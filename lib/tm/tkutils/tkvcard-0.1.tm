@@ -8,6 +8,7 @@
 package require Tcl 8.6-
 package require Tk 8.6-
 package require tclutils::tuvcard 0.1
+package require tkutils::tkimage 0.1
 
 namespace eval ::tkutils {}
 namespace eval ::tkutils::tkvcard {
@@ -18,16 +19,21 @@ namespace eval ::tkutils::tkvcard {
 
 proc ::tkutils::tkvcard::_cleanup {path w} {
     variable state
-    if {$w eq $path} { array unset state $path,* }
+    if {$w eq $path} {
+        catch {image delete $state($path,photoimg)}
+        array unset state $path,*
+    }
 }
 
 proc ::tkutils::tkvcard::widget {path args} {
     variable state
-    array set o {-editable 1}
+    array set o {-editable 1 -photosize 120}
     array set o $args
     ttk::frame $path
     set state($path,cards) {}
     set state($path,editable) $o(-editable)
+    set state($path,photosize) $o(-photosize)
+    set state($path,photoimg) ""
     set state($path,curCard) -1
     set state($path,curProp) -1
     set state($path,ename) ""
@@ -45,9 +51,14 @@ proc ::tkutils::tkvcard::widget {path args} {
     $tv column type -width 90 -anchor w
     $tv tag configure card -foreground "#1a4f8b"
     ttk::scrollbar $path.ys -orient vertical -command [list $tv yview]
-    grid $tv $path.ys -sticky nsew
+    ttk::label $path.photo -anchor center -justify center \
+        -relief solid -borderwidth 1 -width 16 -text "(no contact)"
+    grid $tv         -row 0 -column 0 -sticky nsew
+    grid $path.ys    -row 0 -column 1 -sticky ns
+    grid $path.photo -row 0 -column 2 -sticky n -padx 6 -pady 6
     grid rowconfigure $path 0 -weight 1
     grid columnconfigure $path 0 -weight 1
+    bind $tv <<TreeviewSelect>> [list ::tkutils::tkvcard::_onSelect $path]
 
     if {$state($path,editable)} {
         set eb $path.eb
@@ -67,8 +78,7 @@ proc ::tkutils::tkvcard::widget {path args} {
         pack $eb.nl $eb.ne $eb.vl $eb.ve $eb.tl $eb.te $eb.set $eb.add $eb.del \
             $eb.sep $eb.ac $eb.dc -side left -padx 2 -pady 3
         pack $eb.sep -fill y -padx 6
-        grid $eb - -sticky ew -row 1 -column 0 -columnspan 2
-        bind $tv <<TreeviewSelect>> [list ::tkutils::tkvcard::_onSelect $path]
+        grid $eb - -sticky ew -row 1 -column 0 -columnspan 3
     }
     return $path
 }
@@ -125,7 +135,9 @@ proc ::tkutils::tkvcard::loadFile {path file} {
 proc ::tkutils::tkvcard::setCards {path cards} {
     variable state
     set state($path,cards) $cards
+    set state($path,curCard) -1
     _populate $path
+    _showPhoto $path
     return [llength $cards]
 }
 
@@ -212,6 +224,47 @@ proc ::tkutils::tkvcard::_onSelect {path} {
     } elseif {[info exists state($path,cardOf,$item)]} {
         set state($path,curCard) $state($path,cardOf,$item)
         set state($path,curProp) -1
+    }
+    _showPhoto $path
+}
+
+# Render the current card's PHOTO into $path.photo (inline PNG/GIF shown as a
+# thumbnail; URI photos shown as text; JPEG inline shown as a note unless the
+# Img extension can decode it).
+proc ::tkutils::tkvcard::_showPhoto {path} {
+    variable state
+    set lbl $path.photo
+    if {![winfo exists $lbl]} { return }
+    if {$state($path,photoimg) ne ""} {
+        catch {image delete $state($path,photoimg)}
+        set state($path,photoimg) ""
+    }
+    set ci $state($path,curCard)
+    set cards $state($path,cards)
+    if {$ci < 0 || $ci >= [llength $cards]} {
+        $lbl configure -image "" -text "(no contact)"
+        return
+    }
+    set ph [::tclutils::tuvcard::photo [lindex $cards $ci]]
+    switch -- [dict get $ph kind] {
+        inline {
+            if {[catch {
+                set full [::tkutils::tkimage::fromData [dict get $ph bytes]]
+                set thumb [::tkutils::tkimage::thumbnail $full $state($path,photosize)]
+                image delete $full
+            }]} {
+                $lbl configure -image "" -text "[dict get $ph mime]\n(cannot display)"
+            } else {
+                set state($path,photoimg) $thumb
+                $lbl configure -image $thumb -text ""
+            }
+        }
+        uri {
+            $lbl configure -image "" -text "Photo (URI):\n[dict get $ph uri]"
+        }
+        default {
+            $lbl configure -image "" -text "(no photo)"
+        }
     }
 }
 proc ::tkutils::tkvcard::_uiSetProp {path} {

@@ -101,4 +101,44 @@ test tkvcard-2.4 {toText round-trips edits} -constraints vcard -body {
     llength [::tclutils::tuvcard::parse [::tkutils::tkvcard::toText $w]]
 } -result 3
 
+test tkvcard-photo-1 {inline PNG photo is displayed as an image} -constraints vcard -setup {
+    set tdir [::tcltest::makeDirectory pf]; set tf [file join $tdir s.png]
+    set g [image create photo -width 40 -height 30]; $g put blue -to 0 0 40 30
+    $g write $tf -format png; image delete $g
+    set ch [open $tf rb]; set png [read $ch]; close $ch
+} -body {
+    catch {destroy .v}
+    ::tkutils::tkvcard::widget .v
+    set card [::tclutils::tuvcard::setPhoto [::tclutils::tuvcard::addProperty {} FN Jane] image/png $png]
+    ::tkutils::tkvcard::loadText .v [::tclutils::tuvcard::toVcf $card]
+    set tv .v.tv
+    $tv selection set [lindex [$tv children {}] 0]
+    ::tkutils::tkvcard::_onSelect .v
+    set r [list [expr {$::tkutils::tkvcard::state(.v,photoimg) ne ""}]                 [expr {[.v.photo cget -image] ne ""}]]
+    destroy .v; set r
+} -cleanup { ::tcltest::removeDirectory pf } -result {1 1}
+
+test tkvcard-photo-2 {URI photo is shown as text, no image} -constraints vcard -body {
+    catch {destroy .v}
+    ::tkutils::tkvcard::widget .v
+    set card [::tclutils::tuvcard::setPhotoUri [::tclutils::tuvcard::addProperty {} FN Jane] https://x/me.png]
+    ::tkutils::tkvcard::loadText .v [::tclutils::tuvcard::toVcf $card]
+    set tv .v.tv
+    $tv selection set [lindex [$tv children {}] 0]
+    ::tkutils::tkvcard::_onSelect .v
+    set r [list [expr {[.v.photo cget -image] eq ""}]                 [string match *URI* [.v.photo cget -text]]]
+    destroy .v; set r
+} -result {1 1}
+
+test tkvcard-photo-3 {card without photo shows placeholder} -constraints vcard -body {
+    catch {destroy .v}
+    ::tkutils::tkvcard::widget .v
+    ::tkutils::tkvcard::loadText .v "BEGIN:VCARD\r\nFN:Jane\r\nEND:VCARD\r\n"
+    set tv .v.tv
+    $tv selection set [lindex [$tv children {}] 0]
+    ::tkutils::tkvcard::_onSelect .v
+    set r [.v.photo cget -text]
+    destroy .v; set r
+} -result {(no photo)}
+
 cleanupTests

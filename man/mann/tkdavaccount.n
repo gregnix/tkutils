@@ -1,0 +1,14 @@
+.TH tkdavaccount n 0.31.0 tkutils "Tcl/Tk Utility Library"
+.SH NAME
+tkutils::tkdavaccount \- DAV account form with connection test
+.SH SYNOPSIS
+package require tkutils::tkdavaccount
+.br
+set w [::tkutils::tkdavaccount::widget .w]
+.SH DESCRIPTION
+Form for server URL / user / password / type with a Test connection button that
+runs a PROPFIND through tclutils::tudav. See docs/tkdavaccount.md.
+.SH "SEE ALSO"
+tclutils::tudav(n), tkutils::tkform(n)
+.SH KEYWORDS
+Tk, widget, dav, carddav, caldav, account
