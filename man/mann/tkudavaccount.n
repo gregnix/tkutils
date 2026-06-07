@@ -1,14 +1,25 @@
-.TH tkudavaccount n 0.31.0 tkutils "Tcl/Tk Utility Library"
-.SH NAME
-tkutils::tkudavaccount \- DAV account form with connection test
-.SH SYNOPSIS
-package require tkutils::tkudavaccount
-.br
-set w [::tkutils::tkudavaccount::widget .w]
-.SH DESCRIPTION
-Form for server URL / user / password / type with a Test connection button that
-runs a PROPFIND through tclutils::tudav. See docs/tkudavaccount.md.
-.SH "SEE ALSO"
-tclutils::tudav(n), tkutils::tkuform(n)
-.SH KEYWORDS
-Tk, widget, dav, carddav, caldav, account
+.TH tkudavaccount n 0.1 tkutils
+.SH tkutils::tkudavaccount
+.PP
+A DAV account form: fields for server URL, user, password and type (carddav/caldav/webdav), plus a \fBTest connection\fR button that runs a PROPFIND through \fBtclutils::tudav\fR and reports success or failure in a status line.
+.PP
+The test is synchronous (one PROPFIND); the UI is briefly blocked while it runs.
+.SS API
+.CS
+set a [::tkutils::tkudavaccount::widget .a -type carddav \
+        -command {apply {{ok msg} {puts [expr {$ok ? "connected" : $msg}]}}}]
+::tkutils::tkudavaccount::setConfig $a {url https://h/c/ user alice password pw}
+::tkutils::tkudavaccount::testConnection $a      ;# 1 on success, 0 on failure
+.CE
+.PP
+Commands:
+.IP \(bu
+\fBwidget path ?\-url? ?\-user? ?\-password? ?\-type? ?\-command cmd?\fR
+.IP \(bu
+\fBgetConfig path\fR → dict \fB{url user password type}\fR ; \fBsetConfig path dict\fR
+.IP \(bu
+\fBclear path\fR ; \fBfocusUrl path\fR
+.IP \(bu
+\fBtestConnection path\fR — runs the PROPFIND; returns 1/0, updates the status line, and calls \fB\-command ok message\fR.
+.PP
+Requires \fBtclutils::tudav\fR (https pulls in the \fBtls\fR package on first use).

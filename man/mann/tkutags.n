@@ -1,15 +1,16 @@
-.TH tkutags n 0.29.0 tkutils "Tcl/Tk Utility Library"
-.SH NAME
-tkutils::tkutags \- tag editor with removable chips
-.SH SYNOPSIS
-package require tkutils::tkutags
-.br
-set w [::tkutils::tkutags::widget .t]
-.SH DESCRIPTION
-Tags shown as removable chips plus an input row (combobox with \-suggestions,
-else entry). Duplicates and blanks ignored; \-readonly omits editing controls.
-See docs/tkutags.md.
-.SH "SEE ALSO"
-tkutils::tkuform(n)
-.SH KEYWORDS
-Tk, widget, tags, chips
+.TH tkutags n 0.1 tkutils
+.SH tkutils::tkutags
+.PP
+Tag editor: tags render as removable chips (label + "×"), with an input row to add new ones (a combobox when \fB\-suggestions\fR are given, otherwise an entry; Return or "+" adds). Duplicates and blank tags are ignored. With \fB\-readonly\fR the input row and remove buttons are omitted.
+.SS API
+.CS
+set w [::tkutils::tkutags::widget .t ?-tags list? ?-suggestions list? \
+        ?-textvariable var? ?-readonly bool? ?-command cmd?]
+::tkutils::tkutags::getTags   $w
+::tkutils::tkutags::setTags   $w list
+::tkutils::tkutags::addTag    $w tag
+::tkutils::tkutags::removeTag $w tag
+::tkutils::tkutags::clear     $w
+.CE
+.PP
+\fB\-textvariable\fR mirrors the tag list (and seeds the initial tags if \fB\-tags\fR is empty). \fB\-command\fR is called with the tag list whenever it changes.

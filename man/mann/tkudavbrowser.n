@@ -1,9 +1,31 @@
-.TH tkudavbrowser n 0.34.0 tkutils "Tk Utility Widgets"
-.SH NAME
-tkutils::tkudavbrowser \- read-only CalDAV/CardDAV collection browser
-.SH SYNOPSIS
-package require tkutils::tkudavbrowser
-.SH DESCRIPTION
-See docs/tkudavbrowser.md.
-.SH KEYWORDS
-caldav, carddav, webdav, collection, browser, tudav, treeview
+.TH tkudavbrowser n 0.1 tkutils
+.SH tkutils::tkudavbrowser
+.PP
+A read\-only navigation pane for a CalDAV/CardDAV server, built on \fBtclutils::tudav\fR. It lists the server's collections grouped by kind (Calendars / Address Books / Other) in a \fBttk::treeview\fR; selecting a collection fires \fB\-oncollection\fR so an app can load its contents into \fBtkuvcard\fR / \fBtkutodo\fR.
+.CS
+set b [tkudavbrowser::widget .b -oncollection {apply {{w info} {
+    # info = {href .. displayname .. kind ..}
+    puts "open [dict get $info kind]: [dict get $info href]"
+}}}]
+pack $b -fill both -expand 1
+
+tkudavbrowser::setClient .b $davClient   ;# a tclutils::tudav client
+tkudavbrowser::refresh .b                ;# discover + listCollections (network)
+
+tkudavbrowser::collections .b            ;# flat list of {href displayname kind}
+tkudavbrowser::selected .b               ;# current selection dict, or {}
+.CE
+.PP
+\fBrefresh\fR runs \fBtudav::discover\fR then \fBlistCollections\fR on both home sets, de\-duplicating by href (Radicale, for instance, uses one home set for both kinds). It is \fBsynchronous\fR and may block briefly. For offline rendering or testing, \fBsetData $path $collections\fR accepts a ready list of \fB{href displayname kind}\fR dicts and builds the tree without any network I/O.
+.SS "Provisioning (opt\-in)"
+.PP
+With \fB\-editable 1\fR the widget adds a small bar to create and delete collections:
+.CS
+tkudavbrowser::createCalendar    .b "Sprint Board"   ;# -> new path, then refresh
+tkudavbrowser::createAddressbook .b "Team"
+tkudavbrowser::deleteCollection  .b ?href?           ;# selected if href omitted
+.CE
+.PP
+New collections are created under the discovered home set (path = home + slug\-of\-name + \fB/\fR) via \fBtudav::mkCalendar\fR / \fBmkAddressbook\fR; \fBdeleteCollection\fR uses \fBtudav::delete\fR. All three refresh the tree afterwards and are network operations (call \fBrefresh\fR once first so the home set is known, else \fB{TKUTILS TKDAVBROWSER NOHOME}\fR).
+.PP
+Pairs with \fBtkudavaccount\fR (connect) on one side and \fBtkuvcard\fR / \fBtkutodo\fR (content) on the other.

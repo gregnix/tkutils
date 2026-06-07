@@ -1,14 +1,21 @@
-.TH tkuform n 0.28.0 tkutils "Tcl/Tk Utility Library"
-.SH NAME
-tkutils::tkuform \- declarative form widget
-.SH SYNOPSIS
-package require tkutils::tkuform
-.br
-set w [::tkutils::tkuform::widget .w \$fieldspec]
-.SH DESCRIPTION
-Builds a labelled form from a field specification (entry, password, check,
-combo, spin, text) and collects the values as a dict. See docs/tkuform.md.
-.SH "SEE ALSO"
-tclutils(n)
-.SH KEYWORDS
-Tk, widget, form, dialog
+.TH tkuform n 0.1 tkutils
+.SH tkutils::tkuform
+.PP
+A declarative form widget. Build a labelled form from a field spec and collect the values as a dict. Pure Tk.
+.SS "Field spec"
+.PP
+A list of field dicts. Keys: \fBname\fR (required), \fBlabel\fR, \fBtype\fR (\fBentry|password|check|combo|spin|text\fR, default \fBentry\fR), \fBdefault\fR, \fBvalues\fR (combo), \fBfrom\fR/\fBto\fR (spin), \fBheight\fR (text).
+.SS API
+.CS
+set w [::tkutils::tkuform::widget .w $fieldspec]
+::tkutils::tkuform::values     $w            ;# -> dict name -> value
+::tkutils::tkuform::get        $w name
+::tkutils::tkuform::set        $w name value
+::tkutils::tkuform::setValues  $w dict        ;# unknown keys ignored
+::tkutils::tkuform::fieldNames $w
+::tkutils::tkuform::widgetOf   $w name        ;# the control widget
+.CE
+.SS Launcher
+.CS
+tclsh bin/tkuform.tcl
+.CE

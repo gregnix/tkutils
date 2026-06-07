@@ -1,10 +1,28 @@
-.TH tkuvcard n 0.28.0 tkutils "Tcl/Tk Utility Library"
-.SH NAME
-tkutils::tkuvcard \- vCard contact viewer
-.SH SYNOPSIS
-package require tkutils::tkuvcard
-.SH DESCRIPTION
-Shows vCard contacts in a tree (FN nodes with property children), via
-tclutils::tuvcard. See docs/tkuvcard.md.
-.SH KEYWORDS
-Tk, widget, vcard, contacts
+.TH tkuvcard n 0.1 tkutils
+.SH tkutils::tkuvcard
+.PP
+vCard contact viewer. Each card is a tree node labelled with its FN; each property is a child row (Value + a Type hint from any TYPE parameter). Built on tclutils::tuvcard (requires tclutils 0.32.0+).
+.CS
+set w [::tkutils::tkuvcard::widget .w]
+::tkutils::tkuvcard::loadText   $w vcfText   ;# -> contact count
+::tkutils::tkuvcard::loadFile   $w file
+::tkutils::tkuvcard::setCards   $w cards
+::tkutils::tkuvcard::cards      $w
+::tkutils::tkuvcard::count      $w
+::tkutils::tkuvcard::treeWidget $w
+.CE
+.SS "Editing (0.25.0)"
+.PP
+Pass \fB\-editable 1\fR (default) for an edit bar (Name/Value/Type + buttons; all properties incl. FN are now shown as editable rows). Programmatic ops:
+.CS
+tkuvcard::addCard        $w ?fn?                       ;# -> index
+tkuvcard::removeCard     $w cardIndex
+tkuvcard::addProperty    $w cardIndex name value ?type?
+tkuvcard::setProperty    $w cardIndex propIndex name value ?type?
+tkuvcard::removeProperty $w cardIndex propIndex
+tkuvcard::toText         $w           ;# current contacts as vCard text
+tkuvcard::save           $w file
+.CE
+.SS "Photo pane"
+.PP
+The widget shows a photo pane to the right of the tree. When a contact is selected, its \fBPHOTO\fR is rendered: inline PNG/GIF photos appear as a thumbnail (via \fBtuvcard::photo\fR + \fBtkutils::tkuimage\fR), URI photos are shown as text, and formats Tk cannot decode (e.g. JPEG without the Img extension) show a note. The \fB\-photosize\fR option (default 120) sets the thumbnail box in pixels.

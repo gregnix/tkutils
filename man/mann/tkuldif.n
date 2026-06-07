@@ -1,10 +1,25 @@
-.TH tkuldif n 0.28.0 tkutils "Tcl/Tk Utility Library"
-.SH NAME
-tkutils::tkuldif \- LDIF entry viewer
-.SH SYNOPSIS
-package require tkutils::tkuldif
-.SH DESCRIPTION
-Shows LDIF entries in a tree (dn nodes with attribute children), via
-tclutils::tuldif. See docs/tkuldif.md.
-.SH KEYWORDS
-Tk, widget, ldif, ldap
+.TH tkuldif n 0.1 tkutils
+.SH tkutils::tkuldif
+.PP
+LDIF entry viewer. Each entry is a tree node labelled with its dn, with one child row per attribute value. Built on tclutils::tuldif (requires tclutils 0.31.0+).
+.CS
+set w [::tkutils::tkuldif::widget .w]
+::tkutils::tkuldif::loadText   $w ldifText   ;# -> entry count
+::tkutils::tkuldif::loadFile   $w file
+::tkutils::tkuldif::setEntries $w entries
+::tkutils::tkuldif::entries    $w
+::tkutils::tkuldif::count      $w
+::tkutils::tkuldif::treeWidget $w
+.CE
+.SS "Editing (0.26.0)"
+.PP
+\fB\-editable 1\fR (default) shows an edit bar (Attr/Value + Set/Add/Del, Add/Del Entry). All attribute rows incl. dn are editable. Programmatic ops:
+.CS
+tkuldif::addEntry   $w ?dn?                 ;# -> index
+tkuldif::removeEntry $w index
+tkuldif::addAttr    $w entryIndex attr value
+tkuldif::setAttr    $w entryIndex pairIndex attr value
+tkuldif::removeAttr $w entryIndex pairIndex
+tkuldif::toText     $w        ;# current entries as LDIF
+tkuldif::save       $w file
+.CE

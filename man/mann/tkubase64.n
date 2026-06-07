@@ -1,13 +1,17 @@
-.TH tkubase64 n 0.28.0 tkutils "Tcl/Tk Utility Library"
-.SH NAME
-tkutils::tkubase64 \- Base64 encode/decode panel
-.SH SYNOPSIS
-package require tkutils::tkubase64
-.br
-set w [::tkutils::tkubase64::widget .w]
-.SH DESCRIPTION
-Tk front-end built on the tclutils Base64 engine (tubase64). See docs/tkubase64.md.
-.SH "SEE ALSO"
-tclutils(n)
-.SH KEYWORDS
-Tk, widget, base64
+.TH tkubase64 n 0.1 tkutils
+.SH tkutils::tkubase64
+.PP
+Base64 encode/decode panel. Built on \fBtclutils::tubase64\fR. An input area, an output area, and Encode/Decode buttons.
+.SS API
+.CS
+set w [::tkutils::tkubase64::widget .w ?-width N? ?-height N?]
+::tkutils::tkubase64::setInput  $w text
+::tkutils::tkubase64::encode    $w        ;# input -> Base64, returns output
+::tkutils::tkubase64::decode    $w        ;# input -> plain, returns output
+::tkutils::tkubase64::getInput  $w
+::tkutils::tkubase64::getOutput $w
+.CE
+.SS Launcher
+.CS
+tclsh bin/tkubase64.tcl
+.CE

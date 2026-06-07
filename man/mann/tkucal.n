@@ -1,13 +1,20 @@
-.TH tkucal n 0.28.0 tkutils "Tcl/Tk Utility Library"
-.SH NAME
-tkutils::tkucal \- calendar view
-.SH SYNOPSIS
-package require tkutils::tkucal
-.br
-set w [::tkutils::tkucal::widget .w]
-.SH DESCRIPTION
-Tk front-end built on the tclutils calendar engine (tucal). See docs/tkucal.md.
-.SH "SEE ALSO"
-tclutils(n)
-.SH KEYWORDS
-Tk, widget, calendar
+.TH tkucal n 0.1 tkutils
+.SH tkutils::tkucal
+.PP
+Calendar view. Built on \fBtclutils::tucal\fR; shows a month in a monospace view with previous/next/today navigation.
+.SS API
+.CS
+set w [::tkutils::tkucal::widget .w ?-year Y? ?-month M? ?-weeknumbers 0|1?]
+::tkutils::tkucal::setMonth $w year month   ;# returns {year month}; throws on bad date
+::tkutils::tkucal::getMonth $w              ;# {year month}
+::tkutils::tkucal::next $w                   ;# advance one month (wraps the year)
+::tkutils::tkucal::prev $w
+::tkutils::tkucal::today $w
+::tkutils::tkucal::getText $w               ;# the rendered calendar text
+.CE
+.PP
+The toolbar has prev/next/Today plus a \fBWk\fR checkbox to toggle week numbers.
+.SS Launcher
+.CS
+tclsh bin/tkucal.tcl 6 2026     ;# month year
+.CE

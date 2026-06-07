@@ -1,15 +1,19 @@
-.TH tkusqlite n 0.28.0 tkutils "Tcl/Tk Utility Library"
-.SH NAME
-tkutils::tkusqlite \- SQLite table browser (optional; requires sqlite3)
-.SH SYNOPSIS
-package require tkutils::tkusqlite
-.br
-set w [::tkutils::tkusqlite::widget .w]
-.SH DESCRIPTION
-Lists database tables and shows rows of the selected table. Uses the external
-sqlite3 package, so this widget is optional and not loaded by the umbrella.
-See docs/tkusqlite.md.
-.SH "SEE ALSO"
-tclutils(n)
-.SH KEYWORDS
-Tk, widget, sqlite, database
+.TH tkusqlite n 0.1 tkutils
+.SH tkutils::tkusqlite
+.PP
+SQLite table browser. Lists the tables of a database on the left and shows the rows of the selected table on the right.
+.PP
+Optional widget. The \fBsqlite3\fR package is an external dependency and is \fInot\fR part of tclutils, so tkusqlite is not loaded by the tkutils umbrella. Ensure sqlite3 is installed, then \fBpackage require tkutils::tkusqlite\fR.
+.SS API
+.CS
+set w [::tkutils::tkusqlite::widget .w ?-height N?]
+::tkutils::tkusqlite::openFile  $w dbfile     ;# ":memory:" allowed; returns table count
+::tkutils::tkusqlite::tables    $w
+::tkutils::tkusqlite::showTable $w tablename  ;# returns row count
+::tkutils::tkusqlite::getRows   $w
+::tkutils::tkusqlite::closeDb   $w
+.CE
+.SS Launcher
+.CS
+tclsh bin/tkusqlite.tcl database.db
+.CE

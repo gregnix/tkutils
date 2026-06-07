@@ -56,3 +56,23 @@ tkutils::mdview
 - `tkuldif` - LDIF entry viewer (on tclutils::tuldif).
 - `tkuini` - INI viewer (on tclutils::tuini).
 - `tkuvcard` - vCard contact viewer (on tclutils::tuvcard).
+
+Entry widgets and bars (pure Tk unless noted):
+
+- tkudateentry -> entry + drop-down calendar picker, backend: pure Tk (clock)
+- tkutimeentry -> HH:MM[:SS] spinbox entry, backend: pure Tk
+- tkunumentry -> validated numeric entry (decimals, min/max), backend: pure Tk
+- tkutags -> removable chips + input with suggestions, backend: pure Tk
+- tkusearchbar -> debounced search bar (+ optional filter), backend: pure Tk
+- tkufilterbar -> per-column filter bar (one entry/column, ANDed substrings), backend: pure Tk
+- tkutree -> ttk::treeview wrapper (load nested data, selection), backend: pure Tk
+- tkuimage -> image fit/scale/thumbnail + zoom/scroll viewer, backend: pure Tk (imgtools optional)
+- tkutodo -> iCalendar VTODO task list (toggle done, due/priority/%), backend (in use): tclutils::tuical
+- tkudavbrowser -> read-only CalDAV/CardDAV collection browser, backend (in use): tclutils::tudav
+- tkudavaccount -> DAV account form + connection test (PROPFIND), backend (in use): tclutils::tudav
+
+Canvas / PNG (optional engines):
+
+- tkcanvaspng -> export a live Tk canvas to PNG, backend (in use): tclutils::tupngdraw (Glyphs for `-fontmap`)
+- tkutical -> month calendar on a canvas (prev/next/today, week numbers, day selection), backend: tical
+- tkmonthcanvas -> canvas calendar month/quarter/year (themes, week numbers, today/weekend/holiday states, selection), backend: tical

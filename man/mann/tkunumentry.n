@@ -1,13 +1,14 @@
-.TH tkunumentry n 0.30.0 tkutils "Tcl/Tk Utility Library"
-.SH NAME
-tkutils::tkunumentry \- validated numeric entry with decimals and min/max
-.SH SYNOPSIS
-package require tkutils::tkunumentry
-.br
-set w [::tkutils::tkunumentry::widget .w]
-.SH DESCRIPTION
-See docs/tkunumentry.md.
-.SH "SEE ALSO"
-tkutils::tkuform(n), tclutils(n)
-.SH KEYWORDS
-Tk, widget, number, currency
+.TH tkunumentry n 0.1 tkutils
+.SH tkutils::tkunumentry
+.PP
+Numeric entry with input validation, fixed decimals and optional min/max clamping. Clamping and reformatting happen on commit (Return / focus\-out).
+.SS API
+.CS
+set w [::tkutils::tkunumentry::widget .n ?-decimals n? ?-min v? ?-max v? \
+        ?-textvariable var? ?-width n? ?-command cmd?]
+::tkutils::tkunumentry::getValue $w        ;# number, or "" if empty
+::tkutils::tkunumentry::setValue $w 3.14
+::tkutils::tkunumentry::clear    $w
+.CE
+.PP
+Typing is restricted to a valid (partial) number with at most \fB\-decimals\fR fractional digits. \fBsetValue\fR errors on a non\-number with \fB{TKUTILS TKNUMENTRY VALUE}\fR. \fB\-command\fR is called with the value on commit.

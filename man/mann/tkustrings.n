@@ -1,14 +1,15 @@
-.TH tkustrings n 0.28.0 tkutils "Tcl/Tk Utility Library"
-.SH NAME
-tkutils::tkustrings \- printable strings viewer
-.SH SYNOPSIS
-package require tkutils::tkustrings
-.br
-set w [::tkutils::tkustrings::widget .w]
-.SH DESCRIPTION
-Tk front-end built on the tclutils strings engine (tustrings). Lists the printable
-ASCII runs found in binary data. See docs/tkustrings.md.
-.SH "SEE ALSO"
-tclutils(n)
-.SH KEYWORDS
-Tk, widget, strings, binary
+.TH tkustrings n 0.1 tkutils
+.SH tkutils::tkustrings
+.PP
+Printable\-strings viewer (like the Unix \fBstrings\fR tool). Built on \fBtclutils::tustrings\fR; lists the printable ASCII runs found in binary data.
+.SS API
+.CS
+set w [::tkutils::tkustrings::widget .w ?-height N?]
+::tkutils::tkustrings::setData    $w bytes  ?-minlength N?   ;# returns count
+::tkutils::tkustrings::loadFile   $w path   ?-minlength N?   ;# returns count
+::tkutils::tkustrings::getStrings $w
+.CE
+.SS Launcher
+.CS
+tclsh bin/tkustrings.tcl somefile.bin
+.CE

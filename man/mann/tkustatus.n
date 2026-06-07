@@ -1,14 +1,21 @@
-.TH tkustatus n 0.28.0 tkutils "Tcl/Tk Utility Library"
-.SH NAME
-tkutils::tkustatus \- status bar widget
-.SH SYNOPSIS
-package require tkutils::tkustatus
-.br
+.TH tkustatus n 0.1 tkutils
+.SH tkutils::tkustatus
+.PP
+A status bar with an expanding main message, optional named fields and an optional progress bar. Pure Tk.
+.PP
+(The main\-text accessors are \fBsetText\fR/\fBgetText\fR, not \fBset\fR/\fBget\fR, so the module does not shadow the Tcl \fBset\fR command.)
+.SS API
+.CS
 set st [::tkutils::tkustatus::widget .st]
-.SH DESCRIPTION
-A status bar with a main message, named fields and an optional progress bar. See
-docs/tkustatus.md.
-.SH "SEE ALSO"
-tclutils(n)
-.SH KEYWORDS
-Tk, widget, statusbar
+::tkutils::tkustatus::setText   $st text
+::tkutils::tkustatus::getText   $st
+::tkutils::tkustatus::addField  $st id ?-width N?
+::tkutils::tkustatus::setField  $st id text
+::tkutils::tkustatus::fieldText $st id
+::tkutils::tkustatus::progress  $st ?value?    ;# 0..100 to show, "" to hide
+::tkutils::tkustatus::flash     $st text ?ms?  ;# temporary message, then restore
+.CE
+.SS Launcher
+.CS
+tclsh bin/tkustatus.tcl
+.CE

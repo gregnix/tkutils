@@ -1,13 +1,15 @@
-.TH tkudiff n 0.28.0 tkutils "Tcl/Tk Utility Library"
-.SH NAME
-tkutils::tkudiff \- line diff viewer
-.SH SYNOPSIS
-package require tkutils::tkudiff
-.br
-set w [::tkutils::tkudiff::widget .w]
-.SH DESCRIPTION
-Tk front-end built on the tclutils engine. See docs/tkudiff.md for the full API.
-.SH "SEE ALSO"
-tclutils(n)
-.SH KEYWORDS
-Tk, widget
+.TH tkudiff n 0.1 tkutils
+.SH tkutils::tkudiff
+.PP
+Line diff viewer. Built on \fBtclutils::tudiff\fR; shows the structured diff with deleted lines highlighted red and inserted lines green.
+.SS API
+.CS
+set w [::tkutils::tkudiff::widget .w ?-width N? ?-height N?]
+::tkutils::tkudiff::setTexts  $w oldText newText ?...?   ;# options pass to tudiff::text
+::tkutils::tkudiff::loadFiles $w oldFile newFile ?...?
+::tkutils::tkudiff::getOps    $w                          ;# list of {op token}
+.CE
+.SS Launcher
+.CS
+tclsh bin/tkudiff.tcl old.txt new.txt
+.CE

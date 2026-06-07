@@ -1,19 +1,26 @@
-.TH tkufilterbar n 0.40.0 tkutils "Tcl/Tk Utility Library"
-.SH NAME
-tkutils::tkufilterbar \- per-column filter bar
-.SH SYNOPSIS
-package require tkutils::tkufilterbar
-.br
-set w [::tkutils::tkufilterbar::widget .f -command cmd]
-.br
-::tkutils::tkufilterbar::setColumns $w {col1 col2 ...}
-.SH DESCRIPTION
-A row of small labelled entries, one per column. Each field filters its own
-column; the consumer ANDs the non-empty fields together. \-command is called as
-"cmd filters", where filters is a dict {column -> text} of the non-empty fields.
-Call setColumns to (re)build the row for a new set of columns. Complements
-tkusearchbar (a single free-text box). See docs/tkufilterbar.md.
-.SH "SEE ALSO"
-tkutils::tkusearchbar(n), tkutils::tkutablelist(n)
-.SH KEYWORDS
-Tk, widget, filter, column
+.TH tkufilterbar n 0.1 tkutils
+.SH tkutils::tkufilterbar
+.PP
+Per\-column filter bar: one small labelled entry per column. Each field filters its own column; the consumer ANDs the non\-empty fields together. Complements \fBtkusearchbar\fR (a single free\-text box) for spreadsheet\-style multi\-column filtering. The set of columns is dynamic \-\- call \fBsetColumns\fR to (re)build the row, e.g. whenever a new result set is shown.
+.SS API
+.CS
+set w [::tkutils::tkufilterbar::widget .f ?-command cmd? ?-delay ms? ?-width n?]
+::tkutils::tkufilterbar::setColumns $w {col1 col2 ...}  ;# (re)build the row
+::tkutils::tkufilterbar::columns    $w
+::tkutils::tkufilterbar::getFilters $w                  ;# dict {col -> text}, non-empty only
+::tkutils::tkufilterbar::getFilter  $w col
+::tkutils::tkufilterbar::setFilter  $w col text         ;# programmatic, does not fire
+::tkutils::tkufilterbar::clear      $w                  ;# empties all, fires
+::tkutils::tkufilterbar::focusFirst $w
+.CE
+.PP
+\fB\-command\fR is called as \fBcmd filters\fR, where \fBfilters\fR is a dict mapping each non\-empty column to its text, in column order. Typing fires it after \fB\-delay\fR ms of inactivity (default 300) and on \fB<Return>\fR; \fBclear\fR fires immediately. \fB\-width\fR is the per\-entry width (default 10).
+.SS Notes
+.IP \(bu
+The bar holds no filtering logic itself \-\- it only reports the typed fields. The consumer decides how to match (substring, prefix, numeric comparison ...) and combines the conditions (typically AND).
+.IP \(bu
+\fBsetColumns\fR discards any previously typed contents.
+.IP \(bu
+Pairs naturally with \fBtkusearchbar\fR: use the search bar for a free\-text AND search and the filter bar for per\-column conditions, ANDing both.
+.PP
+Tcl/Tk 8.6 and 9.x.

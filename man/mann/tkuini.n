@@ -1,10 +1,27 @@
-.TH tkuini n 0.28.0 tkutils "Tcl/Tk Utility Library"
-.SH NAME
-tkutils::tkuini \- INI viewer
-.SH SYNOPSIS
-package require tkutils::tkuini
-.SH DESCRIPTION
-Two-pane INI viewer (sections + key/value table), via tclutils::tuini.
-See docs/tkuini.md.
-.SH KEYWORDS
-Tk, widget, ini, config
+.TH tkuini n 0.1 tkutils
+.SH tkutils::tkuini
+.PP
+Two\-pane INI viewer: sections on the left, key/value pairs of the selected section on the right. The global section "" is shown as "(global)". Built on tclutils::tuini (requires tclutils 0.32.0+).
+.CS
+set w [::tkutils::tkuini::widget .w]
+::tkutils::tkuini::loadText      $w iniText   ;# -> section count
+::tkutils::tkuini::loadFile      $w file
+::tkutils::tkuini::setData       $w data
+::tkutils::tkuini::sections      $w
+::tkutils::tkuini::selectSection $w section
+::tkutils::tkuini::currentSection $w
+::tkutils::tkuini::data          $w
+::tkutils::tkuini::sectionWidget $w
+::tkutils::tkuini::treeWidget    $w
+.CE
+.SS "Editing (0.25.0)"
+.PP
+Pass \fB\-editable 1\fR (default) for an edit bar (Section/Key/Value + buttons). Programmatic ops:
+.CS
+tkuini::setKey        $w section key value
+tkuini::removeKey     $w section key
+tkuini::addSection    $w section
+tkuini::removeSection $w section
+tkuini::toText        $w            ;# current document as INI text
+tkuini::save          $w file
+.CE

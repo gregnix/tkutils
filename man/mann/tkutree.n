@@ -1,13 +1,17 @@
-.TH tkutree n 0.30.0 tkutils "Tcl/Tk Utility Library"
-.SH NAME
-tkutils::tkutree \- thin ttk::treeview wrapper for hierarchical data
-.SH SYNOPSIS
-package require tkutils::tkutree
-.br
-set w [::tkutils::tkutree::widget .w]
-.SH DESCRIPTION
-See docs/tkutree.md.
-.SH "SEE ALSO"
-tkutils::tkutablelist(n), tclutils(n)
-.SH KEYWORDS
-Tk, widget, tree, treeview
+.TH tkutree n 0.1 tkutils
+.SH tkutils::tkutree
+.PP
+A thin \fBttk::treeview\fR wrapper for hierarchical data: build a tree (optional data columns and a scrollbar), insert nodes, load a nested structure in one call, and read selection / text / values back.
+.SS API
+.CS
+set w [::tkutils::tkutree::widget .tr ?-columns ids? ?-headings texts? \
+        ?-show spec? ?-height n? ?-command cmd?]
+::tkutils::tkutree::insert    $w parent text ?-values list? ?-open bool? ?-id id?
+::tkutils::tkutree::loadTree  $w nodes
+::tkutils::tkutree::selection $w
+::tkutils::tkutree::itemText  $w id
+::tkutils::tkutree::children  $w ?id?
+::tkutils::tkutree::treeview  $w        ;# the underlying ttk::treeview
+.CE
+.PP
+\fBloadTree\fR takes a list of node dicts; keys per node: \fBtext\fR (required), \fBvalues\fR, \fBopen\fR, \fBid\fR, \fBchildren\fR (a list of nodes). \fB\-command\fR is called with the selection list on \fB<<TreeviewSelect>>\fR.

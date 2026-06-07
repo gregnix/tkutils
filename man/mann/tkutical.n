@@ -1,16 +1,34 @@
-.TH tkutical n 0.2 tkutils "Tcl/Tk Utility Library"
-.SH NAME
-tkutils::tkutical \- calendar widget (month/week, tical-backed)
-.SH SYNOPSIS
+.TH tkutical n 0.2 tkutils
+.SH tkutils::tkutical
+.PP
+Calendar \fBwidget\fR backed by the \fBtical\fR engine. Renders a month or week view on a canvas with optional week numbers and holidays and none|single|multiple day selection. Optional widget (requires tical; not in the tkutils umbrella).
+.SS API
+.CS
 package require tkutils::tkutical
-.br
-set w [::tkutils::tkutical::widget .w ?-view month|week?]
-.SH DESCRIPTION
-Canvas calendar widget backed by the tical engine: month or week view, optional
-week numbers and holidays, none|single|multiple day selection, prev/next/today
-navigation. Optional widget (requires tical; not in the tkutils umbrella). See
-docs/tkutical.md.
-.SH "SEE ALSO"
-tical(n), tkutils(n)
-.SH KEYWORDS
-Tk, widget, calendar, week
+
+set w [::tkutils::tkutical::widget .w \
+    ?-view month|week? ?-date YYYY-MM-DD? ?-year Y -month M? \
+    ?-weeknumbers 0|1? ?-fontsize N? ?-holidays list? \
+    ?-selectmode none|single|multiple? ?-command cmd?]
+
+::tkutils::tkutical::setView  $w month|week    ;# getView
+::tkutils::tkutical::setDate  $w YYYY-MM-DD     ;# getDate  (reference date)
+::tkutils::tkutical::setMonth $w year month     ;# getMonth -> {year month}
+::tkutils::tkutical::next  $w                    ;# prev / today (step by the view's unit)
+::tkutils::tkutical::selectMode    $w mode
+::tkutils::tkutical::getSelection  $w            ;# setSelection / clearSelection
+::tkutils::tkutical::refresh       $w
+::tkutils::tkutical::canvasWidget  $w            ;# the underlying canvas
+.CE
+.PP
+\fB\-command cmd\fR is called with the selection list on selection change.
+.SS Errors
+.PP
+\fB{TKUTILS TKUTICAL <REASON>}\fR (\fBVIEW\fR, \fBDATE\fR, \fBMONTH\fR, \fBSELECTMODE\fR).
+.SS Launcher
+.CS
+wish bin/tkutical.tcl ?YYYY-MM-DD?
+.CE
+.SS "See also"
+.PP
+\fBtical(n)\fR, \fBtkutils::tkmonthcanvas\fR.

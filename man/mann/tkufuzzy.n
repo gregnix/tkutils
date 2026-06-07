@@ -1,13 +1,16 @@
-.TH tkufuzzy n 0.28.0 tkutils "Tcl/Tk Utility Library"
-.SH NAME
-tkutils::tkufuzzy \- incremental fuzzy filter
-.SH SYNOPSIS
-package require tkutils::tkufuzzy
-.br
-set w [::tkutils::tkufuzzy::widget .w]
-.SH DESCRIPTION
-Tk front-end built on the tclutils fuzzy engine (tufuzzy). See docs/tkufuzzy.md.
-.SH "SEE ALSO"
-tclutils(n)
-.SH KEYWORDS
-Tk, widget, fuzzy, filter
+.TH tkufuzzy n 0.1 tkutils
+.SH tkutils::tkufuzzy
+.PP
+Incremental fuzzy filter. Built on \fBtclutils::tufuzzy\fR; an entry field filters a list as you type. Items are kept when the pattern is a subsequence of them and ranked by similarity.
+.SS API
+.CS
+set w [::tkutils::tkufuzzy::widget .w ?-height N?]
+::tkutils::tkufuzzy::setItems     $w itemList
+::tkutils::tkufuzzy::filter       $w pattern    ;# ranked matches (also updates list)
+::tkutils::tkufuzzy::getMatches   $w
+::tkutils::tkufuzzy::getSelection $w            ;# selected item or ""
+.CE
+.SS Launcher
+.CS
+tclsh bin/tkufuzzy.tcl items.txt    ;# one item per line
+.CE

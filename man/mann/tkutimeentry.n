@@ -1,13 +1,13 @@
-.TH tkutimeentry n 0.30.0 tkutils "Tcl/Tk Utility Library"
-.SH NAME
-tkutils::tkutimeentry \- time entry (HH:MM[:SS]) with spinboxes
-.SH SYNOPSIS
-package require tkutils::tkutimeentry
-.br
-set w [::tkutils::tkutimeentry::widget .w]
-.SH DESCRIPTION
-See docs/tkutimeentry.md.
-.SH "SEE ALSO"
-tkutils::tkucal(n), tclutils(n)
-.SH KEYWORDS
-Tk, widget, time, spinbox
+.TH tkutimeentry n 0.1 tkutils
+.SH tkutils::tkutimeentry
+.PP
+Time entry with hour and minute spinboxes (optionally seconds). \fBgetTime\fR/ \fBsetTime\fR use \fBHH:MM\fR (or \fBHH:MM:SS\fR with \fB\-seconds\fR).
+.SS API
+.CS
+set w [::tkutils::tkutimeentry::widget .t ?-time HH:MM? ?-increment min? \
+        ?-seconds bool? ?-command cmd?]
+::tkutils::tkutimeentry::getTime $w
+::tkutils::tkutimeentry::setTime $w 09:30
+.CE
+.PP
+\fB\-increment\fR is the minute step (default 5). \fB\-command\fR is called with the time string on change. \fBsetTime\fR rejects out\-of\-range/malformed input with \fB{TKUTILS TKTIMEENTRY TIME}\fR.

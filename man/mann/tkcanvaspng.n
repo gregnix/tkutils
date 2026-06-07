@@ -1,17 +1,30 @@
-.TH tkcanvaspng n 0.2 tkutils "Tcl/Tk Utility Library"
-.SH NAME
-tkutils::tkcanvaspng \- render a Tk canvas to a PNG (pure Tcl)
-.SH SYNOPSIS
+.TH tkcanvaspng n 0.2 tkutils
+.SH tkutils::tkcanvaspng
+.PP
+Render a Tk \fBcanvas\fR to a \fBPNG\fR (pure Tcl, no external tools) via \fBtclutils::tupngdraw\fR. Useful for exporting canvas drawings/charts. Requires Tk plus \fBtclutils::tupngdraw\fR; TTF text needs the optional \fBGlyphs\fR package. Optional widget (not in the tkutils umbrella).
+.SS API
+.CS
 package require tkutils::tkcanvaspng
-.br
-set png [::tkutils::tkcanvaspng::render canvas ?options?]
-.br
-::tkutils::tkcanvaspng::write file canvas ?options?
-.SH DESCRIPTION
-Renders a Tk canvas to PNG bytes using the pure-Tcl tupngdraw engine (no external
-tools). Options: -region, -scale, -background, -textcmd, -fontmap (TTF text needs
-the optional Glyphs package). Requires tclutils::tupngdraw. See docs/tkcanvaspng.md.
-.SH "SEE ALSO"
-tclutils(n)
-.SH KEYWORDS
-Tk, canvas, PNG, export
+
+# PNG bytes of the canvas:
+set png [::tkutils::tkcanvaspng::render $canvas \
+    ?-region {x1 y1 x2 y2}? ?-scale N? ?-background color? \
+    ?-textcmd cmd? ?-fontmap map?]
+
+# write straight to a file (returns the file name):
+::tkutils::tkcanvaspng::write out.png $canvas ?same options?
+.CE
+.IP \(bu
+\fB\-region\fR defaults to \fB[$canvas bbox all]\fR; an empty canvas is an error.
+.IP \(bu
+\fB\-scale\fR is a positive\-integer pixel multiplier.
+.IP \(bu
+\fB\-background\fR defaults to the canvas background, else white.
+.IP \(bu
+\fB\-fontmap\fR maps Tk fonts to TTF files for glyph rendering (needs \fBGlyphs\fR).
+.SS Errors
+.PP
+\fB{TKUTILS TKCANVASPNG <REASON>}\fR (\fBWINDOW\fR, \fBEMPTY\fR).
+.SS "See also"
+.PP
+\fBtclutils::tupngdraw\fR, \fBtclutils::tupng\fR.

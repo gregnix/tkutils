@@ -1,13 +1,17 @@
-.TH tkucsv n 0.28.0 tkutils "Tcl/Tk Utility Library"
-.SH NAME
-tkutils::tkucsv \- CSV table viewer
-.SH SYNOPSIS
-package require tkutils::tkucsv
-.br
-set w [::tkutils::tkucsv::widget .w]
-.SH DESCRIPTION
-Tk front-end built on the tclutils engine. See docs/tkucsv.md for the full API.
-.SH "SEE ALSO"
-tclutils(n)
-.SH KEYWORDS
-Tk, widget
+.TH tkucsv n 0.1 tkutils
+.SH tkutils::tkucsv
+.PP
+CSV table viewer. Built on \fBtclutils::tucsv\fR; rows are shown in a ttk::treeview.
+.SS API
+.CS
+set w [::tkutils::tkucsv::widget .w ?-height N? ?-header 0|1?]
+::tkutils::tkucsv::setData  $w csvText ?-delimiter C? ?...?   ;# options pass to tucsv::parse
+::tkutils::tkucsv::loadFile $w path    ?...?
+::tkutils::tkucsv::getRows  $w                                ;# all rows (incl. header)
+.CE
+.PP
+With \fB\-header 1\fR (default) the first row is used as column headings.
+.SS Launcher
+.CS
+tclsh bin/tkucsv.tcl data.csv
+.CE

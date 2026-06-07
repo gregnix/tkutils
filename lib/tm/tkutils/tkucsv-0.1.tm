@@ -44,7 +44,7 @@ proc ::tkutils::tkucsv::widget {path args} {
     return $path
 }
 
-# Load CSV from a string. Extra args are passed to tucsv::parse (e.g. -separator).
+# Load CSV from a string. Extra args are passed to tucsv::parse (e.g. -delimiter).
 proc ::tkutils::tkucsv::setData {path csvText args} {
     variable state
     set state($path,rows) [::tclutils::tucsv::parse $csvText {*}$args]

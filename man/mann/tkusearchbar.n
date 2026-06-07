@@ -1,14 +1,17 @@
-.TH tkusearchbar n 0.29.0 tkutils "Tcl/Tk Utility Library"
-.SH NAME
-tkutils::tkusearchbar \- search bar with debounce and optional filter
-.SH SYNOPSIS
-package require tkutils::tkusearchbar
-.br
-set w [::tkutils::tkusearchbar::widget .s -command cmd]
-.SH DESCRIPTION
-Entry with a debounced change callback, a clear button, and an optional filter
-drop-down. \-command is called as "cmd text filter". See docs/tkusearchbar.md.
-.SH "SEE ALSO"
-tkutils::tkutablelist(n), tkutils::tkueditor(n)
-.SH KEYWORDS
-Tk, widget, search, filter
+.TH tkusearchbar n 0.1 tkutils
+.SH tkutils::tkusearchbar
+.PP
+Search bar: an entry with a debounced change callback, a clear button, and an optional filter drop\-down. Typing fires \fB\-command\fR after \fB\-delay\fR ms of inactivity; clearing and changing the filter fire immediately.
+.SS API
+.CS
+set w [::tkutils::tkusearchbar::widget .s ?-command cmd? ?-delay ms? \
+        ?-filters list? ?-width n?]
+::tkutils::tkusearchbar::getText     $w
+::tkutils::tkusearchbar::setText     $w text     ;# programmatic, does not fire
+::tkutils::tkusearchbar::clear       $w
+::tkutils::tkusearchbar::getFilter   $w
+::tkutils::tkusearchbar::setFilter   $w value
+::tkutils::tkusearchbar::focusSearch $w
+.CE
+.PP
+\fB\-command\fR is called as \fBcmd searchText filterValue\fR (filter is "" when no \fB\-filters\fR were given). Default \fB\-delay\fR is 300 ms.

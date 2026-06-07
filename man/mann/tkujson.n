@@ -1,14 +1,17 @@
-.TH tkujson n 0.28.0 tkutils "Tcl/Tk Utility Library"
-.SH NAME
-tkutils::tkujson \- JSON tree viewer
-.SH SYNOPSIS
-package require tkutils::tkujson
-.br
-set w [::tkutils::tkujson::widget .w]
-.SH DESCRIPTION
-Tk front-end built on tclutils::tujson::parseTyped (tclutils 0.28.0+). Shows JSON
-as a nested tree distinguishing objects, arrays and scalars. See docs/tkujson.md.
-.SH "SEE ALSO"
-tclutils(n)
-.SH KEYWORDS
-Tk, widget, json
+.TH tkujson n 0.1 tkutils
+.SH tkutils::tkujson
+.PP
+JSON tree viewer. Built on \fBtclutils::tujson::parseTyped\fR (tclutils 0.28.0+), so objects, arrays and scalars are distinguished and shown as a nested tree in a ttk::treeview (key column + value column).
+.SS API
+.CS
+set w [::tkutils::tkujson::widget .w ?-height N?]
+::tkutils::tkujson::setJson   $w jsonText      ;# returns root node type
+::tkutils::tkujson::loadFile  $w path
+::tkutils::tkujson::getTree   $w               ;# typed tree {type value}
+.CE
+.PP
+Objects show \fBobject (N)\fR, arrays \fBarray (N)\fR, scalars their value. Object keys keep their order; array elements are labelled \fB[0]\fR, \fB[1]\fR, ...
+.SS Launcher
+.CS
+tclsh bin/tkujson.tcl data.json
+.CE

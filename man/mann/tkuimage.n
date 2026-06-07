@@ -1,9 +1,22 @@
-.TH tkuimage n 0.32.0 tkutils "Tk Utility Widgets"
-.SH NAME
-tkutils::tkuimage \- image fit/scale/thumbnail helpers and a zoom/scroll viewer
-.SH SYNOPSIS
-package require tkutils::tkuimage
-.SH DESCRIPTION
-See docs/tkuimage.md.
-.SH KEYWORDS
-image, photo, scale, thumbnail, zoom, viewer, imgtools
+.TH tkuimage n 0.1 tkutils
+.SH tkutils::tkuimage
+.PP
+Image helpers and a scrollable, zoomable viewer widget. Scaling uses the \fBimgtools\fR extension when it is installed and falls back to Tk's built\-in photo \fBsubsample\fR/\fBzoom\fR otherwise \-\- \fBimgtools\fR is optional (loaded via \fBcatch\fR).
+.SS Helpers
+.CS
+tkuimage::fit imgW imgH boxW boxH ?mode?   ;# {newW newH scale}; mode contain|cover|none
+tkuimage::load file ?dst?                  ;# photo from file (PNG/GIF native)
+tkuimage::fromData bytes ?dst?             ;# photo from raw PNG/GIF bytes (in-memory)
+tkuimage::scale src w h ?dst?              ;# scaled photo (imgtools or Tk fallback)
+tkuimage::thumbnail src maxSize ?dst?      ;# contain-fit into maxSize box
+.CE
+.SS "Viewer widget"
+.CS
+set v [tkuimage::view .v ?-fitmode contain?]
+pack $v -fill both -expand 1
+tkuimage::openFile .v photo.png
+tkuimage::zoomIn .v ; tkuimage::zoomOut .v ; tkuimage::zoom1 .v ; tkuimage::fitView .v
+tkuimage::getImage .v                       ;# the original photo image
+.CE
+.PP
+The viewer is a frame with a scrolled canvas; in \fBcontain\fR fit\-mode it re\-fits on resize, otherwise it honours the current zoom. Images are cleaned up automatically when the widget is destroyed. JPEG and other non\-native formats require the Img/tkimg extension for \fBload\fR/\fBopenFile\fR.

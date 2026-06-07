@@ -1,13 +1,15 @@
-.TH tkumd n 0.28.0 tkutils "Tcl/Tk Utility Library"
-.SH NAME
-tkutils::tkumd \- Markdown outline viewer
-.SH SYNOPSIS
-package require tkutils::tkumd
-.br
-set w [::tkutils::tkumd::widget .w]
-.SH DESCRIPTION
-Tk front-end built on the tclutils Markdown engine (tumd). See docs/tkumd.md.
-.SH "SEE ALSO"
-tclutils(n)
-.SH KEYWORDS
-Tk, widget, markdown
+.TH tkumd n 0.1 tkutils
+.SH tkutils::tkumd
+.PP
+Markdown outline viewer. Built on \fBtclutils::tumd\fR; the document headings are shown as a nested outline in a ttk::treeview.
+.SS API
+.CS
+set w [::tkutils::tkumd::widget .w ?-height N?]
+::tkutils::tkumd::setMarkdown  $w markdownText
+::tkutils::tkumd::loadFile     $w path
+::tkutils::tkumd::getHeadings  $w               ;# list of {level title}
+.CE
+.SS Launcher
+.CS
+tclsh bin/tkumd.tcl document.md
+.CE

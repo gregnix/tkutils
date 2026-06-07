@@ -1,14 +1,17 @@
-.TH tkuxml n 0.28.0 tkutils "Tcl/Tk Utility Library"
-.SH NAME
-tkutils::tkuxml \- XML tree viewer (optional; requires tDOM)
-.SH SYNOPSIS
-package require tkutils::tkuxml
-.br
-set w [::tkutils::tkuxml::widget .w]
-.SH DESCRIPTION
-Shows an XML document as a nested tree. Parsing uses the external tDOM package, so
-this widget is optional and not loaded by the umbrella. See docs/tkuxml.md.
-.SH "SEE ALSO"
-tclutils(n)
-.SH KEYWORDS
-Tk, widget, xml, tdom
+.TH tkuxml n 0.1 tkutils
+.SH tkutils::tkuxml
+.PP
+XML tree viewer. Shows an XML document as a nested tree (element names plus their attributes / text). Parsing is done by \fBtDOM\fR.
+.PP
+Optional widget. tDOM is an external dependency and is \fInot\fR part of tclutils, so tkuxml is not loaded by the tkutils umbrella. Ensure tdom is installed, then \fBpackage require tkutils::tkuxml\fR.
+.SS API
+.CS
+set w [::tkutils::tkuxml::widget .w ?-height N?]
+::tkutils::tkuxml::setXml   $w xmlText    ;# returns root element name
+::tkutils::tkuxml::loadFile $w path
+::tkutils::tkuxml::getRoot  $w
+.CE
+.SS Launcher
+.CS
+tclsh bin/tkuxml.tcl document.xml
+.CE
