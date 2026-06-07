@@ -1,12 +1,12 @@
 # tkutils 0.40.0
 
 `tkutils` is a collection of Tcl/Tk GUI widgets that sit on top of the pure-Tcl
-engines in [`tclutils`](../tclutils-0.41.0/). It is intentionally separate from
+engines in [`tclutils`](../tclutils-0.53.0/). It is intentionally separate from
 `tclutils` so that console/server/CI use never requires `Tk`.
 
 - **Rule:** the engine lives in `tclutils`, the GUI in `tkutils`. Each widget is
   a package `tkutils::tk<name>` (file `lib/tm/tkutils/tk<name>-0.1.tm`).
-- **Tcl/Tk:** 8.6+ and 9.x. The umbrella package loads the **23 core widgets**;
+- **Tcl/Tk:** 8.6+ and 9.x. The umbrella package loads the **31 core widgets**;
   optional widgets that need external packages are not in the umbrella.
 
 ## Install / path setup
@@ -15,11 +15,11 @@ engines in [`tclutils`](../tclutils-0.41.0/). It is intentionally separate from
 
 ```bash
 # explicit (recommended for tests/CI)
-export TCLUTILS_TM=/path/to/tclutils-0.41.0/lib/tm
-export TKUTILS_TM=/path/to/tkutils-0.27.0/lib/tm
+export TCLUTILS_TM=/path/to/tclutils-0.53.0/lib/tm
+export TKUTILS_TM=/path/to/tkutils-0.40.0/lib/tm
 
 # or source the bootstrap (adds both libs, finds the highest version)
-tclsh -e 'source /path/to/tkutils-0.27.0/tools/setup.tcl'
+tclsh -e 'source /path/to/tkutils-0.40.0/tools/setup.tcl'
 ```
 
 Then:
@@ -61,6 +61,7 @@ package require tkutils::tkunotes   ;# or a single widget
 | `tkunumentry` | Tk        | Validated numeric entry (decimals, min/max) |
 | `tkutags`    | Tk        | Tag editor: removable chips + input (suggestions) |
 | `tkusearchbar`| Tk        | Debounced search bar + optional filter |
+| `tkufilterbar`| Tk        | Per-column filter bar (one entry per column, ANDed substrings) |
 | `tkutree`    | Tk        | ttk::treeview wrapper (load nested data, selection) |
 | `tkuimage`   | Tk (imgtools opt.) | image fit/scale/thumbnail + zoom/scroll viewer |
 | `tkutodo`    | tuical    | iCalendar VTODO task list (toggle done, due/priority/%) |
@@ -76,6 +77,8 @@ package require tkutils::tkunotes   ;# or a single widget
 | `tkutils::tkutablelist` | **Tablelist** (tklib) | Full editable/sortable table; CSV import/export; tests skip without Tablelist |
 | `tkutils::tkuxml`       | **tDOM**     | XML tree |
 | `tkutils::tkusqlite`    | **sqlite3**  | Lightweight DB browser |
+| `tkutils::tkcanvaspng` | `tclutils::tupngdraw` (Glyphs for `-fontmap`) | Export a live Tk canvas to PNG: lines (arrows/dashes), shapes, elliptical arcs, text, images |
+| `tkutils::tkutical` | **tical** (`tical::view::month` + `tical::render::canvas`) | Month calendar on a canvas: prev/next/today, week numbers, day selection (none/single/multiple, Shift-click ranges), `-command` |
 
 These are pure-Tcl-engine-free GUIs that depend on an external package; on a
 stack without that package they are simply not loaded (and their tests skip).
@@ -98,7 +101,7 @@ Each `tests/*.test` runs in its own interpreter; `tests/all.tcl` runs the suite.
 several widgets against their engines.
 
 ```bash
-export TCLUTILS_TM=/path/to/tclutils-0.41.0/lib/tm
+export TCLUTILS_TM=/path/to/tclutils-0.53.0/lib/tm
 xvfb-run -a tclsh tests/all.tcl       # GUI tests need a display (Xvfb)
 ```
 

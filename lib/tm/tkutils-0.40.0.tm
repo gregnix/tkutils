@@ -27,6 +27,7 @@ package require tkutils::tkuvcard 0.1
 package require tkutils::tkudateentry 0.1
 package require tkutils::tkutags 0.1
 package require tkutils::tkusearchbar 0.1
+package require tkutils::tkufilterbar 0.1
 package require tkutils::tkutimeentry 0.1
 package require tkutils::tkunumentry 0.1
 package require tkutils::tkutree 0.1

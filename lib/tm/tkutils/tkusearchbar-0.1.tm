@@ -10,7 +10,7 @@ package require Tk 8.6-
 
 namespace eval ::tkutils {}
 namespace eval ::tkutils::tkusearchbar {
-    namespace export widget getText setText clear getFilter setFilter focusSearch
+    namespace export widget getText setText clear getFilter setFilter setFilters focusSearch
     variable state
 }
 
@@ -89,6 +89,25 @@ proc ::tkutils::tkusearchbar::setFilter {path value} {
     variable state
     set state($path,filter) $value
     return $value
+}
+
+# Replace the filter drop-down's choices at runtime. If the bar was created
+# without -filters, the separator and combobox are built lazily here. The
+# first value becomes the current filter. Selecting an entry fires -command.
+proc ::tkutils::tkusearchbar::setFilters {path filters} {
+    variable state
+    if {![winfo exists $path.filter]} {
+        ttk::separator $path.sep -orient vertical
+        ttk::combobox $path.filter -state readonly -width 14 \
+            -textvariable ::tkutils::tkusearchbar::state($path,filter)
+        grid $path.sep    -row 0 -column 2 -sticky ns -padx 4
+        grid $path.filter -row 0 -column 3 -sticky e
+        bind $path.filter <<ComboboxSelected>> \
+            [list ::tkutils::tkusearchbar::_fire $path]
+    }
+    $path.filter configure -values $filters
+    set state($path,filter) [lindex $filters 0]
+    return $filters
 }
 
 proc ::tkutils::tkusearchbar::focusSearch {path} {

@@ -1,0 +1,16 @@
+.TH tkutical n 0.2 tkutils "Tcl/Tk Utility Library"
+.SH NAME
+tkutils::tkutical \- calendar widget (month/week, tical-backed)
+.SH SYNOPSIS
+package require tkutils::tkutical
+.br
+set w [::tkutils::tkutical::widget .w ?-view month|week?]
+.SH DESCRIPTION
+Canvas calendar widget backed by the tical engine: month or week view, optional
+week numbers and holidays, none|single|multiple day selection, prev/next/today
+navigation. Optional widget (requires tical; not in the tkutils umbrella). See
+docs/tkutical.md.
+.SH "SEE ALSO"
+tical(n), tkutils(n)
+.SH KEYWORDS
+Tk, widget, calendar, week

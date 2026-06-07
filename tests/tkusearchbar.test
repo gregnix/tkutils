@@ -70,4 +70,19 @@ test tkusearchbar-3.2 {command receives text and filter} -constraints haveTk -bo
     set ::got
 } -result {z A}
 
+test tkusearchbar-3.1 {setFilters builds the drop-down lazily and selects the first} -constraints haveTk -body {
+    catch {destroy .s}
+    set w [::tkutils::tkusearchbar::widget .s]
+    ::tkutils::tkusearchbar::setFilters $w {all id name}
+    list [winfo exists $w.filter] [$w.filter cget -values] \
+         [::tkutils::tkusearchbar::getFilter $w]
+} -result {1 {all id name} all}
+
+test tkusearchbar-3.2 {setFilters replaces an existing drop-down's values} -constraints haveTk -body {
+    catch {destroy .s}
+    set w [::tkutils::tkusearchbar::widget .s -filters {A B}]
+    ::tkutils::tkusearchbar::setFilters $w {x y z}
+    list [$w.filter cget -values] [::tkutils::tkusearchbar::getFilter $w]
+} -result {{x y z} x}
+
 cleanupTests

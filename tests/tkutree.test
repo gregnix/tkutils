@@ -1,0 +1,77 @@
+# tkutils::tkutree -- tests (ttk::treeview wrapper).
+# Tk-only (no tclutils engine). Run headless: xvfb-run -a tclsh tests/tkutree.test
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+
+set haveTk 1
+if {[catch {package require Tk 8.6-}]} { set haveTk 0 }
+testConstraint haveTk $haveTk
+
+set here [file dirname [file normalize [info script]]]
+tcl::tm::path add [file normalize [file join $here .. lib tm]]
+if {$haveTk} { package require tkutils::tkutree }
+
+test tkutree-1.1 {widget builds; tree starts empty} -constraints haveTk -body {
+    catch {destroy .tr}
+    set w [::tkutils::tkutree::widget .tr]
+    ::tkutils::tkutree::children $w
+} -result {}
+
+test tkutree-1.2 {insert returns the id; itemText round-trips} -constraints haveTk -body {
+    catch {destroy .tr}
+    set w [::tkutils::tkutree::widget .tr]
+    set id [::tkutils::tkutree::insert $w {} "Root" -id r1]
+    list $id [::tkutils::tkutree::itemText $w r1]
+} -result {r1 Root}
+
+test tkutree-1.3 {insert -values; itemValues round-trips} -constraints haveTk -body {
+    catch {destroy .tr}
+    set w [::tkutils::tkutree::widget .tr -columns {size}]
+    ::tkutils::tkutree::insert $w {} "File" -id f1 -values {42}
+    ::tkutils::tkutree::itemValues $w f1
+} -result {42}
+
+test tkutree-1.4 {loadTree builds the nested structure} -constraints haveTk -body {
+    catch {destroy .tr}
+    set w [::tkutils::tkutree::widget .tr]
+    ::tkutils::tkutree::loadTree $w {
+        {text A id a children {{text A1 id a1} {text A2 id a2}}}
+        {text B id b}
+    }
+    list [::tkutils::tkutree::children $w] [::tkutils::tkutree::children $w a]
+} -result {{a b} {a1 a2}}
+
+test tkutree-1.5 {clear empties the tree} -constraints haveTk -body {
+    catch {destroy .tr}
+    set w [::tkutils::tkutree::widget .tr]
+    ::tkutils::tkutree::insert $w {} "X" -id x1
+    ::tkutils::tkutree::clear $w
+    ::tkutils::tkutree::children $w
+} -result {}
+
+test tkutree-1.6 {auto-generated ids are unique when -id omitted} -constraints haveTk -body {
+    catch {destroy .tr}
+    set w [::tkutils::tkutree::widget .tr]
+    set a [::tkutils::tkutree::insert $w {} "one"]
+    set b [::tkutils::tkutree::insert $w {} "two"]
+    expr {$a ne "" && $b ne "" && $a ne $b}
+} -result 1
+
+test tkutree-2.1 {-command fires with the selection list} -constraints haveTk -body {
+    catch {destroy .tr}
+    set ::sel ""
+    set w [::tkutils::tkutree::widget .tr -command {set ::sel}]
+    ::tkutils::tkutree::insert $w {} "Sel" -id s1
+    [::tkutils::tkutree::treeview $w] selection set s1
+    update
+    set ::sel
+} -result s1
+
+test tkutree-2.2 {treeview accessor returns the inner treeview path} -constraints haveTk -body {
+    catch {destroy .tr}
+    set w [::tkutils::tkutree::widget .tr]
+    string match "*.t" [::tkutils::tkutree::treeview $w]
+} -result 1
+
+cleanupTests

@@ -1,0 +1,17 @@
+.TH tkcanvaspng n 0.2 tkutils "Tcl/Tk Utility Library"
+.SH NAME
+tkutils::tkcanvaspng \- render a Tk canvas to a PNG (pure Tcl)
+.SH SYNOPSIS
+package require tkutils::tkcanvaspng
+.br
+set png [::tkutils::tkcanvaspng::render canvas ?options?]
+.br
+::tkutils::tkcanvaspng::write file canvas ?options?
+.SH DESCRIPTION
+Renders a Tk canvas to PNG bytes using the pure-Tcl tupngdraw engine (no external
+tools). Options: -region, -scale, -background, -textcmd, -fontmap (TTF text needs
+the optional Glyphs package). Requires tclutils::tupngdraw. See docs/tkcanvaspng.md.
+.SH "SEE ALSO"
+tclutils(n)
+.SH KEYWORDS
+Tk, canvas, PNG, export

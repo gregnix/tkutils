@@ -1,0 +1,74 @@
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+set haveTk 1
+if {[catch {package require Tk 8.6-}]} { set haveTk 0 }
+testConstraint haveTk $haveTk
+set here [file dirname [file normalize [info script]]]
+tcl::tm::path add [file normalize [file join $here .. lib tm]]
+if {$haveTk} { package require tkutils::tkufilterbar }
+
+test tkufilterbar-1.1 {empty before setColumns} -constraints haveTk -body {
+    catch {destroy .f}
+    set w [::tkutils::tkufilterbar::widget .f]
+    list [::tkutils::tkufilterbar::columns $w] [::tkutils::tkufilterbar::getFilters $w]
+} -result {{} {}}
+
+test tkufilterbar-1.2 {setColumns builds one entry per column} -constraints haveTk -body {
+    catch {destroy .f}
+    set w [::tkutils::tkufilterbar::widget .f]
+    ::tkutils::tkufilterbar::setColumns $w {id name age}
+    list [::tkutils::tkufilterbar::columns $w] \
+         [winfo exists $w.e0] [winfo exists $w.e1] [winfo exists $w.e2]
+} -result {{id name age} 1 1 1}
+
+test tkufilterbar-1.3 {setFilter/getFilters report only non-empty fields, in order} -constraints haveTk -body {
+    catch {destroy .f}
+    set w [::tkutils::tkufilterbar::widget .f]
+    ::tkutils::tkufilterbar::setColumns $w {id name age}
+    ::tkutils::tkufilterbar::setFilter $w name al
+    ::tkutils::tkufilterbar::setFilter $w age 2
+    ::tkutils::tkufilterbar::getFilters $w
+} -result {name al age 2}
+
+test tkufilterbar-1.4 {getFilter returns a single column's text} -constraints haveTk -body {
+    catch {destroy .f}
+    set w [::tkutils::tkufilterbar::widget .f]
+    ::tkutils::tkufilterbar::setColumns $w {id name}
+    ::tkutils::tkufilterbar::setFilter $w name bob
+    list [::tkutils::tkufilterbar::getFilter $w name] \
+         [::tkutils::tkufilterbar::getFilter $w nope]
+} -result {bob {}}
+
+test tkufilterbar-2.1 {_fire delivers the filter dict to -command} -constraints haveTk -body {
+    catch {destroy .f}
+    set ::got NONE
+    set w [::tkutils::tkufilterbar::widget .f \
+        -command [list apply {{flt} {set ::got $flt}}]]
+    ::tkutils::tkufilterbar::setColumns $w {id name}
+    ::tkutils::tkufilterbar::setFilter $w id 7
+    ::tkutils::tkufilterbar::_fire $w
+    set ::got
+} -result {id 7}
+
+test tkufilterbar-2.2 {clear empties all fields and fires an empty dict} -constraints haveTk -body {
+    catch {destroy .f}
+    set ::got NONE
+    set w [::tkutils::tkufilterbar::widget .f \
+        -command [list apply {{flt} {set ::got $flt}}]]
+    ::tkutils::tkufilterbar::setColumns $w {id name}
+    ::tkutils::tkufilterbar::setFilter $w name x
+    ::tkutils::tkufilterbar::clear $w
+    list [::tkutils::tkufilterbar::getFilters $w] $::got
+} -result {{} {}}
+
+test tkufilterbar-2.3 {setColumns discards previous field contents} -constraints haveTk -body {
+    catch {destroy .f}
+    set w [::tkutils::tkufilterbar::widget .f]
+    ::tkutils::tkufilterbar::setColumns $w {a b}
+    ::tkutils::tkufilterbar::setFilter $w a 1
+    ::tkutils::tkufilterbar::setColumns $w {x y z}
+    ::tkutils::tkufilterbar::getFilters $w
+} -result {}
+
+cleanupTests

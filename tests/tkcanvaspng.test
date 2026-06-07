@@ -1,0 +1,126 @@
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+set here [file dirname [file normalize [info script]]]
+tcl::tm::path add [file normalize [file join $here .. lib tm]]
+# tupngdraw / common / tupng live in the tclutils tree; allow a sibling layout
+catch {tcl::tm::path add [file normalize [file join $here .. .. tclutils lib tm]]}
+package require tkutils::tkcanvaspng
+package require tclutils::tupng
+package require tclutils::tuimage
+
+testConstraint hasTk [expr {![catch {package require Tk}]}]
+
+proc px {d x y} {
+    set W [dict get $d width]
+    binary scan [dict get $d rgba] "x[expr {($y*$W+$x)*4}] cu cu cu" r g b
+    return [format #%02x%02x%02x $r $g $b]
+}
+proc draw1 {type coords opts} {
+    set img [::tclutils::tupngdraw::new -width 80 -height 60 -background white]
+    ::tkutils::tkcanvaspng::_drawItem $img $type $coords $opts
+    set d [::tclutils::tupng::decode [$img data]]
+    $img destroy
+    return $d
+}
+
+# --- Tk-free mapper (always runs) -------------------------------------------
+test tkcanvaspng-1.1 {rectangle fill colour} -body {
+    px [draw1 rectangle {10 10 40 30} {fill #ff0000 outline #000000}] 25 20
+} -result #ff0000
+
+test tkcanvaspng-1.2 {oval fill colour} -body {
+    px [draw1 oval {45 10 75 40} {fill #00cc00}] 60 25
+} -result #00cc00
+
+test tkcanvaspng-1.3 {line colour at midpoint} -body {
+    px [draw1 line {5 50 75 50} {fill #0000ff width 2}] 40 50
+} -result #0000ff
+
+test tkcanvaspng-1.4 {polygon fill colour} -body {
+    px [draw1 polygon {10 35 25 48 5 48} {fill #ffaa00 outline #000000}] 13 45
+} -result #ffaa00
+
+test tkcanvaspng-1.5 {text draws (some dark pixels) without needing outline key} -body {
+    set d [draw1 text {2 2} {fill #000000 text Hi anchor nw scale 2}]
+    set W [dict get $d width]; set dark 0
+    for {set y 2} {$y < 18} {incr y} {
+        for {set x 2} {$x < 30} {incr x} {
+            binary scan [dict get $d rgba] "x[expr {($y*$W+$x)*4}] cu cu cu" r g b
+            if {$r < 128} { incr dark }
+        }
+    }
+    expr {$dark > 0}
+} -result 1
+
+test tkcanvaspng-1.6 {anchor offset: center vs nw} -body {
+    list [::tkutils::tkcanvaspng::_anchorOffset nw 20 8] \
+         [::tkutils::tkcanvaspng::_anchorOffset center 20 8] \
+         [::tkutils::tkcanvaspng::_anchorOffset se 20 8]
+} -result {{0 0} {-10 -4} {-20 -8}}
+
+test tkcanvaspng-1.7 {empty fill leaves background} -body {
+    px [draw1 rectangle {10 10 40 30} {fill {} outline {}}] 25 20
+} -result #ffffff
+
+# --- Tk layer (only with a display) -----------------------------------------
+test tkcanvaspng-2.1 {render a real canvas to a valid PNG} -constraints hasTk -setup {
+    canvas .tc -width 120 -height 80 -background white -highlightthickness 0
+    .tc create rectangle 10 10 60 50 -fill red -outline black -width 2
+    pack .tc
+    update idletasks
+} -body {
+    ::tclutils::tuimage::type [::tkutils::tkcanvaspng::render .tc -scale 2]
+} -cleanup { destroy .tc } -result png
+
+test tkcanvaspng-2.2 {empty canvas errors} -constraints hasTk -setup {
+    canvas .ec -width 50 -height 50
+    pack .ec
+    update idletasks
+} -body {
+    catch {::tkutils::tkcanvaspng::render .ec} e o
+    dict get $o -errorcode
+} -cleanup { destroy .ec } -result {TKUTILS TKCANVASPNG EMPTY}
+
+# --- 0.2 features: arrow / dash / elliptical arc (Tk-free) ------------------
+test tkcanvaspng-3.1 {dashed line has both on and off runs} -body {
+    set d [draw1 line {5 20 75 20} {fill #000000 width 1 dash {6 6}}]
+    set W [dict get $d width]; set blk 0; set wht 0
+    for {set x 5} {$x < 75} {incr x} {
+        binary scan [dict get $d rgba] "x[expr {(20*$W+$x)*4}] cu cu cu" r g b
+        if {$r < 128} { incr blk } else { incr wht }
+    }
+    expr {$blk > 0 && $wht > 0}
+} -result 1
+
+test tkcanvaspng-3.2 {arrow last draws a head wider than the 1px line} -body {
+    set d [draw1 line {10 30 70 30} {fill #000000 width 1 arrow last arrowshape {8 10 3}}]
+    set W [dict get $d width]; set off 0
+    # a barb sits a few px above the line near the tip
+    for {set y 24} {$y < 30} {incr y} {
+        for {set x 58} {$x < 71} {incr x} {
+            binary scan [dict get $d rgba] "x[expr {($y*$W+$x)*4}] cu cu cu" r g b
+            if {$r < 200} { incr off }
+        }
+    }
+    expr {$off > 0}
+} -result 1
+
+test tkcanvaspng-3.3 {elliptical pie fills its interior} -body {
+    px [draw1 arc {5 5 75 35} {fill #ff8800 start 0 extent 360 style pie}] 40 12
+} -result #ff8800
+
+# --- image item (needs Tk) --------------------------------------------------
+test tkcanvaspng-4.1 {image item composited into the export} -constraints hasTk -setup {
+    set ::ph [image create photo -width 4 -height 4]
+    $::ph put red -to 0 0 4 4
+    canvas .ic -width 40 -height 40 -background white -highlightthickness 0
+    .ic create image 20 20 -image $::ph -anchor center
+    pack .ic
+    update idletasks
+} -body {
+    set d [::tclutils::tupng::decode [::tkutils::tkcanvaspng::render .ic -scale 1]]
+    px $d 2 2
+} -cleanup { destroy .ic; image delete $::ph } -result #ff0000
+
+cleanupTests

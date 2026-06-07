@@ -1,0 +1,19 @@
+.TH tkufilterbar n 0.40.0 tkutils "Tcl/Tk Utility Library"
+.SH NAME
+tkutils::tkufilterbar \- per-column filter bar
+.SH SYNOPSIS
+package require tkutils::tkufilterbar
+.br
+set w [::tkutils::tkufilterbar::widget .f -command cmd]
+.br
+::tkutils::tkufilterbar::setColumns $w {col1 col2 ...}
+.SH DESCRIPTION
+A row of small labelled entries, one per column. Each field filters its own
+column; the consumer ANDs the non-empty fields together. \-command is called as
+"cmd filters", where filters is a dict {column -> text} of the non-empty fields.
+Call setColumns to (re)build the row for a new set of columns. Complements
+tkusearchbar (a single free-text box). See docs/tkufilterbar.md.
+.SH "SEE ALSO"
+tkutils::tkusearchbar(n), tkutils::tkutablelist(n)
+.SH KEYWORDS
+Tk, widget, filter, column

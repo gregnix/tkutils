@@ -1,0 +1,19 @@
+.TH tkmonthcanvas n 0.5 tkutils "Tcl/Tk Utility Library"
+.SH NAME
+tkutils::tkmonthcanvas \- calendar canvas (month/quarter/year, themes, multi-day selection)
+.SH SYNOPSIS
+package require tkutils::tkmonthcanvas
+.br
+::tkutils::tkmonthcanvas::init ?options?
+.br
+::tkutils::tkmonthcanvas::drawMonth canvas year month
+.SH DESCRIPTION
+Procedural toolkit that draws month, quarter and year calendars onto a Tk canvas,
+with themes (default/dark/light), click callbacks (day/week/month) and
+none|single|multiple day selection. Date and holiday logic come from the tical
+engine, so this is an optional widget (not in the tkutils umbrella). See
+docs/tkmonthcanvas.md for the full API.
+.SH "SEE ALSO"
+tical(n), tkutils(n)
+.SH KEYWORDS
+Tk, widget, calendar, canvas

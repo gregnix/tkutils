@@ -1,0 +1,127 @@
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+
+set haveTk 1
+if {[catch {package require Tk 8.6-}]} { set haveTk 0 }
+
+set here  [file dirname [file normalize [info script]]]
+set tmDir [file normalize [file join $here .. lib tm]]
+tcl::tm::path add $tmDir
+
+# locate the tical engine (sibling repo or $TICAL_DIR) and probe availability
+if {[info exists ::env(TICAL_DIR)]} {
+    lappend auto_path $::env(TICAL_DIR)
+} else {
+    set _tkuRoot [file dirname [file dirname $tmDir]]
+    foreach _c [lsort -decreasing [glob -nocomplain \
+            [file join [file dirname $_tkuRoot] tical*/lib] \
+            [file join [file dirname $_tkuRoot] tical*]]] {
+        lappend auto_path $_c
+    }
+}
+set haveTical 0
+if {$haveTk} {
+    if {![catch {package require tical::view::month 1.0}] \
+     && ![catch {package require tical::render::canvas 1.0}]} {
+        set haveTical 1
+    }
+}
+testConstraint tical [expr {$haveTk && $haveTical}]
+
+if {$haveTk && $haveTical} { package require tkutils::tkutical }
+
+test tkutical-1.1 {widget builds (frame + canvas)} -constraints tical -body {
+    destroy .w; ::tkutils::tkutical::widget .w -year 2025 -month 10
+    expr {[winfo exists .w] && [winfo exists .w.c]}
+} -result 1
+
+test tkutical-1.2 {next navigation crosses year boundary} -constraints tical -body {
+    destroy .w; ::tkutils::tkutical::widget .w -year 2025 -month 12
+    ::tkutils::tkutical::next .w
+    ::tkutils::tkutical::getMonth .w
+} -result {2026 1}
+
+test tkutical-1.3 {invalid month -> TKUTILS TKUTICAL MONTH} -constraints tical -body {
+    destroy .w; ::tkutils::tkutical::widget .w
+    catch {::tkutils::tkutical::setMonth .w 2025 13} e o
+    dict get $o -errorcode
+} -result {TKUTILS TKUTICAL MONTH}
+
+test tkutical-1.4 {invalid selectmode at create -> SELECTMODE} -constraints tical -body {
+    destroy .w
+    catch {::tkutils::tkutical::widget .w -selectmode nope} e o
+    dict get $o -errorcode
+} -result {TKUTILS TKUTICAL SELECTMODE}
+
+test tkutical-2.1 {multiple selection via setSelection (ranges)} -constraints tical -body {
+    destroy .w; ::tkutils::tkutical::widget .w -year 2025 -month 10 -selectmode multiple
+    ::tkutils::tkutical::setSelection .w {2025-10-08..2025-10-10 2025-10-20}
+    ::tkutils::tkutical::getSelection .w
+} -result {2025-10-08 2025-10-09 2025-10-10 2025-10-20}
+
+test tkutical-2.2 {-command fires with (path, selection)} -constraints tical -body {
+    destroy .w
+    set ::got {}
+    ::tkutils::tkutical::widget .w -year 2025 -month 10 -selectmode multiple \
+        -command {apply {{p sel} {set ::got [list $p $sel]}}}
+    tical::render::canvas::onDayClick .w.c 2025-10-07 0
+    set ::got
+} -result {.w 2025-10-07}
+
+test tkutical-2.3 {clearSelection empties the selection} -constraints tical -body {
+    ::tkutils::tkutical::clearSelection .w
+    ::tkutils::tkutical::getSelection .w
+} -result {}
+
+test tkutical-2.4 {single mode keeps only the last day} -constraints tical -body {
+    destroy .w; ::tkutils::tkutical::widget .w -year 2025 -month 10 -selectmode single
+    tical::render::canvas::onDayClick .w.c 2025-10-05 0
+    tical::render::canvas::onDayClick .w.c 2025-10-09 0
+    ::tkutils::tkutical::getSelection .w
+} -result {2025-10-09}
+
+
+test tkutical-3.1 {default view is month} -constraints tical -body {
+    destroy .w; ::tkutils::tkutical::widget .w -year 2025 -month 10
+    ::tkutils::tkutical::getView .w
+} -result month
+
+test tkutical-3.2 {week view: -date + week navigation (+7 days)} -constraints tical -body {
+    destroy .w; ::tkutils::tkutical::widget .w -view week -date 2025-10-08
+    set a [::tkutils::tkutical::getDate .w]
+    ::tkutils::tkutical::next .w
+    list $a [::tkutils::tkutical::getDate .w]
+} -result {2025-10-08 2025-10-15}
+
+test tkutical-3.3 {setView invalid -> TKUTILS TKUTICAL VIEW} -constraints tical -body {
+    destroy .w; ::tkutils::tkutical::widget .w
+    catch {::tkutils::tkutical::setView .w year} e o
+    dict get $o -errorcode
+} -result {TKUTILS TKUTICAL VIEW}
+
+test tkutical-3.4 {month view navigates by month (prev crosses year)} -constraints tical -body {
+    destroy .w; ::tkutils::tkutical::widget .w -year 2025 -month 1
+    ::tkutils::tkutical::prev .w
+    ::tkutils::tkutical::getMonth .w
+} -result {2024 12}
+
+test tkutical-3.5 {selection works in week view} -constraints tical -body {
+    destroy .w; ::tkutils::tkutical::widget .w -view week -date 2025-10-08 -selectmode multiple
+    ::tkutils::tkutical::setSelection .w {2025-10-07..2025-10-09}
+    ::tkutils::tkutical::getSelection .w
+} -result {2025-10-07 2025-10-08 2025-10-09}
+
+test tkutical-3.6 {switching month->week keeps the reference date} -constraints tical -body {
+    destroy .w; ::tkutils::tkutical::widget .w -date 2025-10-08 -view month
+    ::tkutils::tkutical::setView .w week
+    ::tkutils::tkutical::getDate .w
+} -result 2025-10-08
+
+test tkutical-3.7 {invalid -date -> TKUTILS TKUTICAL DATE} -constraints tical -body {
+    destroy .w
+    catch {::tkutils::tkutical::widget .w -date 2025-13-40} e o
+    dict get $o -errorcode
+} -result {TKUTILS TKUTICAL DATE}
+
+cleanupTests
