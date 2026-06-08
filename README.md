@@ -1,7 +1,7 @@
 # tkutils 0.40.0
 
 `tkutils` is a collection of Tcl/Tk GUI widgets that sit on top of the pure-Tcl
-engines in [`tclutils`](../tclutils-0.53.0/). It is intentionally separate from
+engines in [`tclutils`](https://github.com/gregnix/tclutils). It is intentionally separate from
 `tclutils` so that console/server/CI use never requires `Tk`.
 
 - **Rule:** the engine lives in `tclutils`, the GUI in `tkutils`. Each widget is
@@ -79,6 +79,7 @@ package require tkutils::tkunotes   ;# or a single widget
 | `tkutils::tkusqlite`    | **sqlite3**  | Lightweight DB browser |
 | `tkutils::tkcanvaspng` | `tclutils::tupngdraw` (Glyphs for `-fontmap`) | Export a live Tk canvas to PNG: lines (arrows/dashes), shapes, elliptical arcs, text, images |
 | `tkutils::tkutical` | **tical** (`tical::view::month` + `tical::render::canvas`) | Month calendar on a canvas: prev/next/today, week numbers, day selection (none/single/multiple, Shift-click ranges), `-command` |
+| `tkutils::tkmonthcanvas` | **tical** | Canvas calendar (month/quarter/year): themes, week numbers, weekday header, today/weekend/holiday/note states, day selection (none/single/multiple) |
 
 These are pure-Tcl-engine-free GUIs that depend on an external package; on a
 stack without that package they are simply not loaded (and their tests skip).
@@ -92,7 +93,7 @@ tclsh bin/tkunotes.tcl
 tclsh examples/demo-tkuical.tcl
 ```
 
-There are **23 demos** under `examples/` and **23 launchers** under `bin/`.
+There are **38 demos** under `examples/` and **24 launchers** under `bin/`.
 
 ## Tests
 
@@ -110,9 +111,10 @@ skip cleanly when those packages are absent.
 
 ## Dependency summary
 
-`tkutils 0.28.0` works with `tclutils 0.35.0+` (editing helpers for
-`tkuini`/`tkuvcard`/`tkuical`/`tkuldif`); `tkunotes` subtree/tags need `tclutils
-0.33.0+`. The recommended pairing is **tclutils 0.41.0 + tkutils 0.28.0**.
+`tkutils 0.40.0` pairs with `tclutils 0.53.0`. The editing helpers
+(`tkuini`/`tkuvcard`/`tkuical`/`tkuldif`) and `tkunotes` subtree/tags build on the
+`tclutils` engines, so a current `tclutils` is required alongside. The recommended
+pairing is **tclutils 0.53.0 + tkutils 0.40.0**.
 
 ## License
 
