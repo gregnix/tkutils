@@ -1,0 +1,138 @@
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+set haveTk 1
+if {[catch {package require Tk 8.6-}]} { set haveTk 0 }
+testConstraint haveTk $haveTk
+set here [file dirname [file normalize [info script]]]
+set tmDir [file normalize [file join $here .. lib tm]]
+catch {tcl::tm::path add $tmDir}
+if {[info exists ::env(TKUTILS_TM)]} { catch {tcl::tm::path add $::env(TKUTILS_TM)} }
+if {$haveTk} { package require tkutils::tkucontextmenu }
+
+set ns ::tkutils::tkucontextmenu
+
+# only run the non-aqua button assertion on x11/win32
+set notAqua [expr {$haveTk && [tk windowingsystem] ne "aqua"}]
+testConstraint notAqua $notAqua
+
+# --- construction ----------------------------------------------------------
+
+test tkucontextmenu-1.1 {create returns a menu widget} -constraints haveTk -body {
+    catch {destroy .m}
+    set m [$::ns\::create .m -tearoff 0]
+    list $m [winfo class .m]
+} -result {.m Menu}
+
+test tkucontextmenu-1.2 {addItem registers and reports its index} -constraints haveTk -body {
+    catch {destroy .m}
+    $::ns\::create .m -tearoff 0
+    $::ns\::addItem .m "Open" -command {} -accelerator "Ctrl+O"
+} -result 0
+
+test tkucontextmenu-1.3 {addSubmenu adds a cascade} -constraints haveTk -body {
+    catch {destroy .m}
+    $::ns\::create .m -tearoff 0
+    set sub [$::ns\::create .m.sub -tearoff 0]
+    $::ns\::addSubmenu .m "More" $sub
+    .m type 0
+} -result cascade
+
+test tkucontextmenu-1.4 {addCheckItem auto-creates its variable} -constraints haveTk -body {
+    catch {destroy .m}
+    $::ns\::create .m -tearoff 0
+    $::ns\::addCheckItem .m "Wrap"
+    .m type 0
+} -result checkbutton
+
+test tkucontextmenu-1.5 {addRadioItem adds a radiobutton} -constraints haveTk -body {
+    catch {destroy .m}
+    $::ns\::create .m -tearoff 0
+    $::ns\::addRadioItem .m "A" -variable ::mode -value a
+    .m type 0
+} -result radiobutton
+
+# --- attach / behaviour ----------------------------------------------------
+
+test tkucontextmenu-2.1 {attach binds the context button} -constraints notAqua -body {
+    catch {destroy .m}; catch {destroy .lbl}
+    $::ns\::create .m -tearoff 0
+    $::ns\::addItem .m "X" -command {}
+    pack [ttk::label .lbl -text hi]
+    $::ns\::attach .m .lbl
+    expr {[bind .lbl <Button-3>] ne ""}
+} -result 1
+
+test tkucontextmenu-2.2 {detach removes the binding} -constraints notAqua -body {
+    catch {destroy .m}; catch {destroy .lbl}
+    $::ns\::create .m -tearoff 0
+    pack [ttk::label .lbl -text hi]
+    $::ns\::attach .m .lbl
+    $::ns\::detach .m .lbl
+    bind .lbl <Button-3>
+} -result {}
+
+test tkucontextmenu-2.3 {disable then enable toggles entry state} -constraints haveTk -body {
+    catch {destroy .m}
+    $::ns\::create .m -tearoff 0
+    $::ns\::addItem .m "Open" -command {}
+    $::ns\::disable .m "Open"
+    set s1 [.m entrycget 0 -state]
+    $::ns\::enable .m "Open"
+    list $s1 [.m entrycget 0 -state]
+} -result {disabled normal}
+
+test tkucontextmenu-2.4 {setCallback replaces the command} -constraints haveTk -body {
+    catch {destroy .m}
+    $::ns\::create .m -tearoff 0
+    set ::r 0
+    $::ns\::addItem .m "Go" -command {set ::r 1}
+    $::ns\::setCallback .m "Go" {set ::r 2}
+    .m invoke 0
+    set ::r
+} -result 2
+
+# --- spec builders ---------------------------------------------------------
+
+test tkucontextmenu-3.1 {createFromSpec handles upper-case submenu labels} -constraints haveTk -body {
+    catch {destroy .fs}
+    set spec {
+        {"New" {set ::r new} -accelerator "Ctrl+N"}
+        -
+        {check "Bold" -variable ::bold}
+        {submenu "Nested" {{"Inner" {set ::r inner}}}}
+    }
+    $::ns\::createFromSpec .fs $spec
+    # 0:New 1:sep 2:Bold 3:Nested(cascade)
+    list [.fs index end] [.fs type 3]
+} -result {3 cascade}
+
+test tkucontextmenu-3.2 {createStandardEdit uses neutral English labels} -constraints haveTk -body {
+    catch {destroy .se}
+    $::ns\::createStandardEdit .se -copycmd {set ::x 1} -pastecmd {set ::x 2}
+    list [.se entrycget 0 -label] [.se entrycget 1 -label]
+} -result {Copy Paste}
+
+# --- errors / lifecycle ----------------------------------------------------
+
+test tkucontextmenu-4.1 {operations on unknown menu raise errorcode} -constraints haveTk -body {
+    catch {$::ns\::addItem .nope "x" -command {}} msg opt
+    dict get $opt -errorcode
+} -result {TKUTILS TKUCONTEXTMENU NOMENU}
+
+test tkucontextmenu-4.2 {destroyMenu clears instance state} -constraints haveTk -body {
+    catch {destroy .m}
+    $::ns\::create .m -tearoff 0
+    $::ns\::destroyMenu .m
+    info exists ${::ns}::instances(.m)
+} -result 0
+
+test tkucontextmenu-4.3 {plain destroy also clears instance state} -constraints haveTk -body {
+    catch {destroy .m2}
+    $::ns\::create .m2 -tearoff 0
+    destroy .m2
+    update
+    info exists ${::ns}::instances(.m2)
+} -result 0
+
+cleanupTests

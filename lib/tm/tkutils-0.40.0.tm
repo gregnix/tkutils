@@ -35,4 +35,6 @@ package require tkutils::tkudavaccount 0.1
 package require tkutils::tkuimage 0.1
 package require tkutils::tkutodo 0.1
 package require tkutils::tkudavbrowser 0.1
+package require tkutils::tkubind 0.1
+package require tkutils::tkucontextmenu 0.1
 package provide tkutils 0.40.0

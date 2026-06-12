@@ -1,0 +1,103 @@
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+set haveTk 1
+if {[catch {package require Tk 8.6-}]} { set haveTk 0 }
+testConstraint haveTk $haveTk
+set here [file dirname [file normalize [info script]]]
+set tmDir [file normalize [file join $here .. lib tm]]
+catch {tcl::tm::path add $tmDir}
+if {[info exists ::env(TKUTILS_TM)]} { catch {tcl::tm::path add $::env(TKUTILS_TM)} }
+if {$haveTk} { package require tkutils::tkubind }
+
+set ns ::tkutils::tkubind
+set notAqua [expr {$haveTk && [tk windowingsystem] ne "aqua"}]
+testConstraint notAqua $notAqua
+
+# --- accelerator / platform ------------------------------------------------
+
+test tkubind-1.1 {accelerator on non-mac is Ctrl+KEY} -constraints notAqua -body {
+    list [$::ns\::accelerator Mod-s] [$::ns\::accelerator Mod-Shift-p]
+} -result {Ctrl+S Ctrl+Shift+P}
+
+test tkubind-1.2 {platform exposes a modifier key} -constraints haveTk -body {
+    expr {[$::ns\::platform modKey] in {Control Command}}
+} -result 1
+
+# --- key binding -----------------------------------------------------------
+
+test tkubind-2.1 {key fires its script} -constraints notAqua -body {
+    $::ns\::clear
+    set ::hit 0
+    $::ns\::key "Mod-s" {set ::hit 1}
+    focus -force .
+    update
+    event generate . <Control-s> -when now
+    update
+    set ::hit
+} -result 1
+
+test tkubind-2.2 {key returns a stable auto id} -constraints notAqua -body {
+    $::ns\::clear
+    $::ns\::key "Mod-s" {}
+} -result key_Control_s
+
+test tkubind-2.3 {unbind reports success then failure} -constraints notAqua -body {
+    $::ns\::clear
+    set id [$::ns\::key "Mod-s" {}]
+    list [$::ns\::unbind $id] [$::ns\::unbind $id]
+} -result {1 0}
+
+# --- isEditing guard -------------------------------------------------------
+
+test tkubind-3.1 {isEditing is true while an entry has focus} -constraints haveTk -body {
+    catch {destroy .e}
+    pack [entry .e]
+    focus -force .e
+    update
+    set r [$::ns\::isEditing]
+    destroy .e
+    set r
+} -result 1
+
+# --- groups ----------------------------------------------------------------
+
+test tkubind-4.1 {group define/enable/disable toggles state} -constraints notAqua -body {
+    $::ns\::clear
+    $::ns\::group define edit {{Mod-b {}} {Mod-i {}}}
+    $::ns\::group enable edit
+    set on [$::ns\::group enabled edit]
+    $::ns\::group disable edit
+    list $on [$::ns\::group enabled edit]
+} -result {1 0}
+
+test tkubind-4.2 {enabling an undefined group raises errorcode} -constraints haveTk -body {
+    catch {$::ns\::group enable nope} msg opt
+    dict get $opt -errorcode
+} -result {TKUTILS TKUBIND GROUP}
+
+test tkubind-4.3 {an unknown group command raises errorcode} -constraints haveTk -body {
+    catch {$::ns\::group frobnicate x} msg opt
+    dict get $opt -errorcode
+} -result {TKUTILS TKUBIND CMD}
+
+# --- context / doubleClick / clear ----------------------------------------
+
+test tkubind-5.1 {context binds the platform context button} -constraints notAqua -body {
+    catch {destroy .w}
+    pack [ttk::label .w -text x]
+    $::ns\::context .w {set ::ctx 1}
+    set r [expr {[bind .w <Button-3>] ne ""}]
+    destroy .w
+    set r
+} -result 1
+
+test tkubind-5.2 {clear removes all registered bindings} -constraints notAqua -body {
+    $::ns\::clear
+    $::ns\::key "Mod-s" {}
+    $::ns\::key "Mod-o" {}
+    $::ns\::clear
+    dict get [$::ns\::getInfo] bindings
+} -result {}
+
+cleanupTests

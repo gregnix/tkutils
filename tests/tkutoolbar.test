@@ -20,6 +20,8 @@ if {[info exists ::env(TCLUTILS_TM)]} {
 }
 if {$haveTk} { package require tkutils::tkutoolbar }
 
+# --- 1.x: backward-compatible 0.1 API (unchanged behaviour) ---------------
+
 test tkutoolbar-1.1 {addButton and items} -constraints haveTk -body {
     catch {destroy .tb}
     set w [::tkutils::tkutoolbar::widget .tb]
@@ -66,5 +68,114 @@ test tkutoolbar-1.6 {addWidget embeds a custom widget} -constraints haveTk -body
     ::tkutils::tkutoolbar::addWidget $w find $w.custom
     expr {"find" in [::tkutils::tkutoolbar::items $w]}
 } -result 1
+
+# --- 2.x: new 0.2 features -------------------------------------------------
+
+test tkutoolbar-2.1 {widget rejects unknown option} -constraints haveTk -body {
+    catch {destroy .tb}
+    catch {::tkutils::tkutoolbar::widget .tb -bogus 1} msg opt
+    list [dict get $opt -errorcode] [string match {*unknown option*} $msg]
+} -result {{TKUTILS TKUTOOLBAR OPTION} 1}
+
+test tkutoolbar-2.2 {widget rejects bad orient} -constraints haveTk -body {
+    catch {destroy .tb}
+    catch {::tkutils::tkutoolbar::widget .tb -orient sideways} msg opt
+    dict get $opt -errorcode
+} -result {TKUTILS TKUTOOLBAR ORIENT}
+
+test tkutoolbar-2.3 {vertical separator orientation} -constraints haveTk -body {
+    catch {destroy .tb}
+    set w [::tkutils::tkutoolbar::widget .tb -orient vertical]
+    set s [::tkutils::tkutoolbar::addSeparator $w]
+    $s cget -orient
+} -result horizontal
+
+test tkutoolbar-2.4 {displaymode both keeps text and image} -constraints haveTk -body {
+    catch {destroy .tb}
+    set img [image create photo -width 4 -height 4]
+    set w [::tkutils::tkutoolbar::widget .tb -displaymode both]
+    ::tkutils::tkutoolbar::addButton $w a "Alpha" {} -icon $img
+    set b [::tkutils::tkutoolbar::buttonWidget $w a]
+    list [$b cget -text] [expr {[$b cget -image] eq $img}]
+} -result {Alpha 1}
+
+test tkutoolbar-2.5 {setDisplayMode text drops image} -constraints haveTk -body {
+    catch {destroy .tb}
+    set img [image create photo -width 4 -height 4]
+    set w [::tkutils::tkutoolbar::widget .tb -displaymode both]
+    ::tkutils::tkutoolbar::addButton $w a "Alpha" {} -icon $img
+    ::tkutils::tkutoolbar::setDisplayMode $w text
+    set b [::tkutils::tkutoolbar::buttonWidget $w a]
+    list [::tkutils::tkutoolbar::getDisplayMode $w] [$b cget -text] [$b cget -image]
+} -result {text Alpha {}}
+
+test tkutoolbar-2.6 {setDisplayMode icon drops text} -constraints haveTk -body {
+    catch {destroy .tb}
+    set img [image create photo -width 4 -height 4]
+    set w [::tkutils::tkutoolbar::widget .tb -displaymode both]
+    ::tkutils::tkutoolbar::addButton $w a "Alpha" {} -icon $img
+    ::tkutils::tkutoolbar::setDisplayMode $w icon
+    [::tkutils::tkutoolbar::buttonWidget $w a] cget -text
+} -result {}
+
+test tkutoolbar-2.7 {addDropdown builds a menubutton with menu} -constraints haveTk -body {
+    catch {destroy .tb}
+    set w [::tkutils::tkutoolbar::widget .tb]
+    set b [::tkutils::tkutoolbar::addDropdown $w more "More" \
+        -menu {{One {set ::dd 1}} - {Two {set ::dd 2}}}]
+    list [winfo class $b] [winfo exists $b.menu] [$b.menu index end]
+} -result {TMenubutton 1 2}
+
+test tkutoolbar-2.8 {configureButton updates text} -constraints haveTk -body {
+    catch {destroy .tb}
+    set w [::tkutils::tkutoolbar::widget .tb]
+    ::tkutils::tkutoolbar::addButton $w a "Alpha" {}
+    ::tkutils::tkutoolbar::configureButton $w a -text "Beta"
+    [::tkutils::tkutoolbar::buttonWidget $w a] cget -text
+} -result Beta
+
+test tkutoolbar-2.9 {setCallback replaces command} -constraints haveTk -body {
+    catch {destroy .tb}
+    set w [::tkutils::tkutoolbar::widget .tb]
+    set ::cb 0
+    ::tkutils::tkutoolbar::addButton $w a "Alpha" {set ::cb 1}
+    ::tkutils::tkutoolbar::setCallback $w a {set ::cb 2}
+    [::tkutils::tkutoolbar::buttonWidget $w a] invoke
+    set ::cb
+} -result 2
+
+test tkutoolbar-2.10 {shortcut invokes button command} -constraints haveTk -body {
+    catch {destroy .tb}
+    set w [::tkutils::tkutoolbar::widget .tb]
+    set ::sc 0
+    ::tkutils::tkutoolbar::addButton $w a "Alpha" {set ::sc 1} -shortcut "Control-y"
+    focus -force .
+    update
+    event generate . <Control-y> -when now
+    update
+    set ::sc
+} -result 1
+
+test tkutoolbar-2.11 {unknown item id errors with code} -constraints haveTk -body {
+    catch {destroy .tb}
+    set w [::tkutils::tkutoolbar::widget .tb]
+    catch {::tkutils::tkutoolbar::buttonWidget $w nope} msg opt
+    dict get $opt -errorcode
+} -result {TKUTILS TKUTOOLBAR NOITEM}
+
+test tkutoolbar-2.12 {operations on unknown toolbar error with code} -constraints haveTk -body {
+    catch {destroy .nope}
+    catch {::tkutils::tkutoolbar::items .nope} msg opt
+    dict get $opt -errorcode
+} -result {TKUTILS TKUTOOLBAR NOTOOLBAR}
+
+test tkutoolbar-2.13 {Destroy clears per-widget state} -constraints haveTk -body {
+    catch {destroy .tb}
+    set w [::tkutils::tkutoolbar::widget .tb]
+    ::tkutils::tkutoolbar::addButton $w a "Alpha" {} -shortcut "Control-u"
+    destroy $w
+    update
+    info exists ::tkutils::tkutoolbar::state(.tb,items)
+} -result 0
 
 cleanupTests
