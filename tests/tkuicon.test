@@ -1,0 +1,85 @@
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+set haveTk 1
+if {[catch {package require Tk 8.6-}]} { set haveTk 0 }
+testConstraint haveTk $haveTk
+set here [file dirname [file normalize [info script]]]
+set tmDir [file normalize [file join $here .. lib tm]]
+catch {tcl::tm::path add $tmDir}
+if {[info exists ::env(TCLUTILS_TM)]} { catch {tcl::tm::path add $::env(TCLUTILS_TM)} }
+if {[info exists ::env(TKUTILS_TM)]}  { catch {tcl::tm::path add $::env(TKUTILS_TM)} }
+# locate sibling tclutils for tusvg (in-tree/dev)
+if {![info exists ::env(TCLUTILS_TM)]} {
+    set _root [file dirname [file dirname $tmDir]]
+    foreach _c [lsort -decreasing [glob -nocomplain [file join [file dirname $_root] tclutils*/lib/tm]]] {
+        catch {tcl::tm::path add $_c}; break
+    }
+}
+if {$haveTk} { package require tkutils::tkuicon }
+
+set ns ::tkutils::tkuicon
+
+# SVG support is environment-dependent (tksvg on 8.6, native on 8.7+).
+set haveSvg [expr {$haveTk && [$ns\::hassvg]}]
+testConstraint svg   $haveSvg
+testConstraint nosvg [expr {$haveTk && !$haveSvg}]
+
+# --- always-available behaviour --------------------------------------------
+
+test tkuicon-1.1 {hassvg returns a boolean} -constraints haveTk -body {
+    expr {[$::ns\::hassvg] in {0 1}}
+} -result 1
+
+test tkuicon-1.2 {available lists predefined icons} -constraints haveTk -body {
+    expr {[llength [$::ns\::available]] > 0}
+} -result 1
+
+test tkuicon-1.3 {load rejects an unknown extension} -constraints haveTk -body {
+    catch {$::ns\::load some.xyz} m o
+    dict get $o -errorcode
+} -result {TKUTILS TKUICON FORMAT}
+
+test tkuicon-1.4 {_scalePhoto upscales by integer zoom} -constraints haveTk -body {
+    set img [image create photo -width 8 -height 8]
+    set big [$::ns\::_scalePhoto $img 16 ""]
+    list [image width $big] [image height $big]
+} -result {16 16}
+
+test tkuicon-1.5 {clearCache runs cleanly} -constraints haveTk -body {
+    $::ns\::clearCache
+    set ::ok 1
+} -result 1
+
+# --- without SVG support (e.g. Tk 8.6 + no tksvg) ---------------------------
+
+test tkuicon-2.1 {create without SVG reports NOSVG} -constraints nosvg -body {
+    catch {$::ns\::create save 24} m o
+    dict get $o -errorcode
+} -result {TKUTILS TKUICON NOSVG}
+
+test tkuicon-2.2 {loading an .svg without support reports NOSVG} -constraints nosvg -body {
+    catch {$::ns\::load some.svg} m o
+    dict get $o -errorcode
+} -result {TKUTILS TKUICON NOSVG}
+
+# --- with SVG support (tksvg / Tk 8.7+) ------------------------------------
+
+test tkuicon-3.1 {create builds a photo image} -constraints svg -body {
+    set img [$::ns\::create save 24 -color "#222222"]
+    list [expr {[image width $img] > 0}] [image type $img]
+} -result {1 photo}
+
+test tkuicon-3.2 {create caches by parameters} -constraints svg -body {
+    $::ns\::clearCache
+    set a [$::ns\::create save 24]
+    set b [$::ns\::create save 24]
+    expr {$a eq $b}
+} -result 1
+
+test tkuicon-3.3 {loadToolbarSet returns a dict of images} -constraints svg -body {
+    set d [$::ns\::loadToolbarSet 24 -icons {save open search}]
+    list [dict size $d] [expr {[image width [dict get $d save]] > 0}]
+} -result {3 1}
+
+cleanupTests

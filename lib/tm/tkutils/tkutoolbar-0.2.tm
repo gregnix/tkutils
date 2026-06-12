@@ -16,6 +16,7 @@
 
 package require Tcl 8.6-
 package require Tk 8.6-
+package require tkutils::tkuballoon
 
 namespace eval ::tkutils {}
 namespace eval ::tkutils::tkutoolbar {
@@ -23,9 +24,6 @@ namespace eval ::tkutils::tkutoolbar {
         addDropdown setEnabled buttonWidget items \
         configureButton setCallback setDisplayMode getDisplayMode
     variable state
-    # shared tooltip bookkeeping (only one tooltip is ever visible at a time)
-    variable tipAfter ""
-    variable tipWin   ".tkutoolbar_tip"
 }
 
 # --- internal helpers ------------------------------------------------------
@@ -382,39 +380,10 @@ proc ::tkutils::tkutoolbar::_invoke {w} {
     }
 }
 
-# --- tooltip (shared, single visible instance) -----------------------------
+# --- tooltip (delegated to tkutils::tkuballoon) ----------------------------
 
 proc ::tkutils::tkutoolbar::_attachTip {w text} {
-    bind $w <Enter>       [list ::tkutils::tkutoolbar::_tipEnter %W $text]
-    bind $w <Leave>       [list ::tkutils::tkutoolbar::_tipHide]
-    bind $w <ButtonPress> [list ::tkutils::tkutoolbar::_tipHide]
-}
-
-proc ::tkutils::tkutoolbar::_tipEnter {w text} {
-    variable tipAfter
-    if {$tipAfter ne ""} { after cancel $tipAfter }
-    set tipAfter [after 600 [list ::tkutils::tkutoolbar::_tipShow $w $text]]
-}
-
-proc ::tkutils::tkutoolbar::_tipShow {w text} {
-    variable tipWin
-    if {![winfo exists $w]} return
-    catch {destroy $tipWin}
-    set x [expr {[winfo rootx $w] + [winfo width $w] / 2}]
-    set y [expr {[winfo rooty $w] + [winfo height $w] + 2}]
-    toplevel $tipWin -borderwidth 1 -relief solid
-    wm overrideredirect $tipWin 1
-    catch {wm attributes $tipWin -topmost 1}
-    wm geometry $tipWin +$x+$y
-    # ttk::label inherits theme colours; no hard-coded palette
-    pack [ttk::label $tipWin.l -text $text -padding {4 2}]
-}
-
-proc ::tkutils::tkutoolbar::_tipHide {} {
-    variable tipAfter
-    variable tipWin
-    if {$tipAfter ne ""} { after cancel $tipAfter; set tipAfter "" }
-    catch {destroy $tipWin}
+    ::tkutils::tkuballoon::add $w $text
 }
 
 package provide tkutils::tkutoolbar 0.2

@@ -1,0 +1,103 @@
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+set haveTk 1
+if {[catch {package require Tk 8.6-}]} { set haveTk 0 }
+testConstraint haveTk $haveTk
+set here [file dirname [file normalize [info script]]]
+set tmDir [file normalize [file join $here .. lib tm]]
+catch {tcl::tm::path add $tmDir}
+if {[info exists ::env(TKUTILS_TM)]} { catch {tcl::tm::path add $::env(TKUTILS_TM)} }
+if {$haveTk} { package require tkutils::tkuballoon }
+
+set ns ::tkutils::tkuballoon
+
+proc reset {} {
+    $::ns\::enable
+    $::ns\::configure -delay 600 -wraplength 320
+    catch {destroy .b}
+    catch {destroy .tkuballoon_tip}
+    pack [ttk::button .b -text Save]
+}
+
+# --- configuration ---------------------------------------------------------
+
+test tkuballoon-1.1 {configure/cget round-trip} -constraints haveTk -body {
+    $::ns\::configure -delay 250 -wraplength 200
+    list [$::ns\::cget -delay] [$::ns\::cget -wraplength]
+} -result {250 200}
+
+test tkuballoon-1.2 {configure rejects unknown option} -constraints haveTk -body {
+    catch {$::ns\::configure -bogus 1} m o
+    dict get $o -errorcode
+} -result {TKUTILS TKUBALLOON OPTION}
+
+test tkuballoon-1.3 {configure rejects negative delay} -constraints haveTk -body {
+    catch {$::ns\::configure -delay -5} m o
+    dict get $o -errorcode
+} -result {TKUTILS TKUBALLOON VALUE}
+
+# --- attach / show / hide --------------------------------------------------
+
+test tkuballoon-2.1 {balloon appears after the hover delay} -constraints haveTk -body {
+    reset
+    $::ns\::add .b "Save the file" -delay 60
+    event generate .b <Enter>
+    after 120
+    update
+    list [winfo exists .tkuballoon_tip] [.tkuballoon_tip.l cget -text]
+} -result {1 {Save the file}}
+
+test tkuballoon-2.2 {balloon disappears on leave} -constraints haveTk -body {
+    reset
+    $::ns\::add .b "x" -delay 60
+    event generate .b <Enter>
+    after 120; update
+    event generate .b <Leave>; update
+    winfo exists .tkuballoon_tip
+} -result 0
+
+test tkuballoon-2.3 {add on a nonexistent widget errors} -constraints haveTk -body {
+    catch {$::ns\::add .nope "x"} m o
+    dict get $o -errorcode
+} -result {TKUTILS TKUBALLOON NOWIDGET}
+
+test tkuballoon-2.4 {add with unknown option errors} -constraints haveTk -body {
+    reset
+    catch {$::ns\::add .b "x" -bogus 1} m o
+    dict get $o -errorcode
+} -result {TKUTILS TKUBALLOON OPTION}
+
+# --- enable / disable / clear ----------------------------------------------
+
+test tkuballoon-3.1 {disable suppresses the balloon} -constraints haveTk -body {
+    reset
+    $::ns\::add .b "x" -delay 40
+    $::ns\::disable
+    event generate .b <Enter>
+    after 90; update
+    set r [winfo exists .tkuballoon_tip]
+    $::ns\::enable
+    set r
+} -result 0
+
+test tkuballoon-3.2 {clear removes the balloon text} -constraints haveTk -body {
+    reset
+    $::ns\::add .b "x" -delay 40
+    $::ns\::clear .b
+    event generate .b <Enter>
+    after 90; update
+    winfo exists .tkuballoon_tip
+} -result 0
+
+# --- lifecycle -------------------------------------------------------------
+
+test tkuballoon-4.1 {Destroy clears per-widget state} -constraints haveTk -body {
+    reset
+    $::ns\::add .b "x"
+    destroy .b
+    update
+    info exists ${::ns}::state(.b,text)
+} -result 0
+
+cleanupTests
