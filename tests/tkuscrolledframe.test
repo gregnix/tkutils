@@ -1,0 +1,76 @@
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+set haveTk 1
+if {[catch {package require Tk 8.6-}]} { set haveTk 0 }
+testConstraint haveTk $haveTk
+set here [file dirname [file normalize [info script]]]
+set tmDir [file normalize [file join $here .. lib tm]]
+catch {tcl::tm::path add $tmDir}
+if {[info exists ::env(TKUTILS_TM)]} { catch {tcl::tm::path add $::env(TKUTILS_TM)} }
+if {$haveTk} { package require tkutils::tkuscrolledframe }
+
+set ns ::tkutils::tkuscrolledframe
+set haveSF [expr {$haveTk && ![catch {package require scrollutil}]}]
+testConstraint sf    $haveSF
+testConstraint nosf  [expr {$haveTk && !$haveSF}]
+
+# --- always testable -------------------------------------------------------
+
+test tkuscrolledframe-1.1 {accessor on unknown path errors} -constraints haveTk -body {
+    catch {$::ns\::content .nope} m o
+    dict get $o -errorcode
+} -result {TKUTILS TKUSCROLLEDFRAME NOWIDGET}
+
+# --- without scrollutil ----------------------------------------------------
+
+test tkuscrolledframe-2.1 {widget reports NOSCROLLUTIL when scrollutil is absent} -constraints nosf -body {
+    catch {$::ns\::widget .sf} m o
+    dict get $o -errorcode
+} -result {TKUTILS TKUSCROLLEDFRAME NOSCROLLUTIL}
+
+# --- with scrollutil -------------------------------------------------------
+
+test tkuscrolledframe-3.1 {widget builds and content is a frame} -constraints sf -body {
+    catch {destroy .sf}
+    set w [$::ns\::widget .sf -width 200 -height 150]
+    set c [$::ns\::content .sf]
+    list [expr {$w eq ".sf"}] [winfo exists $c]
+} -result {1 1}
+
+test tkuscrolledframe-3.2 {children pack into the content frame} -constraints sf -body {
+    catch {destroy .sf}
+    $::ns\::widget .sf
+    set c [$::ns\::content .sf]
+    ttk::button $c.b -text Hi
+    pack $c.b
+    winfo manager $c.b
+} -result pack
+
+test tkuscrolledframe-3.3 {bad option errors with code} -constraints sf -body {
+    catch {destroy .sf}
+    catch {$::ns\::widget .sf -bogus 1} m o
+    dict get $o -errorcode
+} -result {TKUTILS TKUSCROLLEDFRAME OPTION}
+
+test tkuscrolledframe-3.4 {non-integer geometry errors with code} -constraints sf -body {
+    catch {destroy .sf}
+    catch {$::ns\::widget .sf -width abc} m o
+    dict get $o -errorcode
+} -result {TKUTILS TKUSCROLLEDFRAME VALUE}
+
+test tkuscrolledframe-3.5 {yview returns scroll fractions} -constraints sf -body {
+    catch {destroy .sf}
+    $::ns\::widget .sf
+    expr {[llength [$::ns\::yview .sf]] == 2}
+} -result 1
+
+test tkuscrolledframe-3.6 {Destroy clears per-widget state} -constraints sf -body {
+    catch {destroy .sf}
+    $::ns\::widget .sf
+    destroy .sf
+    update
+    info exists ${::ns}::state(.sf,sf)
+} -result 0
+
+cleanupTests

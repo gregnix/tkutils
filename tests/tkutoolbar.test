@@ -178,4 +178,40 @@ test tkutoolbar-2.13 {Destroy clears per-widget state} -constraints haveTk -body
     info exists ::tkutils::tkutoolbar::state(.tb,items)
 } -result 0
 
+test tkutoolbar-2.14 {raised buttonstyle gives bordered TButton} -constraints haveTk -body {
+    catch {destroy .tb}
+    set w [::tkutils::tkutoolbar::widget .tb -buttonstyle raised]
+    ::tkutils::tkutoolbar::addButton $w a "Alpha" {}
+    [::tkutils::tkutoolbar::buttonWidget $w a] cget -style
+} -result TButton
+
+test tkutoolbar-2.15 {flat buttonstyle stays Toolbutton} -constraints haveTk -body {
+    catch {destroy .tb}
+    set w [::tkutils::tkutoolbar::widget .tb]
+    ::tkutils::tkutoolbar::addButton $w a "Alpha" {}
+    [::tkutils::tkutoolbar::buttonWidget $w a] cget -style
+} -result Toolbutton
+
+test tkutoolbar-2.16 {bad buttonstyle errors with code} -constraints haveTk -body {
+    catch {destroy .tb}
+    catch {::tkutils::tkutoolbar::widget .tb -buttonstyle fancy} msg opt
+    dict get $opt -errorcode
+} -result {TKUTILS TKUTOOLBAR BUTTONSTYLE}
+
+test tkutoolbar-2.17 {vertical toolbar stacks buttons top-down} -constraints haveTk -body {
+    catch {destroy .tb}
+    set w [::tkutils::tkutoolbar::widget .tb -orient vertical]
+    ::tkutils::tkutoolbar::addButton $w a "A" {}
+    dict get [pack info [::tkutils::tkutoolbar::buttonWidget $w a]] -side
+} -result top
+
+test tkutoolbar-2.18 {displayMode switch works on a vertical toolbar} -constraints haveTk -body {
+    catch {destroy .tb}
+    set img [image create photo -width 4 -height 4]
+    set w [::tkutils::tkutoolbar::widget .tb -orient vertical -displaymode both]
+    ::tkutils::tkutoolbar::addButton $w a "Alpha" {} -icon $img
+    ::tkutils::tkutoolbar::setDisplayMode $w icon
+    [::tkutils::tkutoolbar::buttonWidget $w a] cget -text
+} -result {}
+
 cleanupTests

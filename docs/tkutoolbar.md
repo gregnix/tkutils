@@ -10,8 +10,13 @@ old callers keep working unchanged.
 ```tcl
 set tb [::tkutils::tkutoolbar::widget .tb \
     ?-orient horizontal|vertical? ?-displaymode icon|text|both? \
-    ?-spacing px? ?-padding px?]
+    ?-spacing px? ?-padding px? ?-buttonstyle flat|raised?]
 ```
+
+`-buttonstyle flat` (default) uses the flat `Toolbutton` style (button edges show
+on hover); `-buttonstyle raised` gives push buttons and dropdowns a visible
+border (`TButton`/`TMenubutton`), so it is obvious where each button begins.
+Toggles keep the flat pressed-state look in both modes.
 
 ## Items
 
@@ -49,10 +54,12 @@ automatically when the toolbar is destroyed.
 - Tooltips are delegated to `tkutils::tkuballoon` (a runtime dependency).
 - `icon` mode without an `-icon` falls back to text; `both` uses `-compound`.
 - Errors carry `{TKUTILS TKUTOOLBAR <REASON>}`
-  (`OPTION`, `ORIENT`, `DISPLAYMODE`, `NOITEM`, `NOTOOLBAR`).
+  (`OPTION`, `ORIENT`, `DISPLAYMODE`, `BUTTONSTYLE`, `NOITEM`, `NOTOOLBAR`).
 
-## Launcher
+## Launcher / demos
 
 ```bash
 tclsh bin/tkutoolbar.tcl
+tclsh examples/demo-tkutoolbar.tcl          # text buttons, display modes
+tclsh examples/demo-tkutoolbar-icons.tcl    # icons (via tkuicon) + flat vs raised
 ```

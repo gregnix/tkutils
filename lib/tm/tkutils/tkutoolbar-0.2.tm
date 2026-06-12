@@ -6,7 +6,7 @@
 # Tcl/Tk 8.6+ / 9.x.
 #
 # New in 0.2 (all additive, the 0.1 positional API stays a strict subset):
-#   - widget options -orient, -displaymode, -spacing, -padding
+#   - widget options -orient, -displaymode, -spacing, -padding, -buttonstyle
 #   - per-button -icon, -tooltip, -shortcut, -compound, -displaymode, -side
 #   - addDropdown (ttk::menubutton + menu)
 #   - configureButton, setCallback, setDisplayMode, getDisplayMode
@@ -99,11 +99,12 @@ proc ::tkutils::tkutoolbar::_visual {mode text icon compound} {
 # Build the toolbar under $path.
 #   -orient      horizontal|vertical   (default horizontal)
 #   -displaymode icon|text|both        (default both)
-#   -spacing     pixels between items   (default 1)
+#   -spacing     pixels between items   (default 2)
+#   -buttonstyle flat|raised  flat=Toolbutton, raised=bordered TButton (default flat)
 #   -padding     frame padding          (default 2)
 proc ::tkutils::tkutoolbar::widget {path args} {
     variable state
-    array set opts {-orient horizontal -displaymode both -spacing 1 -padding 2}
+    array set opts {-orient horizontal -displaymode both -spacing 2 -padding 2 -buttonstyle flat}
     foreach {o v} $args {
         if {![info exists opts($o)]} {
             return -code error -errorcode {TKUTILS TKUTOOLBAR OPTION} \
@@ -119,6 +120,10 @@ proc ::tkutils::tkutoolbar::widget {path args} {
         return -code error -errorcode {TKUTILS TKUTOOLBAR DISPLAYMODE} \
             "bad displaymode '$opts(-displaymode)': must be icon, text or both"
     }
+    if {$opts(-buttonstyle) ni {flat raised}} {
+        return -code error -errorcode {TKUTILS TKUTOOLBAR BUTTONSTYLE} \
+            "bad buttonstyle '$opts(-buttonstyle)': must be flat or raised"
+    }
 
     ttk::frame $path -padding $opts(-padding)
     set state($path,count)       0
@@ -128,6 +133,7 @@ proc ::tkutils::tkutoolbar::widget {path args} {
     set state($path,orient)      $opts(-orient)
     set state($path,displaymode) $opts(-displaymode)
     set state($path,spacing)     $opts(-spacing)
+    set state($path,buttonstyle) $opts(-buttonstyle)
     set state($path,shortcuts)   {}
     bind $path <Destroy> [list ::tkutils::tkutoolbar::_cleanup $path %W]
     return $path
@@ -165,7 +171,8 @@ proc ::tkutils::tkutoolbar::addButton {path id label command args} {
 
     set w $path.w[incr state($path,count)]
     set vis [_visual $mode $label $icon [dict get $d -compound]]
-    ttk::button $w {*}$vis -command $command -style Toolbutton {*}$pass
+    set bstyle [expr {$state($path,buttonstyle) eq "raised" ? "TButton" : "Toolbutton"}]
+    ttk::button $w {*}$vis -command $command -style $bstyle {*}$pass
     _pack $path $w [dict get $d -side]
 
     set meta [dict create type button text $label icon $icon \
@@ -228,7 +235,8 @@ proc ::tkutils::tkutoolbar::addDropdown {path id label args} {
     set w  $path.w[incr state($path,count)]
     set mw $w.menu
     set vis [_visual $mode $label $icon [dict get $d -compound]]
-    ttk::menubutton $w {*}$vis -style Toolbutton -menu $mw {*}$pass
+    set bstyle [expr {$state($path,buttonstyle) eq "raised" ? "TMenubutton" : "Toolbutton"}]
+    ttk::menubutton $w {*}$vis -style $bstyle -menu $mw {*}$pass
     menu $mw -tearoff 0
     foreach item [dict get $d -menu] {
         if {$item eq "-"} {

@@ -2,7 +2,7 @@
 #
 # Loads .svg/.png icons as Tk photo images and generates the built-in icon set
 # on the fly from tclutils::tusvg. SVG needs tksvg (Tk 8.6) or native SVG
-# (Tk 8.7+); without it the file loader still handles PNG/GIF and `create`
+# (Tk 9.0+); without it the file loader still handles PNG/GIF and `create`
 # reports {TKUTILS TKUICON NOSVG}. Results are cached. OPTIONAL module -- not
 # loaded by the tkutils umbrella. Tcl/Tk 8.6+ / 9.x.
 #
@@ -20,7 +20,7 @@ namespace eval ::tkutils::tkuicon {
     array set cache {}
     
     variable hasTksvg 0
-    variable hasTk87svg 0
+    variable hasNativeSvg 0
 }
 
 # ============================================================
@@ -29,11 +29,11 @@ namespace eval ::tkutils::tkuicon {
 
 proc ::tkutils::tkuicon::_init {} {
     variable hasTksvg
-    variable hasTk87svg
+    variable hasNativeSvg
     
-    # Tk 8.7+ hat SVG eingebaut (TIP507)
-    if {[package vsatisfies [package require Tk] 8.7-]} {
-        set hasTk87svg 1
+    # Tk 9.0+ has built-in SVG (TIP 507); 8.7 was never released as stable
+    if {[package vsatisfies [package require Tk] 9-]} {
+        set hasNativeSvg 1
         return
     }
     
@@ -52,8 +52,8 @@ proc ::tkutils::tkuicon::_init {} {
 
 proc ::tkutils::tkuicon::hassvg {} {
     variable hasTksvg
-    variable hasTk87svg
-    return [expr {$hasTksvg || $hasTk87svg}]
+    variable hasNativeSvg
+    return [expr {$hasTksvg || $hasNativeSvg}]
 }
 
 # ============================================================
@@ -67,7 +67,7 @@ proc ::tkutils::tkuicon::hassvg {} {
 proc ::tkutils::tkuicon::load {filename args} {
     variable cache
     variable hasTksvg
-    variable hasTk87svg
+    variable hasNativeSvg
     
     array set opts {
         -height ""
@@ -92,8 +92,8 @@ proc ::tkutils::tkuicon::load {filename args} {
     
     if {$ext eq ".svg"} {
         # SVG laden
-        if {!$hasTksvg && !$hasTk87svg} {
-            return -code error -errorcode {TKUTILS TKUICON NOSVG} "no SVG support: install tksvg for Tk 8.6, or use Tk 8.7+"
+        if {!$hasTksvg && !$hasNativeSvg} {
+            return -code error -errorcode {TKUTILS TKUICON NOSVG} "no SVG support: install tksvg for Tk 8.6, or use Tk 9.0+"
         }
         
         # Format-String bauen
@@ -132,7 +132,7 @@ proc ::tkutils::tkuicon::load {filename args} {
 proc ::tkutils::tkuicon::create {iconName size args} {
     variable cache
     variable hasTksvg
-    variable hasTk87svg
+    variable hasNativeSvg
     
     array set opts {
         -color "#333333"
@@ -141,8 +141,8 @@ proc ::tkutils::tkuicon::create {iconName size args} {
     }
     array set opts $args
     
-    if {!$hasTksvg && !$hasTk87svg} {
-        return -code error -errorcode {TKUTILS TKUICON NOSVG} "no SVG support: install tksvg for Tk 8.6, or use Tk 8.7+"
+    if {!$hasTksvg && !$hasNativeSvg} {
+        return -code error -errorcode {TKUTILS TKUICON NOSVG} "no SVG support: install tksvg for Tk 8.6, or use Tk 9.0+"
     }
     
     # Cache-Key
@@ -183,10 +183,10 @@ proc ::tkutils::tkuicon::create {iconName size args} {
 
 proc ::tkutils::tkuicon::rescale {imgName newHeight} {
     variable hasTksvg
-    variable hasTk87svg
+    variable hasNativeSvg
     
-    if {!$hasTksvg && !$hasTk87svg} {
-        return -code error -errorcode {TKUTILS TKUICON NOSVG} "SVG scaling unavailable without tksvg / Tk 8.7+"
+    if {!$hasTksvg && !$hasNativeSvg} {
+        return -code error -errorcode {TKUTILS TKUICON NOSVG} "SVG scaling unavailable without tksvg / Tk 9.0+"
     }
     
     # SVG-Images koennen direkt rekonfiguriert werden

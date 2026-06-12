@@ -1,0 +1,111 @@
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+set haveTk 1
+if {[catch {package require Tk 8.6-}]} { set haveTk 0 }
+testConstraint haveTk $haveTk
+set here [file dirname [file normalize [info script]]]
+set tmDir [file normalize [file join $here .. lib tm]]
+catch {tcl::tm::path add $tmDir}
+if {[info exists ::env(TKUTILS_TM)]} { catch {tcl::tm::path add $::env(TKUTILS_TM)} }
+if {$haveTk} { package require tkutils::tkukeynav }
+
+set ns ::tkutils::tkukeynav
+
+proc mkform {} {
+    catch {destroy .f}
+    pack [ttk::frame .f]
+    foreach n {a b c} { pack [ttk::entry .f.$n] }
+    update
+}
+
+# --- movement --------------------------------------------------------------
+
+test tkukeynav-1.1 {next moves focus forward} -constraints haveTk -body {
+    mkform
+    focus -force .f.a
+    $::ns\::next .f.a
+    update
+    string equal [focus] .f.b
+} -result 1
+
+test tkukeynav-1.2 {prev moves focus backward} -constraints haveTk -body {
+    mkform
+    focus -force .f.b
+    $::ns\::prev .f.b
+    update
+    string equal [focus] .f.a
+} -result 1
+
+# --- enable / callbacks ----------------------------------------------------
+
+test tkukeynav-2.1 {enable on unknown widget errors} -constraints haveTk -body {
+    catch {$::ns\::enable .nope} m o
+    dict get $o -errorcode
+} -result {TKUTILS TKUKEYNAV NOWIDGET}
+
+test tkukeynav-2.2 {enable rejects unknown option} -constraints haveTk -body {
+    mkform
+    catch {$::ns\::enable .f.a -bogus 1} m o
+    dict get $o -errorcode
+} -result {TKUTILS TKUKEYNAV OPTION}
+
+test tkukeynav-2.3 {onreturn callback fires on Return} -constraints haveTk -body {
+    mkform
+    set ::r 0
+    $::ns\::enable .f.a -onreturn {set ::r 1}
+    focus -force .f.a; update
+    event generate .f.a <Return>; update
+    set ::r
+} -result 1
+
+test tkukeynav-2.4 {onescape callback fires on Escape} -constraints haveTk -body {
+    mkform
+    set ::e 0
+    $::ns\::enable .f.a -onescape {set ::e 1}
+    focus -force .f.a; update
+    event generate .f.a <Escape>; update
+    set ::e
+} -result 1
+
+test tkukeynav-2.5 {disable removes the Return binding} -constraints haveTk -body {
+    mkform
+    $::ns\::enable .f.a -onreturn {}
+    $::ns\::enable .f.a -onreturn {set ::r 1}
+    $::ns\::disable .f.a
+    bind .f.a <Return>
+} -result {}
+
+# --- form ------------------------------------------------------------------
+
+test tkukeynav-3.1 {form collects focusable inputs in order} -constraints haveTk -body {
+    mkform
+    lmap w [$::ns\::form .f] {winfo name $w}
+} -result {a b c}
+
+test tkukeynav-3.2 {Return advances to the next field} -constraints haveTk -body {
+    mkform
+    $::ns\::form .f
+    focus -force .f.a; update
+    event generate .f.a <Return>; update
+    string equal [focus] .f.b
+} -result 1
+
+test tkukeynav-3.3 {Return on the last field submits} -constraints haveTk -body {
+    mkform
+    set ::submitted 0
+    $::ns\::form .f -onsubmit {set ::submitted 1}
+    focus -force .f.c; update
+    event generate .f.c <Return>; update
+    set ::submitted
+} -result 1
+
+test tkukeynav-3.4 {wrap returns focus to the first field} -constraints haveTk -body {
+    mkform
+    $::ns\::form .f -wrap 1
+    focus -force .f.c; update
+    event generate .f.c <Return>; update
+    string equal [focus] .f.a
+} -result 1
+
+cleanupTests

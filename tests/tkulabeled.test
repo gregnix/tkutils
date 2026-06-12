@@ -1,0 +1,102 @@
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+set haveTk 1
+if {[catch {package require Tk 8.6-}]} { set haveTk 0 }
+testConstraint haveTk $haveTk
+set here [file dirname [file normalize [info script]]]
+set tmDir [file normalize [file join $here .. lib tm]]
+catch {tcl::tm::path add $tmDir}
+if {[info exists ::env(TKUTILS_TM)]} { catch {tcl::tm::path add $::env(TKUTILS_TM)} }
+if {$haveTk} { package require tkutils::tkulabeled }
+
+set ns ::tkutils::tkulabeled
+
+# --- per-type round trips ---------------------------------------------------
+
+test tkulabeled-1.1 {entry value round-trips} -constraints haveTk -body {
+    catch {destroy .w}
+    $::ns\::add .w entry -label "Name:"
+    $::ns\::value .w "Ada"
+    list [$::ns\::value .w] [winfo class [$::ns\::control .w]]
+} -result {Ada TEntry}
+
+test tkulabeled-1.2 {combo value round-trips} -constraints haveTk -body {
+    catch {destroy .w}
+    $::ns\::add .w combo -values {Tcl Tk C}
+    $::ns\::value .w "Tk"
+    $::ns\::value .w
+} -result Tk
+
+test tkulabeled-1.3 {spin value round-trips} -constraints haveTk -body {
+    catch {destroy .w}
+    $::ns\::add .w spin -from 0 -to 100
+    $::ns\::value .w 42
+    $::ns\::value .w
+} -result 42
+
+test tkulabeled-1.4 {check value reflects the bound variable} -constraints haveTk -body {
+    catch {destroy .w}
+    $::ns\::add .w check -label "VIP" -variable ::vipflag
+    $::ns\::value .w 1
+    list [$::ns\::value .w] $::vipflag
+} -result {1 1}
+
+test tkulabeled-1.5 {text value round-trips and defaults to vertical} -constraints haveTk -body {
+    catch {destroy .w}
+    $::ns\::add .w text -label "Notes:" -height 3 -width 20
+    $::ns\::value .w "hello"
+    set side [dict get [pack info [$::ns\::labelwidget .w]] -side]
+    list [$::ns\::value .w] $side
+} -result {hello top}
+
+# --- labels / config --------------------------------------------------------
+
+test tkulabeled-2.1 {labelwidth applies to the label} -constraints haveTk -body {
+    catch {destroy .w}
+    $::ns\::add .w entry -label "X" -labelwidth 12
+    [$::ns\::labelwidget .w] cget -width
+} -result 12
+
+test tkulabeled-2.2 {configure -label changes the caption} -constraints haveTk -body {
+    catch {destroy .w}
+    $::ns\::add .w entry -label "old"
+    $::ns\::configure .w -label "new"
+    [$::ns\::labelwidget .w] cget -text
+} -result new
+
+test tkulabeled-2.3 {configure forwards other options to the control} -constraints haveTk -body {
+    catch {destroy .w}
+    $::ns\::add .w entry -label "X"
+    $::ns\::configure .w -width 25
+    [$::ns\::control .w] cget -width
+} -result 25
+
+# --- errors / lifecycle -----------------------------------------------------
+
+test tkulabeled-3.1 {unknown type errors with code} -constraints haveTk -body {
+    catch {destroy .w}
+    catch {$::ns\::add .w bogus} m o
+    dict get $o -errorcode
+} -result {TKUTILS TKULABELED TYPE}
+
+test tkulabeled-3.2 {bad -orient errors with code} -constraints haveTk -body {
+    catch {destroy .w}
+    catch {$::ns\::add .w entry -orient diagonal} m o
+    dict get $o -errorcode
+} -result {TKUTILS TKULABELED ORIENT}
+
+test tkulabeled-3.3 {accessor on unknown widget errors} -constraints haveTk -body {
+    catch {$::ns\::value .nope} m o
+    dict get $o -errorcode
+} -result {TKUTILS TKULABELED NOWIDGET}
+
+test tkulabeled-3.4 {Destroy clears per-widget state} -constraints haveTk -body {
+    catch {destroy .w}
+    $::ns\::add .w entry -label "X"
+    destroy .w
+    update
+    info exists ${::ns}::state(.w,type)
+} -result 0
+
+cleanupTests

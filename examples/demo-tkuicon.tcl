@@ -19,7 +19,7 @@ set ns ::tkutils::tkuicon
 if {![$ns\::hassvg]} {
     pack [ttk::label .msg -padding 16 -justify left -text \
         "No SVG support in this Tk build.\n\ntkuicon needs the tksvg package on Tk 8.6,\
-        \nor native SVG on Tk 8.7+.\n\nAvailable icon names ([llength [$ns\::available]]):\n\
+        \nor native SVG on Tk 9.0+.\n\nAvailable icon names ([llength [$ns\::available]]):\n\
         [join [$ns\::available] {  }]"]
     vwait forever
     return

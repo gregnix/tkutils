@@ -1,0 +1,131 @@
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+set haveTk 1
+if {[catch {package require Tk 8.6-}]} { set haveTk 0 }
+testConstraint haveTk $haveTk
+set here [file dirname [file normalize [info script]]]
+set tmDir [file normalize [file join $here .. lib tm]]
+catch {tcl::tm::path add $tmDir}
+if {[info exists ::env(TKUTILS_TM)]}  { catch {tcl::tm::path add $::env(TKUTILS_TM)} }
+if {[info exists ::env(TCLUTILS_TM)]} { catch {tcl::tm::path add $::env(TCLUTILS_TM)} }
+if {![info exists ::env(TCLUTILS_TM)]} {
+    set _root [file dirname [file dirname $tmDir]]
+    foreach _c [lsort -decreasing [glob -nocomplain [file join [file dirname $_root] tclutils*/lib/tm]]] {
+        catch {tcl::tm::path add $_c}; break
+    }
+}
+if {$haveTk} { package require tkutils::tkuvalidate }
+
+set ns ::tkutils::tkuvalidate
+set haveEng [expr {$haveTk && ![catch {package require tclutils::tuvalidate}]}]
+testConstraint engine $haveEng
+
+# --- command-prefix validators (no engine needed) --------------------------
+
+test tkuvalidate-1.1 {custom validator flags invalid then valid} -constraints haveTk -body {
+    catch {destroy .e}
+    pack [ttk::entry .e]
+    $::ns\::attach .e [list apply {{v} {expr {[string length $v] >= 3}}}]
+    .e insert 0 "ab"
+    set a [$::ns\::check .e]
+    .e insert end "c"
+    set b [$::ns\::check .e]
+    list $a $b
+} -result {0 1}
+
+test tkuvalidate-1.2 {invalid input turns the foreground red} -constraints haveTk -body {
+    catch {destroy .e}
+    pack [ttk::entry .e]
+    $::ns\::attach .e [list apply {{v} {expr {$v eq "ok"}}}]
+    .e insert 0 "no"
+    $::ns\::check .e
+    string equal [.e cget -foreground] red
+} -result 1
+
+test tkuvalidate-1.3 {valid input restores the foreground} -constraints haveTk -body {
+    catch {destroy .e}
+    pack [ttk::entry .e]
+    $::ns\::attach .e [list apply {{v} {expr {$v eq "ok"}}}]
+    .e insert 0 "no"; $::ns\::check .e
+    .e delete 0 end; .e insert 0 "ok"; $::ns\::check .e
+    expr {[.e cget -foreground] ne "red"}
+} -result 1
+
+test tkuvalidate-1.4 {empty value is valid by default} -constraints haveTk -body {
+    catch {destroy .e}
+    pack [ttk::entry .e]
+    $::ns\::attach .e [list apply {{v} {expr {$v eq "ok"}}}]
+    $::ns\::check .e
+} -result 1
+
+test tkuvalidate-1.5 {allowempty 0 marks an empty field invalid} -constraints haveTk -body {
+    catch {destroy .e}
+    pack [ttk::entry .e]
+    $::ns\::attach .e [list apply {{v} {string is true -strict $v}}] -allowempty 0
+    $::ns\::check .e
+} -result 0
+
+test tkuvalidate-1.6 {allValid checks every widget} -constraints haveTk -body {
+    catch {destroy .a}; catch {destroy .b}
+    pack [ttk::entry .a]; pack [ttk::entry .b]
+    $::ns\::attach .a [list apply {{v} {expr {$v ne ""}}}] -allowempty 0
+    $::ns\::attach .b [list apply {{v} {expr {$v ne ""}}}] -allowempty 0
+    .a insert 0 x
+    set r1 [$::ns\::allValid {.a .b}]
+    .b insert 0 y
+    set r2 [$::ns\::allValid {.a .b}]
+    list $r1 $r2
+} -result {0 1}
+
+# --- errors / lifecycle ----------------------------------------------------
+
+test tkuvalidate-2.1 {attach on unknown widget errors} -constraints haveTk -body {
+    catch {$::ns\::attach .nope [list apply {{v} {1}}]} m o
+    dict get $o -errorcode
+} -result {TKUTILS TKUVALIDATE NOWIDGET}
+
+test tkuvalidate-2.2 {bad -when errors} -constraints haveTk -body {
+    catch {destroy .e}; pack [ttk::entry .e]
+    catch {$::ns\::attach .e [list apply {{v} {1}}] -when bogus} m o
+    dict get $o -errorcode
+} -result {TKUTILS TKUVALIDATE WHEN}
+
+test tkuvalidate-2.3 {clear detaches the validator} -constraints haveTk -body {
+    catch {destroy .e}; pack [ttk::entry .e]
+    $::ns\::attach .e [list apply {{v} {1}}]
+    $::ns\::clear .e
+    info exists ${::ns}::state(.e,validator)
+} -result 0
+
+test tkuvalidate-2.4 {Destroy clears per-widget state} -constraints haveTk -body {
+    catch {destroy .e}; pack [ttk::entry .e]
+    $::ns\::attach .e [list apply {{v} {1}}]
+    destroy .e
+    update
+    info exists ${::ns}::state(.e,validator)
+} -result 0
+
+# --- tuvalidate predicate integration --------------------------------------
+
+test tkuvalidate-3.1 {email predicate via tuvalidate} -constraints engine -body {
+    catch {destroy .e}; pack [ttk::entry .e]
+    $::ns\::attach .e email
+    .e insert 0 "bad"
+    set a [$::ns\::check .e]
+    .e delete 0 end; .e insert 0 "me@example.com"
+    set b [$::ns\::check .e]
+    list $a $b
+} -result {0 1}
+
+test tkuvalidate-3.2 {integer predicate via tuvalidate} -constraints engine -body {
+    catch {destroy .e}; pack [ttk::entry .e]
+    $::ns\::attach .e integer -allowempty 0
+    .e insert 0 "42"
+    set a [$::ns\::check .e]
+    .e delete 0 end; .e insert 0 "x"
+    set b [$::ns\::check .e]
+    list $a $b
+} -result {1 0}
+
+cleanupTests

@@ -2,7 +2,8 @@
 #
 # Loads all widgets that depend only on tclutils (or pure Tk). The optional
 # widgets tkutils::tkuxml (needs tDOM), tkutils::tkusqlite (needs sqlite3) and
-# tkutils::tkuicon (needs tksvg / Tk 8.7+ for SVG) are NOT loaded here -- require
+# tkutils::tkuicon (needs tksvg on 8.6 / native SVG on Tk 9) and
+# tkutils::tkuscrolledframe (needs scrollutil) are NOT loaded here -- require
 # them directly once their external package is present.
 package require Tcl 8.6-
 package require tkutils::tkuhexedit 0.1
@@ -37,6 +38,9 @@ package require tkutils::tkuimage 0.1
 package require tkutils::tkutodo 0.1
 package require tkutils::tkudavbrowser 0.1
 package require tkutils::tkuaction 0.1
+package require tkutils::tkukeynav 0.1
+package require tkutils::tkulabeled 0.1
+package require tkutils::tkuvalidate 0.1
 package require tkutils::tkuballoon 0.1
 package require tkutils::tkubind 0.1
 package require tkutils::tkucontextmenu 0.1

@@ -6,7 +6,7 @@ engines in [`tclutils`](https://github.com/gregnix/tclutils). It is intentionall
 
 - **Rule:** the engine lives in `tclutils`, the GUI in `tkutils`. Each widget is
   a package `tkutils::tk<name>` (file `lib/tm/tkutils/tk<name>-0.1.tm`).
-- **Tcl/Tk:** 8.6+ and 9.x. The umbrella package loads the **31 core widgets**;
+- **Tcl/Tk:** 8.6+ and 9.x. The umbrella package loads the **38 core widgets**;
   optional widgets that need external packages are not in the umbrella.
 
 ## Install / path setup
@@ -48,7 +48,14 @@ package require tkutils::tkunotes   ;# or a single widget
 | `tkudialog`  | Tk        | message / confirm / warning / **form** dialogs |
 | `tkubase64`  | tubase64  | Encode/decode panes |
 | `tkustrings` | tustrings | Printable strings from binaries |
-| `tkutoolbar` | Tk        | Toolbar (buttons, separators) |
+| `tkutoolbar` | Tk (tkuballoon) | Toolbar: buttons/toggles/dropdowns, icon/text/both, tooltips, shortcuts, optional action binding |
+| `tkuballoon` | Tk        | Balloon help / tooltips for any widget (shared popup, hover delay) |
+| `tkucontextmenu` | Tk    | Right-click context menus (command/check/radio/cascade, spec builder, standard edit) |
+| `tkubind`    | Tk        | Platform key bindings (`Mod-` modifier), accelerators, isEditing guard, groups |
+| `tkuaction`  | Tk        | Action abstraction: one action drives many widgets (enabled/checked/invoke) |
+| `tkukeynav`  | Tk        | Keyboard focus navigation: Tab/Shift-Tab + Return-to-next-field form ergonomics |
+| `tkulabeled` | Tk        | Labeled input composites (label + entry/combo/spin/check/text), `value` accessor |
+| `tkuvalidate`| Tk, tuvalidate | Inline validation feedback (red field + tkuballoon message) using tuvalidate predicates |
 | `tkustatus`  | Tk        | Status bar (fields, flash) |
 | `tkunotes`   | tunotes   | Hierarchical notes (tree + editor, tags, expand/collapse, subtree export) |
 | `tkuform`    | Tk        | Declarative form (entry/combo/check/spin/text → dict) |
@@ -80,6 +87,8 @@ package require tkutils::tkunotes   ;# or a single widget
 | `tkutils::tkcanvaspng` | `tclutils::tupngdraw` (Glyphs for `-fontmap`) | Export a live Tk canvas to PNG: lines (arrows/dashes), shapes, elliptical arcs, text, images |
 | `tkutils::tkutical` | **tical** (`tical::view::month` + `tical::render::canvas`) | Month calendar on a canvas: prev/next/today, week numbers, day selection (none/single/multiple, Shift-click ranges), `-command` |
 | `tkutils::tkmonthcanvas` | **tical** | Canvas calendar (month/quarter/year): themes, week numbers, weekday header, today/weekend/holiday/note states, day selection (none/single/multiple) |
+| `tkutils::tkuicon` | **tksvg** (Tk 8.6) / native SVG (Tk 9) | SVG/PNG icon loader; generates the icon set from `tclutils::tusvg`; HiDPI rescale, cache |
+| `tkutils::tkuscrolledframe` | **scrollutil** (tklib) | Scrollable frame container (pack content into `content`); thin scrollutil wrapper |
 
 These are pure-Tcl-engine-free GUIs that depend on an external package; on a
 stack without that package they are simply not loaded (and their tests skip).

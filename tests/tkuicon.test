@@ -20,7 +20,7 @@ if {$haveTk} { package require tkutils::tkuicon }
 
 set ns ::tkutils::tkuicon
 
-# SVG support is environment-dependent (tksvg on 8.6, native on 8.7+).
+# SVG support is environment-dependent (tksvg on 8.6, native on Tk 9.0+).
 set haveSvg [expr {$haveTk && [$ns\::hassvg]}]
 testConstraint svg   $haveSvg
 testConstraint nosvg [expr {$haveTk && !$haveSvg}]
@@ -63,7 +63,7 @@ test tkuicon-2.2 {loading an .svg without support reports NOSVG} -constraints no
     dict get $o -errorcode
 } -result {TKUTILS TKUICON NOSVG}
 
-# --- with SVG support (tksvg / Tk 8.7+) ------------------------------------
+# --- with SVG support (tksvg / Tk 9.0+) ------------------------------------
 
 test tkuicon-3.1 {create builds a photo image} -constraints svg -body {
     set img [$::ns\::create save 24 -color "#222222"]
