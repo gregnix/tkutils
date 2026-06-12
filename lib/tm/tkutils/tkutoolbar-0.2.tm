@@ -21,7 +21,7 @@ package require tkutils::tkuballoon
 namespace eval ::tkutils {}
 namespace eval ::tkutils::tkutoolbar {
     namespace export widget addButton addToggle addSeparator addWidget \
-        addDropdown setEnabled buttonWidget items \
+        addDropdown addAction setEnabled buttonWidget items \
         configureButton setCallback setDisplayMode getDisplayMode
     variable state
 }
@@ -378,6 +378,24 @@ proc ::tkutils::tkutoolbar::_invoke {w} {
     if {[winfo exists $w] && ![catch {$w instate disabled} dis] && !$dis} {
         catch {$w invoke}
     }
+}
+
+# --- action integration (optional: needs tkutils::tkuaction) ---------------
+
+# Create a toolbar button from a registered action. The button invokes the
+# action (so enabled/checkable logic is centralised) and is registered with it,
+# so tkuaction::setEnabled / setChecked update this button too.
+proc ::tkutils::tkutoolbar::addAction {path name {id ""}} {
+    _require $path
+    package require tkutils::tkuaction
+    if {$id eq ""} { set id $name }
+    set label [::tkutils::tkuaction::get $name label]
+    set icon  [::tkutils::tkuaction::get $name icon]
+    set tip   [::tkutils::tkuaction::get $name tooltip]
+    set w [addButton $path $id $label [list ::tkutils::tkuaction::invoke $name] \
+        -icon $icon -tooltip $tip]
+    ::tkutils::tkuaction::register $name $w
+    return $w
 }
 
 # --- tooltip (delegated to tkutils::tkuballoon) ----------------------------

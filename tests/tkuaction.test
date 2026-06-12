@@ -1,0 +1,130 @@
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+set haveTk 1
+if {[catch {package require Tk 8.6-}]} { set haveTk 0 }
+testConstraint haveTk $haveTk
+set here [file dirname [file normalize [info script]]]
+set tmDir [file normalize [file join $here .. lib tm]]
+catch {tcl::tm::path add $tmDir}
+if {[info exists ::env(TKUTILS_TM)]} { catch {tcl::tm::path add $::env(TKUTILS_TM)} }
+if {$haveTk} { package require tkutils::tkuaction }
+
+set ns ::tkutils::tkuaction
+
+# --- definition / lookup ---------------------------------------------------
+
+test tkuaction-1.1 {define then exists/get} -constraints haveTk -body {
+    $::ns\::reset
+    $::ns\::define save -label "Save" -accelerator "Ctrl+S"
+    list [$::ns\::exists save] [$::ns\::get save label] [$::ns\::get save tooltip]
+} -result {1 Save {Save (Ctrl+S)}}
+
+test tkuaction-1.2 {names lists defined actions} -constraints haveTk -body {
+    $::ns\::reset
+    $::ns\::define a; $::ns\::define b
+    lsort [$::ns\::names]
+} -result {a b}
+
+test tkuaction-1.3 {get of unknown action errors} -constraints haveTk -body {
+    $::ns\::reset
+    catch {$::ns\::get nope} m o
+    dict get $o -errorcode
+} -result {TKUTILS TKUACTION NOACTION}
+
+test tkuaction-1.4 {define rejects unknown option} -constraints haveTk -body {
+    catch {$::ns\::define x -bogus 1} m o
+    dict get $o -errorcode
+} -result {TKUTILS TKUACTION OPTION}
+
+# --- invoke / state --------------------------------------------------------
+
+test tkuaction-2.1 {invoke runs the command when enabled} -constraints haveTk -body {
+    $::ns\::reset
+    set ::ran 0
+    $::ns\::define save -command {set ::ran 1}
+    $::ns\::invoke save
+    set ::ran
+} -result 1
+
+test tkuaction-2.2 {disabled action does not invoke} -constraints haveTk -body {
+    $::ns\::reset
+    set ::ran 0
+    $::ns\::define save -command {set ::ran 1} -enabled 0
+    $::ns\::invoke save
+    set ::ran
+} -result 0
+
+test tkuaction-2.3 {checkable action toggles on invoke} -constraints haveTk -body {
+    $::ns\::reset
+    $::ns\::define wrap -checkable 1
+    set a [$::ns\::invoke wrap; $::ns\::getChecked wrap]
+    set b [$::ns\::invoke wrap; $::ns\::getChecked wrap]
+    list $a $b
+} -result {1 0}
+
+# --- registration / propagation -------------------------------------------
+
+test tkuaction-3.1 {setEnabled propagates to a registered widget} -constraints haveTk -body {
+    $::ns\::reset
+    catch {destroy .b}
+    pack [ttk::button .b -text Save]
+    $::ns\::define save
+    $::ns\::register save .b
+    $::ns\::setEnabled save 0
+    set s1 [.b cget -state]
+    $::ns\::setEnabled save 1
+    list $s1 [.b cget -state]
+} -result {disabled normal}
+
+test tkuaction-3.2 {register on unknown action errors} -constraints haveTk -body {
+    $::ns\::reset
+    catch {destroy .b}
+    pack [ttk::button .b]
+    catch {$::ns\::register nope .b} m o
+    dict get $o -errorcode
+} -result {TKUTILS TKUACTION NOACTION}
+
+test tkuaction-3.3 {unregister stops propagation} -constraints haveTk -body {
+    $::ns\::reset
+    catch {destroy .b}
+    pack [ttk::button .b -text Save]
+    $::ns\::define save
+    $::ns\::register save .b
+    $::ns\::unregister save .b
+    $::ns\::setEnabled save 0
+    .b cget -state
+} -result normal
+
+# --- groups ----------------------------------------------------------------
+
+test tkuaction-4.1 {groupSet enables/disables all members} -constraints haveTk -body {
+    $::ns\::reset
+    $::ns\::define a; $::ns\::define b
+    $::ns\::groupDefine edit {a b}
+    $::ns\::groupSet edit 0
+    list [$::ns\::getEnabled a] [$::ns\::getEnabled b]
+} -result {0 0}
+
+test tkuaction-4.2 {groupSet on unknown group errors} -constraints haveTk -body {
+    $::ns\::reset
+    catch {$::ns\::groupSet nope 1} m o
+    dict get $o -errorcode
+} -result {TKUTILS TKUACTION NOGROUP}
+
+# --- toolbar integration ---------------------------------------------------
+
+test tkuaction-5.1 {tkutoolbar addAction builds and binds a button} -constraints haveTk -body {
+    $::ns\::reset
+    package require tkutils::tkutoolbar
+    catch {destroy .tb}
+    set tb [::tkutils::tkutoolbar::widget .tb]
+    set ::opened 0
+    $::ns\::define open -label "Open" -command {set ::opened 1}
+    set btn [::tkutils::tkutoolbar::addAction $tb open]
+    $btn invoke
+    $::ns\::setEnabled open 0
+    list $::opened [$btn cget -state]
+} -result {1 disabled}
+
+cleanupTests

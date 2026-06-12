@@ -36,6 +36,7 @@ package require tkutils::tkudavaccount 0.1
 package require tkutils::tkuimage 0.1
 package require tkutils::tkutodo 0.1
 package require tkutils::tkudavbrowser 0.1
+package require tkutils::tkuaction 0.1
 package require tkutils::tkuballoon 0.1
 package require tkutils::tkubind 0.1
 package require tkutils::tkucontextmenu 0.1
