@@ -6,7 +6,7 @@ engines in [`tclutils`](https://github.com/gregnix/tclutils). It is intentionall
 
 - **Rule:** the engine lives in `tclutils`, the GUI in `tkutils`. Each widget is
   a package `tkutils::tk<name>` (file `lib/tm/tkutils/tk<name>-0.1.tm`).
-- **Tcl/Tk:** 8.6+ and 9.x. The umbrella package loads the **38 core widgets**;
+- **Tcl/Tk:** 8.6+ and 9.x. The umbrella package loads the **39 core widgets**;
   optional widgets that need external packages are not in the umbrella.
 
 ## Install / path setup
@@ -56,6 +56,7 @@ package require tkutils::tkunotes   ;# or a single widget
 | `tkukeynav`  | Tk        | Keyboard focus navigation: Tab/Shift-Tab + Return-to-next-field form ergonomics |
 | `tkulabeled` | Tk        | Labeled input composites (label + entry/combo/spin/check/text), `value` accessor |
 | `tkuvalidate`| Tk, tuvalidate | Inline validation feedback (red field + tkuballoon message) using tuvalidate predicates |
+| `tkumarquee` | Tk        | Rubber-band rectangle selection on a canvas (region crop/zoom/select), scroll-safe |
 | `tkustatus`  | Tk        | Status bar (fields, flash) |
 | `tkunotes`   | tunotes   | Hierarchical notes (tree + editor, tags, expand/collapse, subtree export) |
 | `tkuform`    | Tk        | Declarative form (entry/combo/check/spin/text → dict) |

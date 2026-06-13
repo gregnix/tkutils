@@ -12,11 +12,11 @@ package require Tk 8.6-
 
 namespace eval ::tkutils {}
 namespace eval ::tkutils::tkuimage {
+    variable triedImgtools 0
     namespace export fit scale thumbnail load fromData view openFile \
-        zoomIn zoomOut zoom1 fitView getImage
+        zoomIn zoomOut zoom1 fitView getImage zoomLevel
     variable state
     array set state {}
-    variable haveImgtools [expr {![catch {package require imgtools}]}]
     variable version 0.1
 }
 
@@ -55,13 +55,22 @@ proc ::tkutils::tkuimage::fromData {bytes {dst ""}} {
 
 # Scale $src to w x h into $dst (created if empty). Uses imgtools if available,
 # otherwise Tk integer subsample/zoom. Returns $dst.
+# True if imgtools' smooth scaler is available. Checked lazily at call time
+# (not once at load), so it is used regardless of package load order and as
+# soon as imgtools becomes available.
+proc ::tkutils::tkuimage::_imgtools {} {
+    if {[info commands ::imgtools::scale] ne ""} { return 1 }
+    variable triedImgtools
+    if {!$triedImgtools} { set triedImgtools 1 ; catch {package require imgtools} }
+    return [expr {[info commands ::imgtools::scale] ne ""}]
+}
+
 proc ::tkutils::tkuimage::scale {src w h {dst ""}} {
-    variable haveImgtools
     if {$dst eq ""} { set dst [image create photo] }
     set ow [image width $src]
     set oh [image height $src]
     if {$ow <= 0 || $oh <= 0 || $w <= 0 || $h <= 0} { return $dst }
-    if {$haveImgtools && ![catch {imgtools::scale $src ${w}x${h} $dst}]} {
+    if {[_imgtools] && ![catch {imgtools::scale $src ${w}x${h} $dst}]} {
         return $dst
     }
     # Tk fallback: integer factors only.
@@ -90,8 +99,12 @@ proc ::tkutils::tkuimage::thumbnail {src maxSize {dst ""}} {
 proc ::tkutils::tkuimage::view {path args} {
     variable state
     set fitmode contain
+    set onchange ""
     foreach {k v} $args {
-        if {$k eq "-fitmode"} { set fitmode $v }
+        switch -- $k {
+            -fitmode  { set fitmode $v }
+            -onchange { set onchange $v }
+        }
     }
     frame $path
     set c $path.c
@@ -113,6 +126,7 @@ proc ::tkutils::tkuimage::view {path args} {
     set state($path,orig)    ""
     set state($path,zoom)    1.0
     set state($path,fitmode) $fitmode
+    set state($path,onchange) $onchange
 
     bind $c    <Configure> [list ::tkutils::tkuimage::_onResize $path]
     bind $path <Destroy>   [list ::tkutils::tkuimage::_cleanup $path %W]
@@ -133,6 +147,19 @@ proc ::tkutils::tkuimage::getImage {path} {
     return $state($path,orig)
 }
 
+# Effective on-screen scale (displayed width / original width); 1.0 == 100%.
+# Works in both contain and actual modes by reading the displayed image.
+# Returns 0 if nothing is loaded yet.
+proc ::tkutils::tkuimage::zoomLevel {path} {
+    variable state
+    if {![info exists state($path,orig)] || $state($path,orig) eq ""} { return 0 }
+    if {[info exists state($path,fitmode)] && $state($path,fitmode) eq "actual"} {
+        return $state($path,zoom)
+    }
+    if {[info exists state($path,effscale)]} { return $state($path,effscale) }
+    return 0
+}
+
 proc ::tkutils::tkuimage::zoomIn  {path} { _setZoom $path 1.25 }
 proc ::tkutils::tkuimage::zoomOut {path} { _setZoom $path 0.8 }
 proc ::tkutils::tkuimage::zoom1   {path} {
@@ -148,6 +175,13 @@ proc ::tkutils::tkuimage::fitView {path} {
 }
 proc ::tkutils::tkuimage::_setZoom {path factor} {
     variable state
+    # When zooming out of contain (fit) mode, continue from the scale that is
+    # actually on screen -- otherwise the first zoom would jump relative to the
+    # full original resolution (huge, slow scale for large images).
+    if {$state($path,fitmode) eq "contain" \
+            && [info exists state($path,effscale)] && $state($path,effscale) > 0} {
+        set state($path,zoom) $state($path,effscale)
+    }
     set state($path,zoom) [expr {$state($path,zoom) * $factor}]
     set state($path,fitmode) actual
     _redraw $path
@@ -175,10 +209,24 @@ proc ::tkutils::tkuimage::_redraw {path} {
         set nw [expr {int($ow * $z)}]
         set nh [expr {int($oh * $z)}]
     }
-    scale $orig $nw $nh $state($path,disp)
+    # keep the displayed size sane: never 0 (no-op) and never absurdly large
+    if {$nw < 1} { set nw 1 }
+    if {$nh < 1} { set nh 1 }
+    if {$nw > 16384} { set nw 16384 }
+    if {$nh > 16384} { set nh 16384 }
+    set state($path,effscale) [expr {$ow > 0 ? double($nw) / $ow : 0}]
+    # reset the display image to the exact target size and clear it, so a
+    # previously larger image leaves no pixels behind when a smaller one is shown
+    set d $state($path,disp)
+    $d configure -width $nw -height $nh
+    $d blank
+    scale $orig $nw $nh $d
     $c coords $state($path,item) 0 0
     $c configure -scrollregion \
         [list 0 0 [image width $state($path,disp)] [image height $state($path,disp)]]
+    if {[info exists state($path,onchange)] && $state($path,onchange) ne ""} {
+        uplevel #0 [list {*}$state($path,onchange) $path]
+    }
 }
 proc ::tkutils::tkuimage::_cleanup {path w} {
     variable state
@@ -188,4 +236,4 @@ proc ::tkutils::tkuimage::_cleanup {path w} {
     array unset state $path,*
 }
 
-package provide tkutils::tkuimage 0.1
+package provide tkutils::tkuimage 0.2

@@ -1,0 +1,38 @@
+.TH tkumarquee n 0.1 tkutils
+.SH tkutils::tkumarquee
+.PP
+Rubber\-band (marquee) rectangle selection on a canvas: drag to draw a live selection rectangle; on release the region is reported in \fBcanvas\fR coordinates (scroll\-safe via \fBcanvasx\fR/\fBcanvasy\fR). The caller decides what to do with it — crop, zoom\-to\-region, select items, measure. Pure Tk.
+.SS API
+.CS
+::tkutils::tkumarquee::enable .c ?-onselect cmd? ?-onstart cmd? ?-button N? \
+    ?-minsize px? ?-outline color? ?-fill color? ?-dash pattern? ?-stipple bitmap? ?-keep 0|1?
+::tkutils::tkumarquee::disable .c
+::tkutils::tkumarquee::region  .c        ;# last region {x1 y1 x2 y2} or ""
+::tkutils::tkumarquee::active  .c        ;# 1 while a drag is in progress
+.CE
+.IP \(bu
+\fB\-onselect cmd\fR runs on release as \fBcmd $c x1 y1 x2 y2\fR with \fBx1<=x2\fR, \fBy1<=y2\fR (a reversed drag is normalised).
+.IP \(bu
+\fB\-onstart cmd\fR runs on press as \fBcmd $c x y\fR.
+.IP \(bu
+\fB\-minsize\fR (default 3) suppresses the callback for a click or a tiny drag.
+.IP \(bu
+\fB\-keep 1\fR leaves the rectangle item on the canvas after release (default deletes it, so you can draw your own marker from the reported coordinates).
+.IP \(bu
+\fB\-button\fR, \fB\-outline\fR, \fB\-fill\fR, \fB\-dash\fR, \fB\-stipple\fR tune the input button and appearance. Tk canvas fills have no alpha, so for a translucent overlay use a solid \fB\-fill\fR plus a \fB\-stipple\fR (e.g. \fBgray12\fR) rather than an 8\-digit RGBA colour (which Tk rejects).
+.CS
+package require tkutils::tkumarquee
+tkumarquee::enable .c -onselect {apply {{c x1 y1 x2 y2} {
+    # e.g. zoom to the selected region
+    puts "selected $x1,$y1 .. $x2,$y2"
+}}}
+.CE
+.SS Notes
+.IP \(bu
+Coordinates are canvas coordinates, so selection is correct even when the canvas is scrolled or has a \fB\-scrollregion\fR.
+.IP \(bu
+Errors carry \fB{TKUTILS TKUMARQUEE <REASON>}\fR (\fBNOWIDGET\fR, \fBOPTION\fR).
+.SS Demo
+.CS
+tclsh examples/demo-tkumarquee.tcl
+.CE

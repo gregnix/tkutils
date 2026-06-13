@@ -1,0 +1,39 @@
+.TH tkubind n 0.1 tkutils
+.SH tkutils::tkubind
+.PP
+A thin layer over \fBbind\fR that abstracts the platform modifier (Control on X11/Windows, Command on macOS) and stays out of the way while the user is typing. \fB"Mod\-s"\fR becomes \fB<Control\-s>\fR or \fB<Command\-s>\fR; the guard keeps global shortcuts from stealing keys from entries, text widgets and tablelists. Pure Tk.
+.SS Keys
+.CS
+set id [::tkutils::tkubind::key "Mod-s" {saveFile} ?-toplevel .? ?-skipClasses {...}? ?-id name?]
+::tkutils::tkubind::unbind $id
+::tkutils::tkubind::accelerator "Mod-Shift-p"   ;# "Ctrl+Shift+P" / "@^P"
+::tkutils::tkubind::isEditing                   ;# 1 while an edit widget has focus
+::tkutils::tkubind::platform ?key?              ;# isMac / modKey / modSymbol
+.CE
+.SS Mouse
+.CS
+::tkutils::tkubind::context     $widget {showMenu %X %Y}   ;# platform context button
+::tkutils::tkubind::doubleClick $widget {onOpen %W}
+.CE
+.SS Groups
+.CS
+::tkutils::tkubind::group define editKeys {{Mod-b {bold}} {Mod-i {italic}}}
+::tkutils::tkubind::group enable  editKeys ?-toplevel .?
+::tkutils::tkubind::group disable editKeys
+::tkutils::tkubind::group toggle  editKeys
+::tkutils::tkubind::group enabled editKeys      ;# 0|1
+::tkutils::tkubind::group list
+::tkutils::tkubind::getInfo ?bindings|groups|binding id?
+::tkutils::tkubind::clear                        ;# remove every binding/group
+.CE
+.SS Notes
+.IP \(bu
+\fBkey\fR runs its script only when \fBisEditing\fR\-style focus rules allow it, and never hijacks the native Ctrl+C/V/X/A inside edit or tablelist widgets.
+.IP \(bu
+The action\-registry coupling of the original uitoolkit module is intentionally omitted; it would return alongside a future \fBtkuaction\fR.
+.IP \(bu
+Errors carry \fB{TKUTILS TKUBIND <REASON>}\fR (\fBGROUP\fR, \fBCMD\fR).
+.SS Demo
+.CS
+tclsh examples/demo-tkubind.tcl
+.CE

@@ -11,7 +11,7 @@ package require tkutils::tkutablelist
 .CS
 set w [::tkutils::tkutablelist::widget .w ?-columns {t...}? ?-stretch all? \
         ?-titlecolumns N? ?-sortable 1? ?-editable 0? ?-selectmode extended? \
-        ?-stripes COLOR?]
+        ?-stripes COLOR? ?-selectcommand cmd? ?-doublecommand cmd?]
 
 # rows
 ::tkutils::tkutablelist::insert    $w row
@@ -30,7 +30,9 @@ set w [::tkutils::tkutablelist::widget .w ?-columns {t...}? ?-stretch all? \
 # columns
 ::tkutils::tkutablelist::setColumns      $w {titles}
 ::tkutils::tkutablelist::columns         $w
-::tkutils::tkutablelist::configureColumn $w col -sortmode integer -align right ...
+::tkutils::tkutablelist::configureColumn $w col  -sortmode integer -align right ...
+::tkutils::tkutablelist::configureRow    $w row  -foreground gray -background ...
+::tkutils::tkutablelist::configureCell   $w r,c  -background yellow -foreground ...
 
 # selection
 ::tkutils::tkutablelist::selection    $w        ;# selected row indices
@@ -48,6 +50,38 @@ set w [::tkutils::tkutablelist::widget .w ?-columns {t...}? ?-stretch all? \
 ::tkutils::tkutablelist::saveCsv $w file ?-header 0|1?
 ::tkutils::tkutablelist::editEndCommand $w cmd             ;# cmd: path row col text -> new text
 .CE
+.SH "selection / activation callbacks"
+.PP
+::tkutils::tkutablelist::selectCommand $w ?cmd?           ;# get or set ::tkutils::tkutablelist::doubleCommand $w ?cmd?           ;# get or set
+.CS
+
+## Row / cell formatting
+
+`configureRow` and `configureCell` are thin pass-throughs to Tablelist's
+`rowconfigure`/`cellconfigure` (mirroring `configureColumn`). `row` may be a row
+index, `end`, or a full key (see Hierarchy); `cell` is `"row,col"`. They accept
+the usual `-foreground`/`-background`/`-font` options and return the target.
+
+## Hierarchy (parent / child rows)
+
+```tcl
+set key [::tkutils::tkutablelist::insertChild $w parent values ?index?]
+::tkutils::tkutablelist::expand   $w ?row?     ;# no row -> expand every row
+::tkutils::tkutablelist::collapse $w ?row?     ;# no row -> collapse every row
+.CE
+.PP
+\fBparent\fR is \fBroot\fR or a full key; \fBinsertChild\fR returns the \fBfull key\fR of the new row (\fBk0\fR, \fBk1\fR, …), which you pass as the next \fBparent\fR and to \fBconfigureRow\fR to colour the row. \fBexpand\fR/\fBcollapse\fR take a row index or key, or operate on all rows when called with no row.
+.CS
+set a [::tkutils::tkutablelist::insertChild $w root  {Level1 ...}]
+set b [::tkutils::tkutablelist::insertChild $w $a    {Level2 ...}]
+::tkutils::tkutablelist::configureRow $w $a -foreground darkblue
+::tkutils::tkutablelist::expand $w
+.CE
+.SS Callbacks
+.PP
+\fB\-selectcommand\fR fires on \fB<<TablelistSelect>>\fR as \fBcmd $w $row\fR, where \fB$row\fR is the first selected row index, or \fB\-1\fR when the selection is empty. \fB\-doublecommand\fR fires on a double\-click on a data row as \fBcmd $w $row\fR, only when the click lands on a row (header/empty space is ignored). The click position is resolved with \fBtablelist::convEventFields\fR, so the row is correct regardless of stripes or separators. Both default to \fB""\fR (no callback). They can also be set or read at runtime with \fBselectCommand\fR/\fBdoubleCommand\fR.
+.PP
+The callback intentionally passes only the row index; fetch the row data via the existing API (\fBrows\fR, \fBgetRow\fR, \fBcellText\fR). When \fB\-editable 1\fR is also used, prefer \fB\-selectcommand\fR for row activation, since double\-click may overlap with in\-cell editing.
 .PP
 Declarative columns: a \fB\-columns\fR entry may be a plain title (spaces allowed) or a list \fB{title \-align right \-width N \-sortmode integer \-editable 1 ...}\fR:
 .CS
@@ -56,6 +90,9 @@ set w [::tkutils::tkutablelist::widget .w \
 .CE
 .PP
 Editing: with \fB\-editable 1\fR (or \fBconfigureColumn $w col \-editable 1\fR), double\-click a cell to edit it; \fBrows\fR/\fBgetRow\fR then reflect the new value.
+.SS Errors
+.PP
+Unknown widget options raise \fB{TKUTILS TKUTABLELIST OPTION}\fR.
 .SS Launcher
 .CS
 tclsh bin/tkutablelist.tcl

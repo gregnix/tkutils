@@ -167,4 +167,143 @@ test tkutablelist-3.5 {multi-word column titles are preserved} -constraints tabl
     ::tkutils::tkutablelist::columns $w
 } -result {{Full Name} Age}
 
+test tkutablelist-4.1 {selectcommand fires with the selected row} -constraints tablelist -body {
+    catch {destroy .t}
+    set ::selRow -99
+    set w [::tkutils::tkutablelist::widget .t -columns {A B} \
+        -selectcommand {apply {{p r} {set ::selRow $r}}}]
+    ::tkutils::tkutablelist::setRows $w {{1 a} {2 b} {3 c}}
+    $w.tbl selection clear 0 end
+    $w.tbl selection set 1
+    event generate $w.tbl <<TablelistSelect>>
+    set ::selRow
+} -result 1
+
+test tkutablelist-4.2 {selectcommand yields -1 on empty selection} -constraints tablelist -body {
+    catch {destroy .t}
+    set ::selRow -99
+    set w [::tkutils::tkutablelist::widget .t -columns {A B} \
+        -selectcommand {apply {{p r} {set ::selRow $r}}}]
+    ::tkutils::tkutablelist::setRows $w {{1 a} {2 b}}
+    $w.tbl selection clear 0 end
+    event generate $w.tbl <<TablelistSelect>>
+    set ::selRow
+} -result -1
+
+test tkutablelist-4.3 {no selectcommand by default does not error} -constraints tablelist -body {
+    catch {destroy .t}
+    set w [::tkutils::tkutablelist::widget .t -columns {A B}]
+    ::tkutils::tkutablelist::setRows $w {{1 a}}
+    $w.tbl selection set 0
+    event generate $w.tbl <<TablelistSelect>>
+    set w
+} -result .t
+
+test tkutablelist-4.4 {doublecommand fires with the clicked row} -constraints tablelist -body {
+    catch {destroy .t}
+    set ::dblRow -99
+    set w [::tkutils::tkutablelist::widget .t -columns {A B} \
+        -doublecommand {apply {{p r} {set ::dblRow $r}}}]
+    ::tkutils::tkutablelist::setRows $w {{1 a} {2 b} {3 c}}
+    pack $w; update idletasks
+    set body [$w.tbl bodypath]
+    # find a body y mapping to data row 2, then drive the bound handler directly
+    # (event generate cannot synthesise a Double modifier).
+    set targetY 4
+    for {set yy 0} {$yy < [winfo height $body]} {incr yy 2} {
+        lassign [tablelist::convEventFields $body 5 $yy] tt xx cy
+        if {[$w.tbl containing $cy] == 2} { set targetY $yy; break }
+    }
+    ::tkutils::tkutablelist::_dblClick $w $body 5 $targetY
+    set ::dblRow
+} -result 2
+
+test tkutablelist-4.7 {double-click handler is bound on the body tag} -constraints tablelist -body {
+    catch {destroy .t}
+    set w [::tkutils::tkutablelist::widget .t -columns {A B}]
+    string match *_dblClick* [bind [$w.tbl bodytag] <Double-1>]
+} -result 1
+
+test tkutablelist-4.8 {doublecommand does not fire off a data row} -constraints tablelist -body {
+    catch {destroy .t}
+    set ::dblRow -99
+    set w [::tkutils::tkutablelist::widget .t -columns {A B} \
+        -doublecommand {apply {{p r} {set ::dblRow $r}}}]
+    ::tkutils::tkutablelist::setRows $w {{1 a}}
+    pack $w; update idletasks
+    set body [$w.tbl bodypath]
+    # y far below the last row -> containing returns -1 -> no fire
+    ::tkutils::tkutablelist::_dblClick $w $body 5 100000
+    set ::dblRow
+} -result -99
+
+test tkutablelist-4.5 {runtime setters set and read the callbacks} -constraints tablelist -body {
+    catch {destroy .t}
+    set w [::tkutils::tkutablelist::widget .t -columns {A B}]
+    ::tkutils::tkutablelist::selectCommand $w {sel cmd}
+    ::tkutils::tkutablelist::doubleCommand $w {dbl cmd}
+    list [::tkutils::tkutablelist::selectCommand $w] [::tkutils::tkutablelist::doubleCommand $w]
+} -result {{sel cmd} {dbl cmd}}
+
+test tkutablelist-4.6 {unknown widget option errors with code} -constraints tablelist -body {
+    catch {destroy .t}
+    catch {::tkutils::tkutablelist::widget .t -columns {A B} -bogus 1} m o
+    dict get $o -errorcode
+} -result {TKUTILS TKUTABLELIST OPTION}
+
+# --- part B: row/cell formatting ---
+
+test tkutablelist-5.1 {configureRow sets foreground} -constraints tablelist -body {
+    catch {destroy .t}
+    set w [::tkutils::tkutablelist::widget .t -columns {A B}]
+    ::tkutils::tkutablelist::setRows $w {{1 a} {2 b}}
+    ::tkutils::tkutablelist::configureRow $w 0 -foreground gray
+    [::tkutils::tkutablelist::tableWidget $w] rowcget 0 -foreground
+} -result gray
+
+test tkutablelist-5.2 {configureCell sets background} -constraints tablelist -body {
+    catch {destroy .t}
+    set w [::tkutils::tkutablelist::widget .t -columns {A B}]
+    ::tkutils::tkutablelist::setRows $w {{1 a}}
+    ::tkutils::tkutablelist::configureCell $w 0,0 -background yellow
+    [::tkutils::tkutablelist::tableWidget $w] cellcget 0,0 -background
+} -result yellow
+
+test tkutablelist-5.3 {configureRow returns its target ("end")} -constraints tablelist -body {
+    catch {destroy .t}
+    set w [::tkutils::tkutablelist::widget .t -columns {A B}]
+    ::tkutils::tkutablelist::setRows $w {{1 a}}
+    ::tkutils::tkutablelist::configureRow $w end -foreground red
+} -result end
+
+# --- part C: hierarchy (parent/child rows) ---
+
+test tkutablelist-6.1 {insertChild returns a key and nests} -constraints tablelist -body {
+    catch {destroy .t}
+    set w [::tkutils::tkutablelist::widget .t -columns {A B}]
+    set p [::tkutils::tkutablelist::insertChild $w root {AB x}]
+    set c [::tkutils::tkutablelist::insertChild $w $p {LF y}]
+    expr {$p ne "" && $c ne "" && $p ne $c}
+} -result 1
+
+test tkutablelist-6.2 {a child key can be coloured via configureRow} -constraints tablelist -body {
+    catch {destroy .t}
+    set w [::tkutils::tkutablelist::widget .t -columns {A B}]
+    set p [::tkutils::tkutablelist::insertChild $w root {AB x}]
+    ::tkutils::tkutablelist::configureRow $w $p -foreground darkblue
+    [::tkutils::tkutablelist::tableWidget $w] rowcget $p -foreground
+} -result darkblue
+
+test tkutablelist-6.3 {expand/collapse (all and by row) do not error} -constraints tablelist -body {
+    catch {destroy .t}
+    set w [::tkutils::tkutablelist::widget .t -columns {A B}]
+    set p [::tkutils::tkutablelist::insertChild $w root {AB x}]
+    ::tkutils::tkutablelist::insertChild $w $p {LF y}
+    ::tkutils::tkutablelist::expand $w
+    ::tkutils::tkutablelist::collapse $w
+    ::tkutils::tkutablelist::expand $w $p
+    ::tkutils::tkutablelist::collapse $w $p
+    expr 1
+} -result 1
+
 cleanupTests

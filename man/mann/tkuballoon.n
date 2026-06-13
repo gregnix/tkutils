@@ -1,0 +1,24 @@
+.TH tkuballoon n 0.1 tkutils
+.SH tkutils::tkuballoon
+.PP
+Balloon help (tooltips) for any widget. A short text pops up in a small, theme\-native balloon after a hover delay and disappears on leave, click or motion away. One shared popup is reused, so idle balloons cost nothing. Per\-widget state is released automatically on \fB<Destroy>\fR. Pure Tk.
+.SS API
+.CS
+::tkutils::tkuballoon::add   $w "Save the file" ?-delay ms? ?-wraplength px?
+::tkutils::tkuballoon::clear $w                       ;# detach the balloon
+::tkutils::tkuballoon::configure ?-delay ms? ?-wraplength px?   ;# global defaults
+::tkutils::tkuballoon::cget option                   ;# read a default
+::tkutils::tkuballoon::enable                         ;# globally on
+::tkutils::tkuballoon::disable                        ;# globally off (hides any)
+.CE
+.PP
+\fB\-delay\fR (default 600 ms) and \fB\-wraplength\fR (default 320 px) are captured per widget at \fBadd\fR time; later \fBconfigure\fR changes apply to subsequent \fBadd\fRs.
+.SS Notes
+.IP \(bu
+Used internally by \fBtkutils::tkutoolbar\fR for its \fB\-tooltip\fR option, so there is one balloon implementation across the library.
+.IP \(bu
+Errors carry \fB{TKUTILS TKUBALLOON <REASON>}\fR (\fBOPTION\fR, \fBVALUE\fR, \fBNOWIDGET\fR).
+.SS Demo
+.CS
+tclsh examples/demo-tkuballoon.tcl
+.CE

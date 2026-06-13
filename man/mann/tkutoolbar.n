@@ -1,19 +1,49 @@
-.TH tkutoolbar n 0.1 tkutils
+.TH tkutoolbar n 0.2 tkutils
 .SH tkutils::tkutoolbar
 .PP
-A horizontal toolbar holding buttons, toggles, separators and arbitrary embedded widgets, addressed by caller\-chosen ids. Pure Tk.
-.SS API
+A toolbar holding buttons, toggles, dropdowns, separators and arbitrary embedded widgets, addressed by caller\-chosen ids. Theme\-native (built\-in \fBToolbutton\fR style, dark\-theme safe). Pure Tk. The 0.1 positional API is a strict subset, so old callers keep working unchanged.
+.SS Construct
 .CS
-set tb [::tkutils::tkutoolbar::widget .tb]
-::tkutils::tkutoolbar::addButton    $tb id label command ?ttk::button opts?
-::tkutils::tkutoolbar::addToggle    $tb id label varName ?opts?
-::tkutils::tkutoolbar::addSeparator $tb
-::tkutils::tkutoolbar::addWidget    $tb id childWidget   ;# embed your own widget
-::tkutils::tkutoolbar::setEnabled   $tb id 0|1
-::tkutils::tkutoolbar::buttonWidget $tb id               ;# the widget path
-::tkutils::tkutoolbar::items        $tb                  ;# ids in order
+set tb [::tkutils::tkutoolbar::widget .tb \
+    ?-orient horizontal|vertical? ?-displaymode icon|text|both? \
+    ?-spacing px? ?-padding px? ?-buttonstyle flat|raised?]
 .CE
-.SS Launcher
+.PP
+\fB\-buttonstyle flat\fR (default) uses the flat \fBToolbutton\fR style (button edges show on hover); \fB\-buttonstyle raised\fR gives push buttons and dropdowns a visible border (\fBTButton\fR/\fBTMenubutton\fR), so it is obvious where each button begins. Toggles keep the flat pressed\-state look in both modes.
+.SS Items
+.CS
+::tkutils::tkutoolbar::addButton   $tb id label command \
+    ?-icon img? ?-tooltip s? ?-shortcut key? ?-compound side? \
+    ?-displaymode m? ?-side left|right? ?ttk::button opts...?
+::tkutils::tkutoolbar::addToggle   $tb id label varName \
+    ?-icon img? ?-tooltip s? ?-command cmd? ?-onvalue v? ?-offvalue v? ?...?
+::tkutils::tkutoolbar::addDropdown $tb id label \
+    ?-icon img? ?-tooltip s? ?-menu {{label cmd} - {label cmd} ...}?
+::tkutils::tkutoolbar::addSeparator $tb
+::tkutils::tkutoolbar::addWidget    $tb id childWidget ?side?   ;# embed your own
+.CE
+.PP
+\fBlabel\fR/\fBcommand\fR stay positional for \fBaddButton\fR/\fBaddToggle\fR; any further \fB\-option value\fR pairs are recognised (the toolbar options above) or forwarded to the underlying ttk widget. \fB\-shortcut\fR binds on the toplevel and is released automatically when the toolbar is destroyed.
+.SS "Mutate / query"
+.CS
+::tkutils::tkutoolbar::setEnabled      $tb id 0|1
+::tkutils::tkutoolbar::configureButton $tb id ?-option value ...?
+::tkutils::tkutoolbar::setCallback     $tb id command
+::tkutils::tkutoolbar::setDisplayMode  $tb icon|text|both     ;# whole toolbar
+::tkutils::tkutoolbar::getDisplayMode  $tb
+::tkutils::tkutoolbar::buttonWidget    $tb id                 ;# the widget path
+::tkutils::tkutoolbar::items           $tb                    ;# ids in order
+.CE
+.SS Notes
+.IP \(bu
+Tooltips are delegated to \fBtkutils::tkuballoon\fR (a runtime dependency).
+.IP \(bu
+\fBicon\fR mode without an \fB\-icon\fR falls back to text; \fBboth\fR uses \fB\-compound\fR.
+.IP \(bu
+Errors carry \fB{TKUTILS TKUTOOLBAR <REASON>}\fR (\fBOPTION\fR, \fBORIENT\fR, \fBDISPLAYMODE\fR, \fBBUTTONSTYLE\fR, \fBNOITEM\fR, \fBNOTOOLBAR\fR).
+.SS "Launcher / demos"
 .CS
 tclsh bin/tkutoolbar.tcl
+tclsh examples/demo-tkutoolbar.tcl          # text buttons, display modes
+tclsh examples/demo-tkutoolbar-icons.tcl    # icons (via tkuicon) + flat vs raised
 .CE

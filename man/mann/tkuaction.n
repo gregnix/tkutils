@@ -1,0 +1,49 @@
+.TH tkuaction n 0.1 tkutils
+.SH tkutils::tkuaction
+.PP
+Action abstraction: define a UI action once \-\- label, command, icon, accelerator, enabled/checked state \-\- and register any number of widgets against it. A single \fBsetEnabled\fR / \fBsetChecked\fR / \fBinvoke\fR then keeps every registered widget in sync. This module is the \fBmodel\fR; rendering stays in the widgets, so there is no duplicated toolbar/menu code. Pure Tk.
+.SS "Define / query"
+.CS
+::tkutils::tkuaction::define save -label "Save" -command {saveDoc} \
+    ?-accelerator "Ctrl+S"? ?-icon img? ?-iconChecked img? ?-tooltip s? \
+    ?-checkable 0|1? ?-enabled 0|1? ?-checked 0|1? ?-compound side?
+::tkutils::tkuaction::exists save                 ;# 0|1
+::tkutils::tkuaction::get    save ?key?           ;# whole dict or one field
+::tkutils::tkuaction::names                        ;# all action names
+::tkutils::tkuaction::delete save
+.CE
+.PP
+A tooltip is derived from the label (plus accelerator) when not given.
+.SS "State (the heart)"
+.CS
+::tkutils::tkuaction::setEnabled save 0|1          ;# greys out every bound widget
+::tkutils::tkuaction::setChecked wrap 0|1          ;# pressed look / iconChecked swap
+::tkutils::tkuaction::getEnabled save
+::tkutils::tkuaction::getChecked wrap
+::tkutils::tkuaction::toggle     wrap
+::tkutils::tkuaction::invoke     save              ;# runs command if enabled; toggles if checkable
+.CE
+.SS "Bind widgets"
+.CS
+::tkutils::tkuaction::register   save $widget       ;# usually done by the widget
+::tkutils::tkuaction::unregister save $widget
+.CE
+.PP
+\fBtkutils::tkutoolbar::addAction $tb save\fR creates a button from the action and registers it for you, so toolbar buttons track \fBsetEnabled\fR/\fBsetChecked\fR.
+.SS Groups
+.CS
+::tkutils::tkuaction::groupDefine imageLoaded {zoom_in zoom_out fit rotate}
+::tkutils::tkuaction::groupSet    imageLoaded 0|1   ;# enable/disable the whole set
+::tkutils::tkuaction::groupAdd    imageLoaded crop
+::tkutils::tkuaction::groupList   ?name?
+::tkutils::tkuaction::reset                          ;# drop all actions and groups
+.CE
+.SS Notes
+.IP \(bu
+Registered widgets are reconfigured generically (\fB\-state\fR, pressed state, \fB\-image\fR); menu\-entry binding is a future extension.
+.IP \(bu
+Errors carry \fB{TKUTILS TKUACTION <REASON>}\fR (\fBOPTION\fR, \fBNOACTION\fR, \fBNOGROUP\fR).
+.SS Demo
+.CS
+tclsh examples/demo-tkuaction.tcl
+.CE

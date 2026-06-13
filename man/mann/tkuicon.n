@@ -1,0 +1,32 @@
+.TH tkuicon n 0.1 tkutils
+.SH tkutils::tkuicon
+.PP
+Loads \fB.svg\fR/\fB.png\fR icons as Tk photo images and generates the built\-in icon set on the fly from \fBtclutils::tusvg\fR. Results are cached.
+.PP
+\fBOptional module\fR \-\- not loaded by the tkutils umbrella. SVG needs the \fBtksvg\fR package on Tk 8.6, or native SVG on Tk 9.0+. Without SVG support the file loader still handles PNG/GIF, and \fBcreate\fR reports \fB{TKUTILS TKUICON NOSVG}\fR.
+.SS API
+.CS
+::tkutils::tkuicon::hassvg                       ;# 1 if SVG rendering is available
+::tkutils::tkuicon::available                    ;# predefined icon names
+::tkutils::tkuicon::create  name size ?-color c? ?-strokeWidth w? ?-name img?
+::tkutils::tkuicon::load    file ?-height h? ?-width w? ?-name img?
+::tkutils::tkuicon::rescale imgName newHeight    ;# re-render/scale an icon
+::tkutils::tkuicon::loadToolbarSet size ?-color c? ?-icons {names...}? ;# -> dict
+::tkutils::tkuicon::clearCache
+.CE
+.CS
+package require tkutils::tkuicon            ;# require explicitly (optional)
+set save [::tkutils::tkuicon::create save 24 -color "#1565c0"]
+::tkutils::tkutoolbar::addButton $tb save "Save" {saveDoc} -icon $save
+.CE
+.SS Notes
+.IP \(bu
+\fBrescale\fR (not \fBscale\fR, which is a Tk widget command) prefers true SVG re\-rendering for crisp HiDPI results, falling back to integer photo zoom.
+.IP \(bu
+Icon geometry comes from \fBtclutils::tusvg\fR, required lazily inside \fBcreate\fR (\fB{TKUTILS TKUICON NOGEN}\fR if missing).
+.IP \(bu
+Errors carry \fB{TKUTILS TKUICON <REASON>}\fR (\fBNOSVG\fR, \fBFORMAT\fR, \fBNOGEN\fR).
+.SS Demo
+.CS
+tclsh examples/demo-tkuicon.tcl     # shows the icon grid where SVG is supported
+.CE

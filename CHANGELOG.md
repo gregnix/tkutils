@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.40.0
+
+Changes since 0.28.0. The widget set grew substantially and the original core
+widgets were renamed to the `tku*` prefix for namespace hygiene. Runs on Tk 8.6
+and Tk 9.x.
+
+- Prefix rename: the initial core widgets `tk*` were renamed to `tku*`
+  (`tkhexedit` -> `tkuhexedit`, `tkform` -> `tkuform`, `tktoolbar` ->
+  `tkutoolbar`, etc.). The umbrella now lists 39 widgets.
+- Shared GUI helpers / behaviours: `tkuaction` (action objects + accelerators),
+  `tkuballoon` (tooltips), `tkubind` (binding helpers), `tkucontextmenu`,
+  `tkukeynav` (keyboard navigation), `tkumarquee` (canvas rubber-band select),
+  `tkulabeled`, `tkuvalidate`, `tkutree`.
+- New widgets: `tkufilterbar`, `tkusearchbar`, `tkutags`, `tkutodo`, and the
+  entry widgets `tkudateentry`, `tkutimeentry`, `tkunumentry`.
+- WebDAV widgets: `tkudavaccount`, `tkudavbrowser`.
+- `tkutoolbar` 0.2 (action integration, tooltip delegation to `tkuballoon`).
+- `tkuimage` 0.2: image viewer widget with `view`, fit/zoom, `zoomLevel` and a
+  `-onchange` callback; lazy imgtools detection and display-size clamping.
+- Optional widgets (not in the umbrella, external dependency or specialised):
+  `tkcanvaspng`, `tkmonthcanvas`, `tkuicon` (tksvg), `tkuscrolledframe`
+  (scrollutil), `tkusqlite` (sqlite3), `tkutablelist` (Tablelist), `tkutical`,
+  `tkuxml` (tDOM).
+- Per-module `test` / `doc` / `man`; `tcltest` suite green on Tk 8.6 and Tk 9.x
+  (optional widgets skip cleanly when their dependency is absent).
+- Recommended pairing: tclutils 0.53.0 + tkutils 0.40.0.
+
 ## 0.28.0
 
 Initial public release.

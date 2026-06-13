@@ -1,0 +1,50 @@
+.TH tkucontextmenu n 0.1 tkutils
+.SH tkutils::tkucontextmenu
+.PP
+Generic right\-click context menus: build them declaratively, attach them to widgets, and show them on the platform context button (Button\-3 on X11/Windows, Button\-2 / Control\-click on macOS). Supports command/check/radio entries, cascades, accelerators, icons and dynamic update handlers. Pure Tk.
+.SS Build
+.CS
+set m [::tkutils::tkucontextmenu::create .m ?-tearoff 0|1? ?-items {...}? ?-dynamic 0|1?]
+::tkutils::tkucontextmenu::addItem      .m label ?-command cmd? ?-accelerator a? ?-state s? ?-icon img?
+::tkutils::tkucontextmenu::addCheckItem .m label ?-variable v? ?-command cmd? ?-onvalue x? ?-offvalue y?
+::tkutils::tkucontextmenu::addRadioItem .m label -variable v -value val ?-command cmd?
+::tkutils::tkucontextmenu::addSeparator .m
+::tkutils::tkucontextmenu::addSubmenu   .m label $submenu
+.CE
+.SS "Attach / show / mutate"
+.CS
+::tkutils::tkucontextmenu::attach  .m $widget ?-button 2|3?
+::tkutils::tkucontextmenu::detach  .m $widget
+::tkutils::tkucontextmenu::show    .m x y
+::tkutils::tkucontextmenu::enable  .m label
+::tkutils::tkucontextmenu::disable .m label
+::tkutils::tkucontextmenu::setCallback      .m label command
+::tkutils::tkucontextmenu::setUpdateHandler .m handler   ;# for -dynamic menus
+::tkutils::tkucontextmenu::destroyMenu      .m
+.CE
+.SS "Spec builders"
+.CS
+::tkutils::tkucontextmenu::createFromSpec .m {
+    {"New"  {newDoc}  -accelerator "Ctrl+N"}
+    -
+    {check "Bold" -variable ::bold}
+    {radio "Left"  -variable ::align -value left}
+    {submenu "Sort" {
+        {"Ascending"  {sortAsc}}
+        {"Descending" {sortDesc}}
+    }}
+}
+::tkutils::tkucontextmenu::createStandardEdit .e \
+    ?-cutcmd c? ?-copycmd c? ?-pastecmd c? ?-selectall c? ?-undo c? ?-redo c?
+.CE
+.SS Notes
+.IP \(bu
+Submenus in a spec use the explicit \fBsubmenu\fR keyword (parallel to \fBcheck\fR/\fBradio\fR); the old ambiguous \fB{label {nested}}\fR form is gone.
+.IP \(bu
+Instance state is cleaned up on \fB<Destroy>\fR, so destroying the menu by any means (including plain \fBdestroy\fR) releases its bindings.
+.IP \(bu
+Errors carry \fB{TKUTILS TKUCONTEXTMENU NOMENU}\fR.
+.SS Demo
+.CS
+tclsh examples/demo-tkucontextmenu.tcl
+.CE

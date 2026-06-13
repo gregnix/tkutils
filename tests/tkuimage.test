@@ -76,4 +76,80 @@ test tkuimage-2.4 {fromData builds a photo from PNG bytes} -constraints haveTk -
     image delete $img; set r
 } -result {6 4}
 
+test tkuimage-4.1 {zoomLevel is 0 before an image is loaded} -constraints haveTk -body {
+    catch {::destroy .vz}
+    ::tkutils::tkuimage::view .vz
+    set r [::tkutils::tkuimage::zoomLevel .vz]
+    ::destroy .vz
+    set r
+} -result 0
+
+test tkuimage-4.2 {zoom1 is 1.0 and zoomIn scales it (actual mode, exact)} -constraints haveTk -setup {
+    set tmp [file join [::tcltest::makeDirectory tz] s.png]
+    set ch [open $tmp w]; fconfigure $ch -translation binary
+    puts -nonewline $ch $PNG6x4; close $ch
+} -body {
+    catch {::destroy .vz}
+    ::tkutils::tkuimage::view .vz
+    ::tkutils::tkuimage::openFile .vz $tmp
+    ::tkutils::tkuimage::zoom1 .vz
+    set a [::tkutils::tkuimage::zoomLevel .vz]
+    ::tkutils::tkuimage::zoomIn .vz
+    set b [::tkutils::tkuimage::zoomLevel .vz]
+    ::destroy .vz
+    list $a $b
+} -cleanup { ::tcltest::removeDirectory tz } -result {1.0 1.25}
+
+test tkuimage-4.3 {-onchange fires on redraw} -constraints haveTk -setup {
+    set tmp [file join [::tcltest::makeDirectory tc] s.png]
+    set ch [open $tmp w]; fconfigure $ch -translation binary
+    puts -nonewline $ch $PNG6x4; close $ch
+} -body {
+    catch {::destroy .vc}
+    set ::fired 0
+    pack [::tkutils::tkuimage::view .vc -onchange {apply {{p} {incr ::fired}}}]
+    wm geometry . 320x240 ; update ; update idletasks
+    ::tkutils::tkuimage::openFile .vc $tmp ; update ; update idletasks
+    ::tkutils::tkuimage::zoomIn .vc ; update
+    set f $::fired
+    ::destroy .vc
+    expr {$f >= 1}
+} -cleanup { ::tcltest::removeDirectory tc } -result 1
+
+test tkuimage-4.4 {switching to a smaller image resizes disp (no leftovers)} -constraints haveTk -setup {
+    set dir [::tcltest::makeDirectory tsw]
+    set big [image create photo -width 60 -height 40]; $big put red -to 0 0 60 40
+    $big write [file join $dir big.gif] -format gif; image delete $big
+    set sml [image create photo -width 12 -height 8]; $sml put blue -to 0 0 12 8
+    $sml write [file join $dir sml.gif] -format gif; image delete $sml
+} -body {
+    catch {::destroy .vsw}
+    pack [::tkutils::tkuimage::view .vsw -fitmode actual]
+    wm geometry . 220x200 ; update ; update idletasks
+    ::tkutils::tkuimage::openFile .vsw [file join $dir big.gif]
+    ::tkutils::tkuimage::zoom1 .vsw ; update
+    ::tkutils::tkuimage::openFile .vsw [file join $dir sml.gif]
+    ::tkutils::tkuimage::zoom1 .vsw ; update
+    set disp $::tkutils::tkuimage::state(.vsw,disp)
+    set r [list [image width $disp] [image height $disp]]
+    ::destroy .vsw
+    set r
+} -cleanup { ::tcltest::removeDirectory tsw } -result {12 8}
+
+test tkuimage-4.5 {first zoom continues from the fit scale, not full resolution} -constraints haveTk -setup {
+    set dir [::tcltest::makeDirectory tzf]
+    set big [image create photo -width 800 -height 600]; $big put red -to 0 0 40 40
+    $big write [file join $dir big.gif] -format gif; image delete $big
+} -body {
+    catch {::destroy .vzf}
+    pack [::tkutils::tkuimage::view .vzf -fitmode contain]
+    wm geometry . 200x180 ; update ; update idletasks
+    ::tkutils::tkuimage::openFile .vzf [file join $dir big.gif] ; update ; update idletasks
+    set fit [::tkutils::tkuimage::zoomLevel .vzf]
+    ::tkutils::tkuimage::zoomIn .vzf ; update
+    set z [::tkutils::tkuimage::zoomLevel .vzf]
+    ::destroy .vzf
+    expr {$fit < 0.9 && $z < 1.0 && abs($z - $fit * 1.25) < 0.01}
+} -cleanup { ::tcltest::removeDirectory tzf } -result 1
+
 cleanupTests

@@ -19,7 +19,8 @@ namespace eval ::tkutils::tkutablelist {
     namespace export widget insert setRows rows clear size setColumns columns \
         loadCsv sortBy tableWidget cellText setCell getRow setRow deleteRow \
         selection selectedRows selectRows configureColumn fromNotes \
-        toCsv saveCsv editEndCommand
+        configureRow configureCell insertChild expand collapse \
+        toCsv saveCsv editEndCommand selectCommand doubleCommand
     variable state
 }
 
@@ -92,12 +93,21 @@ proc ::tkutils::tkutablelist::_applyEditable {path} {
 proc ::tkutils::tkutablelist::widget {path args} {
     variable state
     array set o {-columns {} -stretch all -titlecolumns 0 -sortable 1 \
-        -editable 0 -selectmode extended -stripes "" -editendcommand ""}
+        -editable 0 -selectmode extended -stripes "" -editendcommand "" \
+        -selectcommand "" -doublecommand ""}
+    foreach {opt val} $args {
+        if {![info exists o($opt)]} {
+            return -code error -errorcode {TKUTILS TKUTABLELIST OPTION} \
+                "unknown option '$opt'"
+        }
+    }
     array set o $args
 
     ttk::frame $path
     set state($path,editable) $o(-editable)
     set state($path,editend) $o(-editendcommand)
+    set state($path,selectcmd) $o(-selectcommand)
+    set state($path,doublecmd) $o(-doublecommand)
     bind $path <Destroy> [list ::tkutils::tkutablelist::_cleanup $path %W]
 
     lassign [_parseColumns $o(-columns)] spec extras
@@ -112,6 +122,10 @@ proc ::tkutils::tkutablelist::widget {path args} {
     if {$o(-sortable)} {
         $tbl configure -labelcommand [list ::tkutils::tkutablelist::_sortClick $path]
     }
+    # selection + double-click dispatchers (always bound; guarded on empty cmd)
+    bind $tbl <<TablelistSelect>> [list ::tkutils::tkutablelist::_select $path]
+    bind [$tbl bodytag] <Double-1> \
+        [list ::tkutils::tkutablelist::_dblClick $path %W %x %y]
     _applyExtras $path $extras
     _applyEditable $path
     ttk::scrollbar $path.ys -orient vertical   -command [list $tbl yview]
@@ -182,6 +196,40 @@ proc ::tkutils::tkutablelist::columns {path} {
 proc ::tkutils::tkutablelist::configureColumn {path col args} {
     $path.tbl columnconfigure $col {*}$args
     return $col
+}
+
+# Configure a row, e.g. -foreground gray -background ... -font ...
+# row may be a row index, "end", or a full key (k0, k1, ... from insertChild).
+proc ::tkutils::tkutablelist::configureRow {path row args} {
+    $path.tbl rowconfigure $row {*}$args
+    return $row
+}
+
+# Configure a single cell ("row,col"), e.g. -background yellow -foreground ...
+proc ::tkutils::tkutablelist::configureCell {path cell args} {
+    $path.tbl cellconfigure $cell {*}$args
+    return $cell
+}
+
+# --- hierarchy (parent / child rows) ---
+
+# Insert a child row under $parent ("root" or a full key) at $index (default end).
+# Returns the full key of the new row (k0, k1, ...), needed to attach further
+# children or to address the row in configureRow.
+proc ::tkutils::tkutablelist::insertChild {path parent values {index end}} {
+    return [$path.tbl insertchild $parent $index $values]
+}
+
+# Expand a row (by index or key); with no row, expand every row.
+proc ::tkutils::tkutablelist::expand {path {row ""}} {
+    if {$row eq ""} { $path.tbl expandall } else { $path.tbl expand $row }
+    return
+}
+
+# Collapse a row (by index or key); with no row, collapse every row.
+proc ::tkutils::tkutablelist::collapse {path {row ""}} {
+    if {$row eq ""} { $path.tbl collapseall } else { $path.tbl collapse $row }
+    return
 }
 
 # --- selection ---
@@ -284,6 +332,41 @@ proc ::tkutils::tkutablelist::editEndCommand {path cmd} {
     variable state
     set state($path,editend) $cmd
     return $cmd
+}
+
+# Selection hook. Fires on <<TablelistSelect>> as: cmd path row
+# where row is the first selected row index, or -1 if the selection is empty.
+proc ::tkutils::tkutablelist::_select {path} {
+    variable state
+    if {![info exists state($path,selectcmd)] || $state($path,selectcmd) eq ""} return
+    set sel [$path.tbl curselection]
+    set row [expr {[llength $sel] ? [lindex $sel 0] : -1}]
+    uplevel #0 [list {*}$state($path,selectcmd) $path $row]
+}
+
+# Double-click hook on a data row. Fires as: cmd path row (only when row >= 0).
+# Body coordinates are converted with tablelist::convEventFields so the row is
+# correct regardless of stripes/separators.
+proc ::tkutils::tkutablelist::_dblClick {path w x y} {
+    variable state
+    if {![info exists state($path,doublecmd)] || $state($path,doublecmd) eq ""} return
+    lassign [tablelist::convEventFields $w $x $y] tbl cx cy
+    set row [$tbl containing $cy]
+    if {$row >= 0} { uplevel #0 [list {*}$state($path,doublecmd) $path $row] }
+}
+
+# Get or set the selection command (no arg = read, one arg = set).
+proc ::tkutils::tkutablelist::selectCommand {path args} {
+    variable state
+    if {[llength $args]} { set state($path,selectcmd) [lindex $args 0] }
+    return $state($path,selectcmd)
+}
+
+# Get or set the double-click command (no arg = read, one arg = set).
+proc ::tkutils::tkutablelist::doubleCommand {path args} {
+    variable state
+    if {[llength $args]} { set state($path,doublecmd) [lindex $args 0] }
+    return $state($path,doublecmd)
 }
 
 # Return the table as CSV text via tucsv. With -header 1 (default) the column

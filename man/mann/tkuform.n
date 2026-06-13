@@ -4,17 +4,28 @@
 A declarative form widget. Build a labelled form from a field spec and collect the values as a dict. Pure Tk.
 .SS "Field spec"
 .PP
-A list of field dicts. Keys: \fBname\fR (required), \fBlabel\fR, \fBtype\fR (\fBentry|password|check|combo|spin|text\fR, default \fBentry\fR), \fBdefault\fR, \fBvalues\fR (combo), \fBfrom\fR/\fBto\fR (spin), \fBheight\fR (text).
+A list of field dicts. Keys: \fBname\fR (required), \fBlabel\fR, \fBtype\fR (\fBentry|password|check|combo|spin|text\fR, default \fBentry\fR), \fBdefault\fR, \fBvalues\fR (combo), \fBstate\fR (combo: \fBnormal|readonly\fR, default \fBnormal\fR), \fBfrom\fR/\fBto\fR (spin), \fBheight\fR (text).
 .SS API
 .CS
-set w [::tkutils::tkuform::widget .w $fieldspec]
+set w [::tkutils::tkuform::widget .w $fieldspec ?-padding P? ?-columns N?]
 ::tkutils::tkuform::values     $w            ;# -> dict name -> value
 ::tkutils::tkuform::get        $w name
-::tkutils::tkuform::set        $w name value
+::tkutils::tkuform::setField   $w name value ;# set one field
 ::tkutils::tkuform::setValues  $w dict        ;# unknown keys ignored
 ::tkutils::tkuform::fieldNames $w
 ::tkutils::tkuform::widgetOf   $w name        ;# the control widget
 .CE
+.PP
+The setter is \fBsetField\fR (not \fBset\fR) so it does not shadow the Tcl \fBset\fR builtin.
+.SS Layout
+.PP
+\fB\-padding P\fR sets the frame padding (default 8). \fB\-columns N\fR (default 1) lays the fields out in N side\-by\-side label+control column pairs, flowing left\-to\-right then top\-down; \fBN=1\fR reproduces the original single\-column layout exactly. \fBtext\fR\-type fields always take their own full\-width row.
+.CS
+::tkutils::tkuform::widget .w $fieldspec -columns 2
+.CE
+.SS Errors
+.PP
+Carry \fB{TKUTILS TKUFORM <REASON>}\fR: \fBOPTION\fR (unknown widget option), \fBVALUE\fR (bad \fB\-columns\fR), \fBSPEC\fR (field missing \fBname\fR), \fBTYPE\fR (unknown field type), \fBNOFIELD\fR (get/setField/widgetOf on an unknown field). A spec error leaves no partially\-built widget behind.
 .SS Launcher
 .CS
 tclsh bin/tkuform.tcl

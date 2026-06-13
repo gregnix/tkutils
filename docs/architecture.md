@@ -55,6 +55,7 @@ tkutils::mdview
 - tkukeynav -> wrappers over bind + tk_focusNext/Prev, backend: pure Tk (Tab/Shift-Tab traversal, Return-to-next-field form helper)
 - tkulabeled -> ttk::frame + label + control composite, backend: pure Tk (types entry/combo/spin/check/text; `value` get/set)
 - tkuvalidate -> per-widget validation feedback, backend: pure Tk; predicates from tclutils::tuvalidate, message via tkutils::tkuballoon
+- tkumarquee -> canvas rubber-band selection, backend: pure Tk (press/drag/release -> normalised region in canvas coords)
 - tkustatus -> ttk::frame status bar, backend: pure Tk
 - tkunotes -> ttk::treeview + editor, backend (in use): tclutils::tunotes
 - tkuform -> ttk form controls, backend: pure Tk

@@ -1,0 +1,37 @@
+.TH tkuvalidate n 0.1 tkutils
+.SH tkutils::tkuvalidate
+.PP
+Inline validation feedback for input widgets. Attach a validator to an entry/combo/spinbox: on focus\-out (or on every key) the value is checked; invalid input gets a red foreground, the ttk \fBinvalid\fR state, and a \fBtkuballoon\fR message explaining why; valid input clears all that. The GUI companion to \fBtclutils::tuvalidate\fR (which supplies the predicates). Pure Tk + tclutils.
+.SS API
+.CS
+::tkutils::tkuvalidate::attach $w $validator \
+    ?-message s? ?-when focusout|key|both? ?-allowempty 0|1? \
+    ?-getcmd cmd? ?-onvalid cmd? ?-oninvalid cmd?
+::tkutils::tkuvalidate::check  $w        ;# validate now -> 0|1
+::tkutils::tkuvalidate::valid  $w        ;# last result
+::tkutils::tkuvalidate::clear  $w        ;# remove marking + detach
+::tkutils::tkuvalidate::allValid {w ...} ;# re-check all; 1 only if every one valid
+.CE
+.PP
+\fB$validator\fR is either a \fBtclutils::tuvalidate\fR predicate name (\fBemail url ipv4 port alpha alnum numeric integer\fR) or any command prefix to which the widget value is appended and that returns a boolean.
+.CS
+package require tkutils::tkuvalidate
+tkuvalidate::attach .email email   -message "Enter a valid e-mail"
+tkuvalidate::attach .age   integer -message "Digits only" -when key -allowempty 0
+tkuvalidate::attach .user  [list apply {{v} {expr {[string length $v] >= 3}}}] \
+    -message "At least 3 characters"
+if {[tkuvalidate::allValid {.email .age .user}]} { save }
+.CE
+.SS Notes
+.IP \(bu
+\fB\-allowempty 1\fR (default) leaves an empty field unmarked (optional fields); set \fB0\fR to require a value.
+.IP \(bu
+\fB\-getcmd\fR overrides how the value is read (default \fB[$w get]\fR); needed for text widgets, e.g. \fB\-getcmd {.notes get 1.0 end\-1c}\fR.
+.IP \(bu
+The message is shown via \fBtkutils::tkuballoon\fR (hover to read it); the red foreground is the immediate cue.
+.IP \(bu
+Errors carry \fB{TKUTILS TKUVALIDATE <REASON>}\fR (\fBNOWIDGET\fR, \fBOPTION\fR, \fBWHEN\fR, \fBNOENGINE\fR).
+.SS Demo
+.CS
+tclsh examples/demo-tkuvalidate.tcl
+.CE

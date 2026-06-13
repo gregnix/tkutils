@@ -100,7 +100,7 @@ test tkudialog-3.1 {form dialog returns values dict on OK} -constraints haveTk -
     after 200 {
         set ::DLG ""
         foreach t [winfo children .] { if {[winfo exists $t.form]} { set ::DLG $t; break } }
-        ::tkutils::tkuform::set $::DLG.form name "Zaphod"
+        ::tkutils::tkuform::setField $::DLG.form name "Zaphod"
         ::tkutils::tkudialog::choose $::DLG OK
     }
     ::tkutils::tkudialog::form {{name name label "Name" default ""}} -title "Test"

@@ -18,7 +18,7 @@ package require tkutils::tkufuzzy 0.1
 package require tkutils::tkudialog 0.1
 package require tkutils::tkubase64 0.1
 package require tkutils::tkustrings 0.1
-package require tkutils::tkutoolbar 0.1
+package require tkutils::tkutoolbar 0.2
 package require tkutils::tkustatus 0.1
 package require tkutils::tkunotes 0.1
 package require tkutils::tkuform 0.1
@@ -34,11 +34,12 @@ package require tkutils::tkutimeentry 0.1
 package require tkutils::tkunumentry 0.1
 package require tkutils::tkutree 0.1
 package require tkutils::tkudavaccount 0.1
-package require tkutils::tkuimage 0.1
+package require tkutils::tkuimage 0.2
 package require tkutils::tkutodo 0.1
 package require tkutils::tkudavbrowser 0.1
 package require tkutils::tkuaction 0.1
 package require tkutils::tkukeynav 0.1
+package require tkutils::tkumarquee 0.1
 package require tkutils::tkulabeled 0.1
 package require tkutils::tkuvalidate 0.1
 package require tkutils::tkuballoon 0.1
