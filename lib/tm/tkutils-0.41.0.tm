@@ -33,6 +33,7 @@ package require tkutils::tkufilterbar 0.1
 package require tkutils::tkutimeentry 0.1
 package require tkutils::tkunumentry 0.1
 package require tkutils::tkutree 0.1
+package require tkutils::tkufiletree 0.1
 package require tkutils::tkudavaccount 0.1
 package require tkutils::tkuimage 0.2
 package require tkutils::tkutodo 0.1
@@ -45,4 +46,5 @@ package require tkutils::tkuvalidate 0.1
 package require tkutils::tkuballoon 0.1
 package require tkutils::tkubind 0.1
 package require tkutils::tkucontextmenu 0.1
-package provide tkutils 0.40.0
+package require tkutils::tkuwheel 0.1
+package provide tkutils 0.41.0

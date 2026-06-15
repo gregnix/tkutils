@@ -1,0 +1,208 @@
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+
+# Headless Tk
+set haveTk [expr {![catch {package require Tk}]}]
+if {$haveTk} { catch {wm withdraw .} }
+testConstraint tk $haveTk
+
+if {$haveTk} {
+    set here [file dirname [file normalize [info script]]]
+    set tmDir [file normalize [file join $here .. lib tm]]
+    catch {tcl::tm::path add $tmDir}
+    if {[info exists ::env(TKUTILS_TM)]} { catch {tcl::tm::path add $::env(TKUTILS_TM)} }
+    package require tkutils::tkufiletree
+}
+set ns ::tkutils::tkufiletree
+
+# Build a fixed directory tree:  root/{a/{x.png,y.txt}, b/c/deep.png, m.png, n.txt, .hidden}
+proc mktree {} {
+    set r [::tcltest::makeDirectory ft]
+    file mkdir [file join $r a] [file join $r b c]
+    foreach f {m.png n.txt .hidden a/x.png a/y.txt b/c/deep.png} {
+        set p [file join $r $f]
+        set ch [open $p w]; close $ch
+    }
+    return $r
+}
+proc names {ids} { lmap i $ids {file tail $i} }
+
+test tkufiletree-1.1 {widget builds and exposes the treeview} -constraints tk -setup {
+    set r [mktree]
+} -body {
+    $::ns\::widget .t -root $r
+    set ok [expr {[winfo exists .t] && [winfo exists [$::ns\::treeview .t]]}]
+    destroy .t
+    set ok
+} -cleanup { ::tcltest::removeDirectory ft } -result 1
+
+test tkufiletree-1.2 {top level: directories first, file filter applied} -constraints tk -setup {
+    set r [mktree]
+} -body {
+    $::ns\::widget .t -root $r -filter {*.png}
+    set tv [$::ns\::treeview .t]
+    set rootid [lindex [$tv children ""] 0]
+    set top [lsort [names [$tv children $rootid]]]
+    destroy .t
+    set top
+} -cleanup { ::tcltest::removeDirectory ft } -result {a b m.png}
+
+test tkufiletree-1.3 {subdirectory is not populated until expanded} -constraints tk -setup {
+    set r [mktree]
+} -body {
+    $::ns\::widget .t -root $r -filter {*.png}
+    set tv [$::ns\::treeview .t]
+    set aid [file join $r a]
+    set before [expr {[info exists ${::ns}::state(.t,pop,$aid)] ? [set ${::ns}::state(.t,pop,$aid)] : 0}]
+    set ph [llength [$tv children $aid]]
+    destroy .t
+    list $before $ph
+} -cleanup { ::tcltest::removeDirectory ft } -result {0 1}
+
+test tkufiletree-1.4 {expanding a directory populates it (filtered)} -constraints tk -setup {
+    set r [mktree]
+} -body {
+    $::ns\::widget .t -root $r -filter {*.png}
+    set tv [$::ns\::treeview .t]
+    set aid [file join $r a]
+    $tv focus $aid
+    $::ns\::_expand .t
+    set kids [names [$tv children $aid]]
+    destroy .t
+    set kids
+} -cleanup { ::tcltest::removeDirectory ft } -result {x.png}
+
+test tkufiletree-1.5 {-files 0 shows directories only} -constraints tk -setup {
+    set r [mktree]
+} -body {
+    $::ns\::widget .t -root $r -files 0
+    set tv [$::ns\::treeview .t]
+    set rootid [lindex [$tv children ""] 0]
+    set top [lsort [names [$tv children $rootid]]]
+    destroy .t
+    set top
+} -cleanup { ::tcltest::removeDirectory ft } -result {a b}
+
+test tkufiletree-1.6 {-showhidden includes dot entries} -constraints tk -setup {
+    set r [mktree]
+} -body {
+    $::ns\::widget .t -root $r -showhidden 1
+    set tv [$::ns\::treeview .t]
+    set rootid [lindex [$tv children ""] 0]
+    set has [expr {".hidden" in [names [$tv children $rootid]]}]
+    destroy .t
+    set has
+} -cleanup { ::tcltest::removeDirectory ft } -result 1
+
+test tkufiletree-2.1 {activating a file fires -onactivate with its path} -constraints tk -setup {
+    set r [mktree]
+} -body {
+    set ::acted ""
+    $::ns\::widget .t -root $r -onactivate {apply {p {set ::acted $p}}}
+    set tv [$::ns\::treeview .t]
+    $tv selection set [file join $r m.png]
+    $::ns\::_activate .t
+    destroy .t
+    string equal $::acted [file join $r m.png]
+} -cleanup { ::tcltest::removeDirectory ft } -result 1
+
+test tkufiletree-2.2 {activating a directory does not fire -onactivate} -constraints tk -setup {
+    set r [mktree]
+} -body {
+    set ::acted "untouched"
+    $::ns\::widget .t -root $r -onactivate {apply {p {set ::acted $p}}}
+    set tv [$::ns\::treeview .t]
+    $tv selection set [file join $r a]
+    $::ns\::_activate .t
+    destroy .t
+    set ::acted
+} -cleanup { ::tcltest::removeDirectory ft } -result {untouched}
+
+test tkufiletree-2.3 {selectedPath returns the selected full path} -constraints tk -setup {
+    set r [mktree]
+} -body {
+    $::ns\::widget .t -root $r
+    set tv [$::ns\::treeview .t]
+    $tv selection set [file join $r n.txt]
+    set p [$::ns\::selectedPath .t]
+    destroy .t
+    string equal $p [file join $r n.txt]
+} -cleanup { ::tcltest::removeDirectory ft } -result 1
+
+test tkufiletree-2.4 {refresh re-reads the root from disk} -constraints tk -setup {
+    set r [mktree]
+} -body {
+    $::ns\::widget .t -root $r -filter {*.png}
+    set tv [$::ns\::treeview .t]
+    set rootid [lindex [$tv children ""] 0]
+    set ch [open [file join $r added.png] w]; close $ch
+    $::ns\::refresh .t
+    set rootid [lindex [$tv children ""] 0]
+    set has [expr {"added.png" in [names [$tv children $rootid]]}]
+    destroy .t
+    set has
+} -cleanup { ::tcltest::removeDirectory ft } -result 1
+
+test tkufiletree-3.1 {root returns the current root directory} -constraints tk -setup {
+    set r [mktree]
+} -body {
+    $::ns\::widget .t -root $r
+    set got [$::ns\::root .t]
+    destroy .t
+    string equal $got [file normalize $r]
+} -cleanup { ::tcltest::removeDirectory ft } -result 1
+
+test tkufiletree-3.2 {reveal expands ancestors and selects a nested file} -constraints tk -setup {
+    set r [mktree]
+} -body {
+    $::ns\::widget .t -root $r
+    set deep [file join $r b c deep.png]
+    set ok [$::ns\::reveal .t $deep]
+    set sel [$::ns\::selectedPath .t]
+    destroy .t
+    list $ok [string equal $sel [file normalize $deep]]
+} -cleanup { ::tcltest::removeDirectory ft } -result {1 1}
+
+test tkufiletree-3.3 {reveal of a path outside the root returns 0} -constraints tk -setup {
+    set r [mktree]
+} -body {
+    $::ns\::widget .t -root $r
+    set out [$::ns\::reveal .t [file join [file dirname $r] elsewhere.png]]
+    destroy .t
+    set out
+} -cleanup { ::tcltest::removeDirectory ft } -result 0
+
+test tkufiletree-3.4 {reveal of a filtered-out file selects its folder and returns 0} -constraints tk -setup {
+    set r [mktree]
+    set ch [open [file join $r a noext] w]; close $ch  ;# no extension -> filtered out
+} -body {
+    $::ns\::widget .t -root $r -filter {*.png}
+    set ok [$::ns\::reveal .t [file join $r a noext]]
+    set sel [$::ns\::selectedPath .t]
+    destroy .t
+    list $ok [string equal $sel [file normalize [file join $r a]]]
+} -cleanup { ::tcltest::removeDirectory ft } -result {0 1}
+
+test tkufiletree-3.5 {up re-roots to the parent and reveals the previous root} -constraints tk -setup {
+    set r [mktree]
+} -body {
+    $::ns\::widget .t -root [file join $r a]
+    $::ns\::up .t
+    set newroot [$::ns\::root .t]
+    set sel [$::ns\::selectedPath .t]
+    destroy .t
+    list [string equal $newroot [file normalize $r]] \
+         [string equal $sel [file normalize [file join $r a]]]
+} -cleanup { ::tcltest::removeDirectory ft } -result {1 1}
+
+test tkufiletree-3.6 {-isolatekeys drops the toplevel bindtag} -constraints tk -setup {
+    set r [mktree]
+} -body {
+    $::ns\::widget .t -root $r -isolatekeys 1
+    set bt [bindtags [$::ns\::treeview .t]]
+    destroy .t
+    list [expr {"." ni $bt}] [expr {"Treeview" in $bt}]
+} -cleanup { ::tcltest::removeDirectory ft } -result {1 1}
+
+cleanupTests

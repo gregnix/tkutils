@@ -135,8 +135,11 @@ proc ::tkutils::tkuimage::view {path args} {
 
 proc ::tkutils::tkuimage::openFile {path file} {
     variable state
-    if {$state($path,orig) ne ""} { catch {image delete $state($path,orig)} }
-    set state($path,orig)    [load $file]
+    set img [load $file]
+    if {$state($path,orig) ne "" && $state($path,orig) ne $img} {
+        catch {image delete $state($path,orig)}
+    }
+    set state($path,orig)    $img
     set state($path,zoom)    1.0
     set state($path,fitmode) contain
     _redraw $path
@@ -196,6 +199,7 @@ proc ::tkutils::tkuimage::_redraw {path} {
     variable state
     set orig $state($path,orig)
     if {$orig eq ""} { return }
+    if {[catch {image width $orig}]} { set state($path,orig) "" ; return }
     set c $state($path,canvas)
     set cw [winfo width $c]
     set ch [winfo height $c]

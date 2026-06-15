@@ -71,6 +71,7 @@ package require tkutils::tkunotes   ;# or a single widget
 | `tkusearchbar`| Tk        | Debounced search bar + optional filter |
 | `tkufilterbar`| Tk        | Per-column filter bar (one entry per column, ANDed substrings) |
 | `tkutree`    | Tk        | ttk::treeview wrapper (load nested data, selection) |
+| `tkufiletree`| Tk        | lazy file-system tree (filter, activate-to-open) on tkutree |
 | `tkuimage`   | Tk (imgtools opt.) | image fit/scale/thumbnail + zoom/scroll viewer |
 | `tkutodo`    | tuical    | iCalendar VTODO task list (toggle done, due/priority/%) |
 | `tkudavbrowser` | tudav  | read-only CalDAV/CardDAV collection browser (grouped, selection callback) |

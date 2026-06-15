@@ -1,0 +1,110 @@
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+set haveTk 1
+if {[catch {package require Tk 8.6-}]} { set haveTk 0 }
+testConstraint haveTk $haveTk
+set here [file dirname [file normalize [info script]]]
+set tmDir [file normalize [file join $here .. lib tm]]
+catch {tcl::tm::path add $tmDir}
+if {[info exists ::env(TKUTILS_TM)]} { catch {tcl::tm::path add $::env(TKUTILS_TM)} }
+if {$haveTk} { package require tkutils::tkuwheel }
+
+set ns ::tkutils::tkuwheel
+
+proc mkTree {} {
+    catch {destroy .f}
+    frame .f
+    label .f.l1 -text a
+    frame .f.sub
+    label .f.sub.l2 -text b
+    pack .f.l1 .f.sub .f.sub.l2
+    return .f
+}
+
+# --- binding presence ------------------------------------------------------
+test tkuwheel-1.1 {redirect binds wheel events on the widget} -constraints haveTk -body {
+    catch {destroy .t}; text .t
+    mkTree
+    $ns\::redirect .t .f
+    expr {[bind .f <MouseWheel>] ne "" && [bind .f <Button-4>] ne "" \
+          && [bind .f <Button-5>] ne ""}
+} -result 1
+
+test tkuwheel-1.2 {redirect is recursive by default} -constraints haveTk -body {
+    catch {destroy .t}; text .t
+    mkTree
+    $ns\::redirect .t .f
+    expr {[bind .f.sub.l2 <MouseWheel>] ne ""}
+} -result 1
+
+test tkuwheel-1.3 {-recursive 0 binds only the widget itself} -constraints haveTk -body {
+    catch {destroy .t}; text .t
+    mkTree
+    $ns\::redirect .t .f -recursive 0
+    list [expr {[bind .f <MouseWheel>] ne ""}] [bind .f.sub.l2 <MouseWheel>]
+} -result {1 {}}
+
+test tkuwheel-1.4 {-orient both adds Shift-wheel bindings} -constraints haveTk -body {
+    catch {destroy .t}; text .t
+    mkTree
+    $ns\::redirect .t .f -orient both
+    expr {[bind .f <Shift-MouseWheel>] ne ""}
+} -result 1
+
+test tkuwheel-1.5 {default orient y has no Shift binding} -constraints haveTk -body {
+    catch {destroy .t}; text .t
+    mkTree
+    $ns\::redirect .t .f
+    bind .f <Shift-MouseWheel>
+} -result {}
+
+# --- unbind ----------------------------------------------------------------
+test tkuwheel-2.1 {unbind clears bindings recursively} -constraints haveTk -body {
+    catch {destroy .t}; text .t
+    mkTree
+    $ns\::redirect .t .f
+    $ns\::unbind .f
+    list [bind .f <MouseWheel>] [bind .f.sub.l2 <MouseWheel>]
+} -result {{} {}}
+
+# --- functional scroll -----------------------------------------------------
+test tkuwheel-3.1 {_wheel scrolls the target down then up} -constraints haveTk -body {
+    catch {destroy .t}; text .t -height 5
+    pack .t
+    for {set i 0} {$i < 200} {incr i} { .t insert end "line $i\n" }
+    update
+    set top0 [lindex [.t yview] 0]
+    ::tkutils::tkuwheel::_wheel .t y 3 -1   ;# wheel down
+    set top1 [lindex [.t yview] 0]
+    ::tkutils::tkuwheel::_wheel .t y 3 1    ;# wheel up
+    set top2 [lindex [.t yview] 0]
+    expr {$top1 > $top0 && $top2 < $top1}
+} -result 1
+
+# --- errors ----------------------------------------------------------------
+test tkuwheel-4.1 {bad -orient -> OPTION} -constraints haveTk -body {
+    catch {destroy .t}; text .t; mkTree
+    catch {$ns\::redirect .t .f -orient z} e o
+    lrange [dict get $o -errorcode] 0 2
+} -result {TKUTILS TKUWHEEL OPTION}
+
+test tkuwheel-4.2 {unknown option -> OPTION} -constraints haveTk -body {
+    catch {destroy .t}; text .t; mkTree
+    catch {$ns\::redirect .t .f -bogus 1} e o
+    lrange [dict get $o -errorcode] 0 2
+} -result {TKUTILS TKUWHEEL OPTION}
+
+test tkuwheel-4.3 {missing window -> WINDOW} -constraints haveTk -body {
+    catch {destroy .t}; text .t
+    catch {$ns\::redirect .t .nope} e o
+    lrange [dict get $o -errorcode] 0 2
+} -result {TKUTILS TKUWHEEL WINDOW}
+
+test tkuwheel-4.4 {bad -amount -> OPTION} -constraints haveTk -body {
+    catch {destroy .t}; text .t; mkTree
+    catch {$ns\::redirect .t .f -amount 0} e o
+    lrange [dict get $o -errorcode] 0 2
+} -result {TKUTILS TKUWHEEL OPTION}
+
+cleanupTests

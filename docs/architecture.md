@@ -74,6 +74,7 @@ Entry widgets and bars (pure Tk unless noted):
 - tkusearchbar -> debounced search bar (+ optional filter), backend: pure Tk
 - tkufilterbar -> per-column filter bar (one entry/column, ANDed substrings), backend: pure Tk
 - tkutree -> ttk::treeview wrapper (load nested data, selection), backend: pure Tk
+- tkufiletree -> lazy file-system tree (glob filter, -onactivate), backend: tkutree
 - tkuimage -> image fit/scale/thumbnail + zoom/scroll viewer, backend: pure Tk (imgtools optional)
 - tkutodo -> iCalendar VTODO task list (toggle done, due/priority/%), backend (in use): tclutils::tuical
 - tkudavbrowser -> read-only CalDAV/CardDAV collection browser, backend (in use): tclutils::tudav

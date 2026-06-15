@@ -152,4 +152,23 @@ test tkuimage-4.5 {first zoom continues from the fit scale, not full resolution}
     expr {$fit < 0.9 && $z < 1.0 && abs($z - $fit * 1.25) < 0.01}
 } -cleanup { ::tcltest::removeDirectory tzf } -result 1
 
+test tkuimage-3.2 {a failed load keeps the previous image and resize stays safe} -constraints haveTk -setup {
+    set dir [::tcltest::makeDirectory ti2]
+    set good [file join $dir good.png]
+    set ch [open $good w]; fconfigure $ch -translation binary; puts -nonewline $ch $PNG6x4; close $ch
+    set bad [file join $dir bad.png]
+    set ch [open $bad w]; puts $ch "this is not an image"; close $ch
+} -body {
+    catch {::destroy .v}
+    ::tkutils::tkuimage::view .v -fitmode contain
+    pack .v ; wm geometry . 200x200 ; update ; update idletasks
+    ::tkutils::tkuimage::openFile .v $good
+    set orig1 $::tkutils::tkuimage::state(.v,orig)
+    set threw [catch {::tkutils::tkuimage::openFile .v $bad}]
+    set kept  [expr {$::tkutils::tkuimage::state(.v,orig) eq $orig1 && ![catch {image width $orig1}]}]
+    set rsz   [expr {![catch {::tkutils::tkuimage::_onResize .v}]}]
+    catch {::destroy .v}
+    list $threw $kept $rsz
+} -result {1 1 1}
+
 cleanupTests
