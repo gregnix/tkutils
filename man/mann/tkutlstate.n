@@ -1,26 +1,54 @@
 .TH tkutlstate n 0.1 tkutils
 .SH tkutils::tkutlstate
 .PP
-Save and restore a \fBtablelist\fR's column layout \(em widths, hidden state,
-display order and the active sort \(em so an application can persist how the
-user arranged a table.
-.SS Commands
+Save and restore a \fBtablelist\fR's column layout — widths, hidden state, display order and the active sort — so an application can persist how the user arranged a table between sessions. Library\-neutral.
+.SS Package
 .CS
-::tkutils::tkutlstate::save            tbl
-::tkutils::tkutlstate::restore         tbl state
-::tkutils::tkutlstate::saveToFile      tbl path
-::tkutils::tkutlstate::restoreFromFile tbl path
+package require tkutils::tkutlstate 0.1
 .CE
 .PP
-The state is a plain Tcl dict (text\-storable). \fBrestore\fR only touches
-columns present in both the saved state and the current table, so it degrades
-gracefully when the table changed.
-.SS Example
+Requires \fBTk\fR and \fBtablelist\fR.
+.SS Commands
 .CS
-::tkutils::tkutlstate::saveToFile .t $cfg
-::tkutils::tkutlstate::restoreFromFile .t $cfg
+::tkutils::tkutlstate::save            tbl          ;# -> state dict
+::tkutils::tkutlstate::restore         tbl state
+::tkutils::tkutlstate::saveToFile      tbl path
+::tkutils::tkutlstate::restoreFromFile tbl path      ;# -> 1 applied, 0 missing
 .CE
+.PP
+The state is a plain Tcl dict, e.g.
+.CS
+version 1 ncols 4 columns {{width 20 hide 0} ...} columnorder {...} \
+    sortcolumn 1 sortorder decreasing
+.CE
+.PP
+so it is safe to store as text, embed in a config, or convert to JSON.
+.SS Usage
+.CS
+package require Tk
+package require tablelist
+package require tkutils::tkutlstate
+
+# on quit
+::tkutils::tkutlstate::saveToFile .t [file join $cfgdir table.state]
+
+# on start (after the table is built)
+::tkutils::tkutlstate::restoreFromFile .t [file join $cfgdir table.state]
+.CE
+.PP
+In\-memory:
+.CS
+set st [::tkutils::tkutlstate::save .t]
+# ... later ...
+::tkutils::tkutlstate::restore .t $st
+.CE
+.SS Notes
+.IP \(bu
+\fBrestore\fR only touches columns that exist in both the saved state and the current table, so it degrades gracefully when the table definition changed.
+.IP \(bu
+\fBcolumnorder\fR is captured/applied when the tablelist build supports it (wrapped in \fBcatch\fR).
+.IP \(bu
+Save the state \fIafter\fR the user is done arranging (e.g. on window close), not on every column resize.
 .SS "Error codes"
-\fB\-errorcode {TKUTILS TKUTLSTATE STATE}\fR for a non\-state value.
-.SH KEYWORDS
-tablelist, persistence, columns, layout
+.PP
+\fB\-errorcode {TKUTILS TKUTLSTATE STATE}\fR when given a non\-state value.

@@ -1,5 +1,5 @@
 #!/usr/bin/env tclsh
-# Demo for tkutils::tkcanvaspng: build a Tk canvas, export it to PNG.
+# Demo for tkutils::tkucanvaspng: build a Tk canvas, export it to PNG.
 # Requires Tk and a display (run under a real X session or xvfb-run).
 #
 #   xvfb-run -a tclsh examples/generate-canvas-demo.tcl ?out.png?
@@ -7,7 +7,7 @@
 set here [file dirname [file normalize [info script]]]
 set tkroot [file normalize [file join $here ..]]
 tcl::tm::path add [file join $tkroot lib tm]
-# tkcanvaspng depends on tclutils (common/tupng/tupngdraw). When running this
+# tkucanvaspng depends on tclutils (common/tupng/tupngdraw). When running this
 # script standalone, make the tclutils module tree discoverable too. .tm
 # modules are found via tcl::tm::path (NOT auto_path / TCLLIBPATH). Adjust /
 # extend this list if your tclutils lives elsewhere.
@@ -18,7 +18,7 @@ foreach cand [list \
     if {[file isdirectory $cand]} { tcl::tm::path add [file normalize $cand] }
 }
 package require Tk
-package require tkutils::tkcanvaspng
+package require tkutils::tkucanvaspng
 
 set out [expr {[llength $argv] ? [lindex $argv 0] : [file join $here canvas-demo.png]}]
 
@@ -33,6 +33,6 @@ canvas .c -width 320 -height 200 -background white -highlightthickness 0
 pack .c
 update idletasks   ;# canvas must be rendered first (as for pdf4tcl)
 
-::tkutils::tkcanvaspng::write $out .c -scale 2
+::tkutils::tkucanvaspng::write $out .c -scale 2
 puts "wrote $out  (region [.c bbox all])"
 exit 0

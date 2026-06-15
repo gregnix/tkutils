@@ -1,12 +1,12 @@
-# tkutils::tkcanvaspng -- export a live Tk canvas widget to a PNG image, after
+# tkutils::tkucanvaspng -- export a live Tk canvas widget to a PNG image, after
 # the model of pdf4tcl's "$pdf canvas": walk the canvas items and translate each
 # to drawing calls on a tclutils::tupngdraw image. Unlike the tclutils PNG
 # modules this one REQUIRES Tk (it queries a real, rendered canvas widget); the
 # actual rasterising is done by the Tk-free tupngdraw engine.
 #
-#   package require tkutils::tkcanvaspng
-#   tkutils::tkcanvaspng::write out.png .c                 ;# whole canvas
-#   tkutils::tkcanvaspng::write out.png .c -scale 2 -region [.c bbox all]
+#   package require tkutils::tkucanvaspng
+#   tkutils::tkucanvaspng::write out.png .c                 ;# whole canvas
+#   tkutils::tkucanvaspng::write out.png .c -scale 2 -region [.c bbox all]
 #
 # Supported items: line (multi-point), rectangle, oval, polygon, arc, text.
 # Not supported (skipped): image, bitmap, window, -stipple, -dash, -arrow,
@@ -21,13 +21,13 @@ package require tclutils::common 0.1
 package require tclutils::tupngdraw 0.11
 
 namespace eval ::tkutils {}
-namespace eval ::tkutils::tkcanvaspng {
+namespace eval ::tkutils::tkucanvaspng {
     namespace export render write
     variable version 0.2
 }
 
 # top-left offset of a text box of size (w,h) for a given canvas anchor
-proc ::tkutils::tkcanvaspng::_anchorOffset {anchor w h} {
+proc ::tkutils::tkucanvaspng::_anchorOffset {anchor w h} {
     switch -- $anchor {
         nw     { return [list 0            0          ] }
         n      { return [list [expr {-$w/2}] 0         ] }
@@ -42,7 +42,7 @@ proc ::tkutils::tkcanvaspng::_anchorOffset {anchor w h} {
 }
 
 
-proc ::tkutils::tkcanvaspng::_unit {dx dy} {
+proc ::tkutils::tkucanvaspng::_unit {dx dy} {
     set L [expr {hypot($dx, $dy)}]
     if {$L == 0} { return {0 0 0} }
     return [list [expr {$dx / $L}] [expr {$dy / $L}] $L]
@@ -50,7 +50,7 @@ proc ::tkutils::tkcanvaspng::_unit {dx dy} {
 
 # Fill a canvas-style arrowhead whose tip is (tx,ty), pointing away from
 # (fx,fy). shape = {a b c}. Returns the notch point (new line endpoint).
-proc ::tkutils::tkcanvaspng::_arrowhead {img tx ty fx fy shape color} {
+proc ::tkutils::tkucanvaspng::_arrowhead {img tx ty fx fy shape color} {
     lassign $shape a b c
     lassign [_unit [expr {$tx - $fx}] [expr {$ty - $fy}]] ux uy L
     if {$L == 0} { return [list $tx $ty] }
@@ -66,7 +66,7 @@ proc ::tkutils::tkcanvaspng::_arrowhead {img tx ty fx fy shape color} {
 
 # Draw a polyline, solid or dashed. pattern = list of px run-lengths (on,off,..)
 # or "" for solid.
-proc ::tkutils::tkcanvaspng::_dashedPath {img pts pattern color width} {
+proc ::tkutils::tkucanvaspng::_dashedPath {img pts pattern color width} {
     set np [llength $pts]
     if {$pattern eq ""} {
         for {set i 0} {$i + 3 < $np} {incr i 2} {
@@ -107,7 +107,7 @@ proc ::tkutils::tkcanvaspng::_dashedPath {img pts pattern color width} {
 #   fill outline width                (all items)
 #   start extent style                (arc; style = arc|pie|chord)
 #   text anchor scale                 (text)
-proc ::tkutils::tkcanvaspng::_drawItem {img type coords opts} {
+proc ::tkutils::tkucanvaspng::_drawItem {img type coords opts} {
     set opts [dict merge {fill {} outline {} width 1 \
         start 0 extent 90 style pie text {} anchor center scale 1 \
         arrow none arrowshape {8 10 3} dash {}} $opts]
@@ -205,14 +205,14 @@ proc ::tkutils::tkcanvaspng::_drawItem {img type coords opts} {
 }
 
 # --- Tk layer -----------------------------------------------------------------
-proc ::tkutils::tkcanvaspng::_hex {w color} {
+proc ::tkutils::tkucanvaspng::_hex {w color} {
     if {$color eq ""} { return "" }
     lassign [winfo rgb $w $color] r g b
     return [format #%02x%02x%02x [expr {$r / 256}] [expr {$g / 256}] [expr {$b / 256}]]
 }
 
 # normalise a Tk -dash value to a list of pixel run-lengths (scaled), or "".
-proc ::tkutils::tkcanvaspng::_dashpx {dash scale} {
+proc ::tkutils::tkucanvaspng::_dashpx {dash scale} {
     if {$dash eq ""} { return "" }
     if {[string is list $dash] && [llength $dash] >= 1 &&         [string is integer -strict [lindex $dash 0]]} {
         return [lmap v $dash {expr {max(1, int($v * $scale))}}]
@@ -227,7 +227,7 @@ proc ::tkutils::tkcanvaspng::_dashpx {dash scale} {
 
 # Render real-font text via Glyphs outlines + fillcontours, matching the Tk
 # font metrics. tx,ty is the (scaled) anchor point. Requires a Glyphs font obj.
-proc ::tkutils::tkcanvaspng::_glyphText {img canvas scale tx ty anchor text colorhex font fontobj} {
+proc ::tkutils::tkucanvaspng::_glyphText {img canvas scale tx ty anchor text colorhex font fontobj} {
     set asc  [expr {[font metrics $font -ascent]  * $scale}]
     set desc [expr {[font metrics $font -descent] * $scale}]
     set h [expr {$asc + $desc}]
@@ -260,7 +260,7 @@ proc ::tkutils::tkcanvaspng::_glyphText {img canvas scale tx ty anchor text colo
 }
 
 # resolve a Tk font to a TTF path via the fontmap (family match, then "*")
-proc ::tkutils::tkcanvaspng::_resolveTtf {fontmap font} {
+proc ::tkutils::tkucanvaspng::_resolveTtf {fontmap font} {
     if {$font eq ""} { set font TkDefaultFont }
     set fam ""
     catch {set fam [string tolower [font actual $font -family]]}
@@ -273,7 +273,7 @@ proc ::tkutils::tkcanvaspng::_resolveTtf {fontmap font} {
 }
 
 # read a Tk photo image into a packed-RGBA byte string (opaque)
-proc ::tkutils::tkcanvaspng::_photoRGBA {photo} {
+proc ::tkutils::tkucanvaspng::_photoRGBA {photo} {
     set w [image width $photo]
     set h [image height $photo]
     set bytes {}
@@ -289,7 +289,7 @@ proc ::tkutils::tkcanvaspng::_photoRGBA {photo} {
     return [list [binary format cu* $bytes] $w $h]
 }
 
-proc ::tkutils::tkcanvaspng::render {canvas args} {
+proc ::tkutils::tkucanvaspng::render {canvas args} {
     package require Tk
     if {![winfo exists $canvas]} {
         return -code error -errorcode {TKUTILS TKCANVASPNG WINDOW} \
@@ -425,7 +425,7 @@ proc ::tkutils::tkcanvaspng::render {canvas args} {
     return $png
 }
 
-proc ::tkutils::tkcanvaspng::write {file canvas args} {
+proc ::tkutils::tkucanvaspng::write {file canvas args} {
     set png [render $canvas {*}$args]
     set fid [open $file w]
     fconfigure $fid -translation binary
@@ -434,4 +434,4 @@ proc ::tkutils::tkcanvaspng::write {file canvas args} {
     return $file
 }
 
-package provide tkutils::tkcanvaspng 0.2
+package provide tkutils::tkucanvaspng 0.2

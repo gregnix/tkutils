@@ -1,18 +1,18 @@
-.TH tkcanvaspng n 0.2 tkutils
-.SH tkutils::tkcanvaspng
+.TH tkucanvaspng n 0.2 tkutils
+.SH tkutils::tkucanvaspng
 .PP
 Render a Tk \fBcanvas\fR to a \fBPNG\fR (pure Tcl, no external tools) via \fBtclutils::tupngdraw\fR. Useful for exporting canvas drawings/charts. Requires Tk plus \fBtclutils::tupngdraw\fR; TTF text needs the optional \fBGlyphs\fR package. Optional widget (not in the tkutils umbrella).
 .SS API
 .CS
-package require tkutils::tkcanvaspng
+package require tkutils::tkucanvaspng
 
 # PNG bytes of the canvas:
-set png [::tkutils::tkcanvaspng::render $canvas \
+set png [::tkutils::tkucanvaspng::render $canvas \
     ?-region {x1 y1 x2 y2}? ?-scale N? ?-background color? \
     ?-textcmd cmd? ?-fontmap map?]
 
 # write straight to a file (returns the file name):
-::tkutils::tkcanvaspng::write out.png $canvas ?same options?
+::tkutils::tkucanvaspng::write out.png $canvas ?same options?
 .CE
 .IP \(bu
 \fB\-region\fR defaults to \fB[$canvas bbox all]\fR; an empty canvas is an error.

@@ -1,10 +1,10 @@
 #!/usr/bin/env tclsh
-# demo-tkmonthcanvas.tcl -- procedural canvas calendar (month / quarter / year)
+# demo-tkumonthcanvas.tcl -- procedural canvas calendar (month / quarter / year)
 # with themes, selection and click callbacks. Optional widget (requires the
 # tical engine) -- not in the tkutils umbrella, so we require it directly.
 #
 # tical is a sibling repo: set TICAL_DIR, or keep it next to this tkutils repo.
-# NOTE: written against the tkmonthcanvas/tical source API; not executed in this
+# NOTE: written against the tkumonthcanvas/tical source API; not executed in this
 # sandbox because tical was not available here -- diff/run before relying on it.
 set here [file dirname [file normalize [info script]]]
 set tmDir [file normalize [file join $here .. lib tm]]
@@ -27,9 +27,9 @@ if {[info exists ::env(TICAL_DIR)]} {
 }
 
 package require Tk
-package require tkutils::tkmonthcanvas
+package require tkutils::tkumonthcanvas
 
-wm title . "tkmonthcanvas demo"
+wm title . "tkumonthcanvas demo"
 
 namespace eval demo {
     variable y; variable m; variable view month
@@ -38,12 +38,12 @@ namespace eval demo {
     set m [scan [string range $today 5 6] %d]
 }
 
-# tkmonthcanvas uses one global state; init once, then draw onto a canvas.
-::tkutils::tkmonthcanvas::init -fontsize 11 -theme default \
+# tkumonthcanvas uses one global state; init once, then draw onto a canvas.
+::tkutils::tkumonthcanvas::init -fontsize 11 -theme default \
     -locale de_DE -timezone :Europe/Berlin
-::tkutils::tkmonthcanvas::setSelectMode multiple
-::tkutils::tkmonthcanvas::setCallback select ::demo::onSel
-::tkutils::tkmonthcanvas::setCallback month  ::demo::onMonth
+::tkutils::tkumonthcanvas::setSelectMode multiple
+::tkutils::tkumonthcanvas::setCallback select ::demo::onSel
+::tkutils::tkumonthcanvas::setCallback month  ::demo::onMonth
 
 proc demo::onSel {w sel} {
     .side.lb delete 0 end
@@ -55,17 +55,17 @@ proc demo::onMonth {w year month} { set ::demo::y $year; set ::demo::m $month; d
 proc demo::redraw {} {
     variable y; variable m; variable view
     set c .c
-    ::tkutils::tkmonthcanvas::clear $c
+    ::tkutils::tkumonthcanvas::clear $c
     switch -- $view {
-        month   { ::tkutils::tkmonthcanvas::drawMonth   $c $y $m
-                  lassign [::tkutils::tkmonthcanvas::getMonthSize] w h }
-        quarter { ::tkutils::tkmonthcanvas::drawQuarter $c $y $m
-                  lassign [::tkutils::tkmonthcanvas::getQuarterSize] w h }
-        year    { ::tkutils::tkmonthcanvas::drawYear    $c $y
-                  lassign [::tkutils::tkmonthcanvas::getYearSize] w h }
+        month   { ::tkutils::tkumonthcanvas::drawMonth   $c $y $m
+                  lassign [::tkutils::tkumonthcanvas::getMonthSize] w h }
+        quarter { ::tkutils::tkumonthcanvas::drawQuarter $c $y $m
+                  lassign [::tkutils::tkumonthcanvas::getQuarterSize] w h }
+        year    { ::tkutils::tkumonthcanvas::drawYear    $c $y
+                  lassign [::tkutils::tkumonthcanvas::getYearSize] w h }
     }
     $c configure -scrollregion [list 0 0 $w $h]
-    wm title . [format "tkmonthcanvas demo - %s %d-%02d" $view $y $m]
+    wm title . [format "tkumonthcanvas demo - %s %d-%02d" $view $y $m]
 }
 
 proc demo::nav {step} {
@@ -77,7 +77,7 @@ proc demo::nav {step} {
     demo::redraw
 }
 proc demo::setView {v} { set ::demo::view $v; demo::redraw }
-proc demo::setTheme {t} { ::tkutils::tkmonthcanvas::setTheme $t; demo::redraw }
+proc demo::setTheme {t} { ::tkutils::tkumonthcanvas::setTheme $t; demo::redraw }
 
 # layout
 canvas .c -width 520 -height 360 -background white -highlightthickness 0 \
@@ -111,7 +111,7 @@ ttk::label .side.sel -text "Selection"
 listbox .side.lb -height 12 -width 14
 ttk::label .side.count -text "0 day(s)"
 ttk::button .side.clr -text "Clear" \
-    -command {::tkutils::tkmonthcanvas::clearSelection; demo::onSel .c {}}
+    -command {::tkutils::tkumonthcanvas::clearSelection; demo::onSel .c {}}
 pack .side.sel -anchor w
 pack .side.lb -fill both -expand 1
 pack .side.count -anchor w

@@ -82,9 +82,9 @@ Entry widgets and bars (pure Tk unless noted):
 
 Canvas / PNG (optional engines):
 
-- tkcanvaspng -> export a live Tk canvas to PNG, backend (in use): tclutils::tupngdraw (Glyphs for `-fontmap`)
+- tkucanvaspng -> export a live Tk canvas to PNG, backend (in use): tclutils::tupngdraw (Glyphs for `-fontmap`)
 - tkutical -> month calendar on a canvas (prev/next/today, week numbers, day selection), backend: tical
-- tkmonthcanvas -> canvas calendar month/quarter/year (themes, week numbers, today/weekend/holiday states, selection), backend: tical
+- tkumonthcanvas -> canvas calendar month/quarter/year (themes, week numbers, today/weekend/holiday states, selection), backend: tical
 
 Icons (optional engine):
 

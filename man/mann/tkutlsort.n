@@ -1,27 +1,56 @@
 .TH tkutlsort n 0.1 tkutils
 .SH tkutils::tkutlsort
 .PP
-Type\-aware column sorting for a \fBtablelist\fR widget. tablelist sorts
-dictionary/ASCII by default, mis\-ordering numeric and currency columns;
-\fBtkutlsort\fR sets the right \fB\-sortmode\fR per column, including a
-\fBnum\fR mode that compares human numbers via \fBtclutils::tunum\fR.
+Type\-aware column sorting for a \fBtablelist\fR widget.
+.PP
+tablelist sorts columns as dictionary/ASCII text by default, which mis\-orders numeric and currency columns — e.g. \fB"1.234,56 €"\fR sorts before \fB"2,50 €"\fR. \fBtkutlsort\fR sets the correct \fB\-sortmode\fR per column, including a \fBnum\fR mode that compares human\-formatted numbers via \fBtclutils::tunum\fR. Library\-neutral.
+.SS Package
+.CS
+package require tkutils::tkutlsort 0.1
+.CE
+.PP
+Requires \fBtablelist\fR. Uses \fBtclutils::tunum\fR for the \fBnum\fR sort mode (falls back to a built\-in parser when tunum is not on the path).
 .SS Commands
 .CS
 ::tkutils::tkutlsort::column  tbl col type ?cmd?
 ::tkutils::tkutlsort::columns tbl {col type col type ...}
 .CE
-.SS Types
-.PP
-\fBstring\fR (dictionary), \fBnocase\fR (asciinocase), \fBinteger\fR, \fBreal\fR,
-\fBnum\fR (human/currency via tunum), \fBcommand\fR (your 2\-arg proc in ?cmd?).
-.SS Example
+.SS "Sort types"
+.TS
+l l l.
+type	tablelist mode	use for
+\fBstring\fR	\fBdictionary\fR	text (default\-like)
+\fBnocase\fR	\fBasciinocase\fR	case\-insensitive text
+\fBinteger\fR	\fBinteger\fR	plain integers
+\fBreal\fR	\fBreal\fR	plain Tcl doubles (\fB12.5\fR)
+\fBnum\fR	command (tunum)	human numbers / currency (\fB1.234,56 €\fR, \fB9,90\fR)
+\fBcommand\fR	command	your own 2\-argument comparison proc (\fB?cmd?\fR)
+.TE
+.SS Usage
 .CS
-::tkutils::tkutlsort::columns .t {0 string 1 num 2 integer}
-.t sortbycolumn 1 -increasing
+package require Tk
+package require tablelist
+package require tkutils::tkutlsort
+
+tablelist::tablelist .t -columns {0 Article left 0 Price right 0 Qty right}
+# ... insert rows ...
+
+# Article = text, Price = currency, Qty = integer
+::tkutils::tkutlsort::columns .t {0 string  1 num  2 integer}
+
+\&.t sortbycolumn 1 -increasing      ;# now sorts 2,50 < 9,90 < 10,00 < 1.234,56
 .CE
+.PP
+Custom comparator:
+.CS
+proc cmpLen {a b} { expr {[string length $a] - [string length $b]} }
+::tkutils::tkutlsort::column .t 0 command cmpLen
+.CE
+.SS Notes
+.IP \(bu
+\fBnum\fR parses EU (\fB1.234,56\fR) and US (\fB1,234.56\fR) grouping and strips currency symbols; unparsable cells (empty, text) sort after all numbers.
+.IP \(bu
+Sorting itself is still triggered the normal tablelist way (\fBsortbycolumn\fR, label\-click, \fB\-labelcommand\fR etc.); \fBtkutlsort\fR only configures \fIhow\fR each column compares.
 .SS "Error codes"
-\fB\-errorcode {TKUTILS TKUTLSORT <REASON>}\fR (TYPE, CMD, SPEC).
-.SH "SEE ALSO"
-tkutils::tkutlfmt(n), tclutils::tunum(n)
-.SH KEYWORDS
-tablelist, sort, numeric, currency
+.PP
+\fB\-errorcode {TKUTILS TKUTLSORT <REASON>}\fR (\fBTYPE\fR, \fBCMD\fR, \fBSPEC\fR).

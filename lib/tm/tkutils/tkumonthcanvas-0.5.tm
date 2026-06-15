@@ -1,9 +1,9 @@
-# tkutils::tkmonthcanvas -- canvas calendar widget (month/quarter/year)
+# tkutils::tkumonthcanvas -- canvas calendar widget (month/quarter/year)
 # OPTIONAL: requires tical (engine). Re-homed from the standalone
 # 'monthcanvas' toolkit; same procedural API, tical-native, Tk 8.6+/9.x.
 # 2025-12-29
 
-package provide tkutils::tkmonthcanvas 0.5
+package provide tkutils::tkumonthcanvas 0.5
 
 package require Tk
 package require tical::config 1.0
@@ -13,7 +13,7 @@ package require tical::holidays::de 1.0
 package require tical::view::month 1.0
 
 namespace eval ::tkutils {}
-namespace eval ::tkutils::tkmonthcanvas {
+namespace eval ::tkutils::tkumonthcanvas {
     # Theme-System (aehnlich ttk, aber fuer Canvas)
     variable themes
     variable currentTheme "default"
@@ -52,12 +52,12 @@ namespace eval ::tkutils::tkmonthcanvas {
 # THEME-SYSTEM
 # ============================================================
 
-proc tkutils::tkmonthcanvas::defineTheme {name spec} {
+proc tkutils::tkumonthcanvas::defineTheme {name spec} {
     variable themes
     dict set themes $name $spec
 }
 
-proc tkutils::tkmonthcanvas::setTheme {name} {
+proc tkutils::tkumonthcanvas::setTheme {name} {
     variable themes
     variable currentTheme
     if {![dict exists $themes $name]} {
@@ -66,7 +66,7 @@ proc tkutils::tkmonthcanvas::setTheme {name} {
     set currentTheme $name
 }
 
-proc tkutils::tkmonthcanvas::getThemeValue {key} {
+proc tkutils::tkumonthcanvas::getThemeValue {key} {
     variable themes
     variable currentTheme
     if {[dict exists $themes $currentTheme $key]} {
@@ -80,7 +80,7 @@ proc tkutils::tkmonthcanvas::getThemeValue {key} {
 }
 
 # Standard-Themes definieren
-tkutils::tkmonthcanvas::defineTheme default {
+tkutils::tkumonthcanvas::defineTheme default {
     bg              white
     fg              black
     
@@ -122,7 +122,7 @@ tkutils::tkmonthcanvas::defineTheme default {
     fontTitle       "Arial 12 bold"
 }
 
-tkutils::tkmonthcanvas::defineTheme dark {
+tkutils::tkumonthcanvas::defineTheme dark {
     bg              "#2d2d2d"
     fg              "#e0e0e0"
     
@@ -164,7 +164,7 @@ tkutils::tkmonthcanvas::defineTheme dark {
     fontTitle       "Arial 12 bold"
 }
 
-tkutils::tkmonthcanvas::defineTheme light {
+tkutils::tkumonthcanvas::defineTheme light {
     bg              "#fafafa"
     fg              "#333333"
     
@@ -210,7 +210,7 @@ tkutils::tkmonthcanvas::defineTheme light {
 # INITIALISIERUNG
 # ============================================================
 
-proc tkutils::tkmonthcanvas::init {args} {
+proc tkutils::tkumonthcanvas::init {args} {
     array set opts {
         -fontsize 11
         -font Arial
@@ -253,7 +253,7 @@ proc tkutils::tkmonthcanvas::init {args} {
     setFontSize $opts(-fontsize) $opts(-font)
 }
 
-proc tkutils::tkmonthcanvas::setFontSize {size {family Arial}} {
+proc tkutils::tkumonthcanvas::setFontSize {size {family Arial}} {
     variable cellW
     variable cellH
     variable leftW
@@ -274,7 +274,7 @@ proc tkutils::tkmonthcanvas::setFontSize {size {family Arial}} {
 # CALLBACKS
 # ============================================================
 
-proc tkutils::tkmonthcanvas::setCallback {type cmd} {
+proc tkutils::tkumonthcanvas::setCallback {type cmd} {
     variable onDayClick
     variable onWeekClick
     variable onMonthClick
@@ -288,7 +288,7 @@ proc tkutils::tkmonthcanvas::setCallback {type cmd} {
     }
 }
 
-proc tkutils::tkmonthcanvas::onDayClicked {w date {shift 0} {ctrl 0}} {
+proc tkutils::tkumonthcanvas::onDayClicked {w date {shift 0} {ctrl 0}} {
     variable onDayClick
     variable onSelect
     variable selectMode
@@ -323,14 +323,14 @@ proc tkutils::tkmonthcanvas::onDayClicked {w date {shift 0} {ctrl 0}} {
     }
 }
 
-proc tkutils::tkmonthcanvas::onWeekClicked {w year weeknr} {
+proc tkutils::tkumonthcanvas::onWeekClicked {w year weeknr} {
     variable onWeekClick
     if {$onWeekClick ne ""} {
         uplevel #0 [list {*}$onWeekClick $w $year $weeknr]
     }
 }
 
-proc tkutils::tkmonthcanvas::onMonthClicked {w year month} {
+proc tkutils::tkumonthcanvas::onMonthClicked {w year month} {
     variable onMonthClick
     if {$onMonthClick ne ""} {
         uplevel #0 [list {*}$onMonthClick $w $year $month]
@@ -341,17 +341,17 @@ proc tkutils::tkmonthcanvas::onMonthClicked {w year month} {
 # NOTIZEN
 # ============================================================
 
-proc tkutils::tkmonthcanvas::setNotes {notesDict} {
+proc tkutils::tkumonthcanvas::setNotes {notesDict} {
     variable notes
     set notes $notesDict
 }
 
-proc tkutils::tkmonthcanvas::addNote {date text} {
+proc tkutils::tkumonthcanvas::addNote {date text} {
     variable notes
     dict set notes $date $text
 }
 
-proc tkutils::tkmonthcanvas::hasNote {date} {
+proc tkutils::tkumonthcanvas::hasNote {date} {
     variable notes
     return [dict exists $notes $date]
 }
@@ -360,7 +360,7 @@ proc tkutils::tkmonthcanvas::hasNote {date} {
 # ZEICHNEN: TAG-ZELLE
 # ============================================================
 
-proc tkutils::tkmonthcanvas::drawDayCell {w x y date daynum flags} {
+proc tkutils::tkumonthcanvas::drawDayCell {w x y date daynum flags} {
     variable cellW
     variable cellH
     variable notes
@@ -430,16 +430,16 @@ proc tkutils::tkmonthcanvas::drawDayCell {w x y date daynum flags} {
     }
     
     # Bindings
-    $w bind $tag <Button-1>         [list tkutils::tkmonthcanvas::onDayClicked $w $date 0 0]
-    $w bind $tag <Shift-Button-1>   [list tkutils::tkmonthcanvas::onDayClicked $w $date 1 0]
-    $w bind $tag <Control-Button-1> [list tkutils::tkmonthcanvas::onDayClicked $w $date 0 1]
-    $w bind $tag <Enter> [list tkutils::tkmonthcanvas::highlightCell $w $tag]
-    $w bind $tag <Leave> [list tkutils::tkmonthcanvas::unhighlightCell $w $tag $outline $selW]
+    $w bind $tag <Button-1>         [list tkutils::tkumonthcanvas::onDayClicked $w $date 0 0]
+    $w bind $tag <Shift-Button-1>   [list tkutils::tkumonthcanvas::onDayClicked $w $date 1 0]
+    $w bind $tag <Control-Button-1> [list tkutils::tkumonthcanvas::onDayClicked $w $date 0 1]
+    $w bind $tag <Enter> [list tkutils::tkumonthcanvas::highlightCell $w $tag]
+    $w bind $tag <Leave> [list tkutils::tkumonthcanvas::unhighlightCell $w $tag $outline $selW]
     
     return $tag
 }
 
-proc tkutils::tkmonthcanvas::highlightCell {w tag} {
+proc tkutils::tkumonthcanvas::highlightCell {w tag} {
     set color [getThemeValue hoverOutline]
     foreach id [$w find withtag $tag] {
         if {[$w type $id] eq "rectangle"} {
@@ -448,7 +448,7 @@ proc tkutils::tkmonthcanvas::highlightCell {w tag} {
     }
 }
 
-proc tkutils::tkmonthcanvas::unhighlightCell {w tag origOutline {origWidth 1}} {
+proc tkutils::tkumonthcanvas::unhighlightCell {w tag origOutline {origWidth 1}} {
     foreach id [$w find withtag $tag] {
         if {[$w type $id] eq "rectangle"} {
             $w itemconfigure $id -outline $origOutline -width $origWidth
@@ -460,7 +460,7 @@ proc tkutils::tkmonthcanvas::unhighlightCell {w tag origOutline {origWidth 1}} {
 # ZEICHNEN: WOCHENNUMMER
 # ============================================================
 
-proc tkutils::tkmonthcanvas::drawWeekNumber {w x y year weeknr} {
+proc tkutils::tkumonthcanvas::drawWeekNumber {w x y year weeknr} {
     variable cellH
     variable leftW
     
@@ -482,7 +482,7 @@ proc tkutils::tkmonthcanvas::drawWeekNumber {w x y year weeknr} {
         -fill $fg -font $font -anchor center -tags [list $tag weeknrcell]
     
     # Binding fuer Wochen-Klick
-    $w bind $tag <Button-1> [list tkutils::tkmonthcanvas::onWeekClicked $w $year $weeknr]
+    $w bind $tag <Button-1> [list tkutils::tkumonthcanvas::onWeekClicked $w $year $weeknr]
     $w bind $tag <Enter> [list $w configure -cursor hand2]
     $w bind $tag <Leave> [list $w configure -cursor ""]
     
@@ -493,7 +493,7 @@ proc tkutils::tkmonthcanvas::drawWeekNumber {w x y year weeknr} {
 # ZEICHNEN: MONAT
 # ============================================================
 
-proc tkutils::tkmonthcanvas::drawMonth {w year month {x0 0} {y0 0}} {
+proc tkutils::tkumonthcanvas::drawMonth {w year month {x0 0} {y0 0}} {
     variable cellW
     variable cellH
     variable leftW
@@ -506,14 +506,14 @@ proc tkutils::tkmonthcanvas::drawMonth {w year month {x0 0} {y0 0}} {
     variable current; variable currentW; variable inComposite
     set currentW $w
     if {!$inComposite} {
-        set current [list tkutils::tkmonthcanvas::drawMonth $w $year $month $x0 $y0]
+        set current [list tkutils::tkumonthcanvas::drawMonth $w $year $month $x0 $y0]
     }
     
     # Feiertage laden
-    set holidays [tkutils::tkmonthcanvas::_holidaysForYear $year]
+    set holidays [tkutils::tkumonthcanvas::_holidaysForYear $year]
     
     # Grid holen
-    set grid [tkutils::tkmonthcanvas::_calendarGrid $year $month]
+    set grid [tkutils::tkumonthcanvas::_calendarGrid $year $month]
     
     # Monatstitel
     set monthName [tical::locale::getMonthName $month]
@@ -529,7 +529,7 @@ proc tkutils::tkmonthcanvas::drawMonth {w year month {x0 0} {y0 0}} {
         -font $titleFont -fill $titleFg -anchor center -tags [list $titleTag titlecell]
     
     # Monat-Klick auf Titel
-    $w bind $titleTag <Button-1> [list tkutils::tkmonthcanvas::onMonthClicked $w $year $month]
+    $w bind $titleTag <Button-1> [list tkutils::tkumonthcanvas::onMonthClicked $w $year $month]
     $w bind $titleTag <Enter> [list $w configure -cursor hand2]
     $w bind $titleTag <Leave> [list $w configure -cursor ""]
     
@@ -610,7 +610,7 @@ proc tkutils::tkmonthcanvas::drawMonth {w year month {x0 0} {y0 0}} {
 # ZEICHNEN: QUARTAL (3 MONATE)
 # ============================================================
 
-proc tkutils::tkmonthcanvas::drawQuarter {w year month {x0 0} {y0 0}} {
+proc tkutils::tkumonthcanvas::drawQuarter {w year month {x0 0} {y0 0}} {
     variable cellW
     variable cellH
     variable leftW
@@ -620,7 +620,7 @@ proc tkutils::tkmonthcanvas::drawQuarter {w year month {x0 0} {y0 0}} {
     set month [scan $month %d]
     variable current; variable currentW; variable inComposite
     set currentW $w
-    set current [list tkutils::tkmonthcanvas::drawQuarter $w $year $month $x0 $y0]
+    set current [list tkutils::tkumonthcanvas::drawQuarter $w $year $month $x0 $y0]
     set inComposite 1
     
     # Breite eines Monats
@@ -652,7 +652,7 @@ proc tkutils::tkmonthcanvas::drawQuarter {w year month {x0 0} {y0 0}} {
 # ZEICHNEN: JAHR (12 MONATE)
 # ============================================================
 
-proc tkutils::tkmonthcanvas::drawYear {w year {x0 0} {y0 0} {cols 4}} {
+proc tkutils::tkumonthcanvas::drawYear {w year {x0 0} {y0 0} {cols 4}} {
     variable cellW
     variable cellH
     variable leftW
@@ -661,7 +661,7 @@ proc tkutils::tkmonthcanvas::drawYear {w year {x0 0} {y0 0} {cols 4}} {
     set year [scan $year %d]
     variable current; variable currentW; variable inComposite
     set currentW $w
-    set current [list tkutils::tkmonthcanvas::drawYear $w $year $x0 $y0 $cols]
+    set current [list tkutils::tkumonthcanvas::drawYear $w $year $x0 $y0 $cols]
     set inComposite 1
     
     # Breite/Hoehe eines Monats
@@ -691,11 +691,11 @@ proc tkutils::tkmonthcanvas::drawYear {w year {x0 0} {y0 0} {cols 4}} {
 # HILFSFUNKTIONEN
 # ============================================================
 
-proc tkutils::tkmonthcanvas::clear {w} {
+proc tkutils::tkumonthcanvas::clear {w} {
     $w delete all
 }
 
-proc tkutils::tkmonthcanvas::getMonthSize {} {
+proc tkutils::tkumonthcanvas::getMonthSize {} {
     variable cellW
     variable cellH
     variable leftW
@@ -706,13 +706,13 @@ proc tkutils::tkmonthcanvas::getMonthSize {} {
     return [list $width $height]
 }
 
-proc tkutils::tkmonthcanvas::getQuarterSize {} {
+proc tkutils::tkumonthcanvas::getQuarterSize {} {
     lassign [getMonthSize] mw mh
     set width [expr {3 * $mw + 20}]
     return [list $width $mh]
 }
 
-proc tkutils::tkmonthcanvas::getYearSize {{cols 4}} {
+proc tkutils::tkumonthcanvas::getYearSize {{cols 4}} {
     lassign [getMonthSize] mw mh
     set rows [expr {12 / $cols}]
     set width [expr {$cols * ($mw + 15)}]
@@ -724,7 +724,7 @@ proc tkutils::tkmonthcanvas::getYearSize {{cols 4}} {
 # WOCHEN-DATEN HOLEN
 # ============================================================
 
-proc tkutils::tkmonthcanvas::getWeekDates {year weeknr} {
+proc tkutils::tkumonthcanvas::getWeekDates {year weeknr} {
     # Alle Tage einer ISO-Woche zurueckgeben
     set weeknr [scan $weeknr %d]
     
@@ -745,11 +745,11 @@ proc tkutils::tkmonthcanvas::getWeekDates {year weeknr} {
     return $dates
 }
 
-proc tkutils::tkmonthcanvas::getMonthDates {year month} {
+proc tkutils::tkumonthcanvas::getMonthDates {year month} {
     set year [scan $year %d]
     set month [scan $month %d]
     
-    set days [tkutils::tkmonthcanvas::_daysInMonth $year $month]
+    set days [tkutils::tkumonthcanvas::_daysInMonth $year $month]
     set dates {}
     for {set d 1} {$d <= $days} {incr d} {
         lappend dates [format "%04d-%02d-%02d" $year $month $d]
@@ -761,7 +761,7 @@ proc tkutils::tkmonthcanvas::getMonthDates {year month} {
 # AUSWAHL (Mehrtagesauswahl)  --  selectmode none|single|multiple
 # ============================================================
 
-proc tkutils::tkmonthcanvas::dateRange {a b} {
+proc tkutils::tkumonthcanvas::dateRange {a b} {
     set ta [clock scan "$a 12:00:00" -format "%Y-%m-%d %H:%M:%S"]
     set tb [clock scan "$b 12:00:00" -format "%Y-%m-%d %H:%M:%S"]
     if {$tb < $ta} { set t $ta; set ta $tb; set tb $t }
@@ -772,7 +772,7 @@ proc tkutils::tkmonthcanvas::dateRange {a b} {
     return $out
 }
 
-proc tkutils::tkmonthcanvas::expandSelection {spec} {
+proc tkutils::tkumonthcanvas::expandSelection {spec} {
     set out {}
     foreach tok $spec {
         if {[regexp {^(\d{4}-\d{2}-\d{2})\.\.(\d{4}-\d{2}-\d{2})$} $tok -> x y]} {
@@ -787,7 +787,7 @@ proc tkutils::tkmonthcanvas::expandSelection {spec} {
     return [lsort [dict keys $out]]
 }
 
-proc tkutils::tkmonthcanvas::redraw {} {
+proc tkutils::tkumonthcanvas::redraw {} {
     variable current
     variable currentW
     if {$current eq "" || $currentW eq ""} return
@@ -795,7 +795,7 @@ proc tkutils::tkmonthcanvas::redraw {} {
     uplevel #0 $current
 }
 
-proc tkutils::tkmonthcanvas::setSelectMode {mode} {
+proc tkutils::tkumonthcanvas::setSelectMode {mode} {
     variable selectMode
     variable selected
     if {$mode ni {none single multiple}} {
@@ -807,13 +807,13 @@ proc tkutils::tkmonthcanvas::setSelectMode {mode} {
     return $mode
 }
 
-proc tkutils::tkmonthcanvas::getSelection {} {
+proc tkutils::tkumonthcanvas::getSelection {} {
     variable selected
     return [lsort [dict keys $selected]]
 }
 
 # Accepts ISO dates and YYYY-MM-DD..YYYY-MM-DD ranges.
-proc tkutils::tkmonthcanvas::setSelection {dates} {
+proc tkutils::tkumonthcanvas::setSelection {dates} {
     variable selected
     set selected {}
     foreach d [expandSelection $dates] { dict set selected $d 1 }
@@ -821,7 +821,7 @@ proc tkutils::tkmonthcanvas::setSelection {dates} {
     return [getSelection]
 }
 
-proc tkutils::tkmonthcanvas::clearSelection {{refresh 1}} {
+proc tkutils::tkumonthcanvas::clearSelection {{refresh 1}} {
     variable selected
     set selected {}
     if {$refresh} { redraw }
@@ -831,21 +831,21 @@ proc tkutils::tkmonthcanvas::clearSelection {{refresh 1}} {
 # TICAL-NATIVE ENGINE HELPERS (replace former gel::calendar calls)
 # ============================================================
 
-proc tkutils::tkmonthcanvas::_daysInMonth {year month} {
+proc tkutils::tkumonthcanvas::_daysInMonth {year month} {
     set tz [tical::config::get timezone]
     set first [clock scan [format "%04d-%02d-01 12:00:00" $year $month] -timezone $tz]
     set last  [clock add [clock add $first 1 month -timezone $tz] -1 day -timezone $tz]
     return [scan [clock format $last -format %d -timezone $tz] %d]
 }
 
-proc tkutils::tkmonthcanvas::_holidaysForYear {year} {
+proc tkutils::tkumonthcanvas::_holidaysForYear {year} {
     set cc [string toupper [lindex [split [tical::config::get locale] _-] end]]
     if {![info exists ::tical::holidays::plugins($cc)]} { return {} }
     return [{*}$::tical::holidays::plugins($cc) $year]
 }
 
 # date->day-dict grid (6 weeks x 7), gel-compatible field names, via tical.
-proc tkutils::tkmonthcanvas::_calendarGrid {year month} {
+proc tkutils::tkumonthcanvas::_calendarGrid {year month} {
     set tz    [tical::config::get timezone]
     set today [clock format [clock seconds] -format %Y-%m-%d -timezone $tz]
     set spec  [tical::view::month::getData -year $year -month $month -showAdjacentDays 1]

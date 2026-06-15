@@ -1,0 +1,173 @@
+# monthcanvas.test -- tcltest suite for the monthcanvas multi-day selection.
+#
+# tkutils/tests/. Needs Tk + tical + tkutils::tkumonthcanvas and a
+# display; run headless with e.g.:
+#   xvfb-run -a tclsh tests/monthcanvas.test
+# Override the project root (default: this file's parent's parent) with MC_BASE.
+# Without Tk/gel all tests SKIP (constraint mc) rather than failing.
+
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+
+set tmDir [file join [file dirname [file dirname [file normalize [info script]]]] lib tm]
+tcl::tm::path add $tmDir
+# tical engine (TICAL_DIR or a sibling tical*/tical checkout)
+if {[info exists ::env(TICAL_DIR)]} {
+    lappend auto_path $::env(TICAL_DIR)
+} else {
+    foreach c [glob -nocomplain [file join $tmDir .. .. .. tical*/tical] \
+                                 [file join $tmDir .. .. .. .. tical*/tical]] {
+        lappend auto_path $c
+    }
+}
+
+# Constraint: all deps loadable and a usable display.
+set hasTkmc 0
+if {![catch {package require Tk}]
+    && ![catch {package require tkutils::tkumonthcanvas 0.5}]
+    && ![catch {canvas .__probe; destroy .__probe}]} {
+    set hasTkmc 1
+}
+testConstraint tkmc $hasTkmc
+
+if {$hasTkmc} {
+    canvas .c -width 1100 -height 750
+    pack .c
+    tkutils::tkumonthcanvas::init -theme default
+}
+
+# Redraw a clean October 2025 with no selection.
+proc freshMonth {} {
+    tkutils::tkumonthcanvas::clearSelection
+    tkutils::tkumonthcanvas::clear .c
+    tkutils::tkumonthcanvas::drawMonth .c 2025 10 10 10
+}
+# Outline colour of the day-$date cell rectangle.
+proc dayOutline {date} {
+    set rid ""
+    foreach id [.c find withtag day-$date] {
+        if {[.c type $id] eq "rectangle"} { set rid $id }
+    }
+    return [.c itemcget $rid -outline]
+}
+
+# ---- selection behaviour ---------------------------------------------------
+
+test tkumonthcanvas-1.1 {shift-click selects an inclusive range} -constraints tkmc -setup {
+    tkutils::tkumonthcanvas::setSelectMode multiple; freshMonth
+} -body {
+    tkutils::tkumonthcanvas::onDayClicked .c 2025-10-15 0
+    tkutils::tkumonthcanvas::onDayClicked .c 2025-10-18 1
+    tkutils::tkumonthcanvas::getSelection
+} -result {2025-10-15 2025-10-16 2025-10-17 2025-10-18}
+
+test tkumonthcanvas-1.2 {selected cell paints selectOutline (default theme)} -constraints tkmc -setup {
+    tkutils::tkumonthcanvas::setSelectMode multiple; freshMonth
+} -body {
+    tkutils::tkumonthcanvas::onDayClicked .c 2025-10-15 0
+    dayOutline 2025-10-15
+} -result {#FF4500}
+
+test tkumonthcanvas-1.3 {ctrl-click toggles a day in/out} -constraints tkmc -setup {
+    tkutils::tkumonthcanvas::setSelectMode multiple; freshMonth
+} -body {
+    tkutils::tkumonthcanvas::onDayClicked .c 2025-10-15 0 0
+    tkutils::tkumonthcanvas::onDayClicked .c 2025-10-16 0 1
+    tkutils::tkumonthcanvas::onDayClicked .c 2025-10-15 0 1
+    tkutils::tkumonthcanvas::getSelection
+} -result {2025-10-16}
+
+test tkumonthcanvas-1.3b {plain click replaces the selection} -constraints tkmc -setup {
+    tkutils::tkumonthcanvas::setSelectMode multiple; freshMonth
+} -body {
+    tkutils::tkumonthcanvas::onDayClicked .c 2025-10-15 0 1
+    tkutils::tkumonthcanvas::onDayClicked .c 2025-10-16 0 1
+    tkutils::tkumonthcanvas::onDayClicked .c 2025-10-20 0 0
+    tkutils::tkumonthcanvas::getSelection
+} -result {2025-10-20}
+
+test tkumonthcanvas-1.4 {setSelection accepts dates and A..B ranges} -constraints tkmc -setup {
+    tkutils::tkumonthcanvas::setSelectMode multiple; freshMonth
+} -body {
+    tkutils::tkumonthcanvas::setSelection {2025-10-01..2025-10-03 2025-10-20}
+} -result {2025-10-01 2025-10-02 2025-10-03 2025-10-20}
+
+test tkumonthcanvas-1.5 {clearSelection empties the selection} -constraints tkmc -setup {
+    tkutils::tkumonthcanvas::setSelectMode multiple; freshMonth
+} -body {
+    tkutils::tkumonthcanvas::setSelection {2025-10-05 2025-10-06}
+    tkutils::tkumonthcanvas::clearSelection
+    tkutils::tkumonthcanvas::getSelection
+} -result {}
+
+test tkumonthcanvas-1.6 {single mode keeps only the last day} -constraints tkmc -setup {
+    tkutils::tkumonthcanvas::setSelectMode single; freshMonth
+} -body {
+    tkutils::tkumonthcanvas::onDayClicked .c 2025-10-05 0
+    tkutils::tkumonthcanvas::onDayClicked .c 2025-10-09 0
+    tkutils::tkumonthcanvas::getSelection
+} -result {2025-10-09}
+
+test tkumonthcanvas-1.7 {none mode clears, ignores clicks, still fires day callback} -constraints tkmc -setup {
+    tkutils::tkumonthcanvas::setSelectMode multiple; freshMonth
+    tkutils::tkumonthcanvas::setSelection {2025-10-05}
+    set ::clicked ""
+    tkutils::tkumonthcanvas::setCallback day {apply {{w d} {set ::clicked $d}}}
+    tkutils::tkumonthcanvas::setSelectMode none
+} -cleanup {
+    tkutils::tkumonthcanvas::setCallback day ""
+} -body {
+    tkutils::tkumonthcanvas::onDayClicked .c 2025-10-12 0
+    list [tkutils::tkumonthcanvas::getSelection] $::clicked
+} -result {{} 2025-10-12}
+
+test tkumonthcanvas-1.8 {selection works in quarter view (redraw)} -constraints tkmc -setup {
+    tkutils::tkumonthcanvas::setSelectMode multiple
+    tkutils::tkumonthcanvas::clearSelection; tkutils::tkumonthcanvas::clear .c
+    tkutils::tkumonthcanvas::drawQuarter .c 2025 10 10 10
+} -body {
+    tkutils::tkumonthcanvas::onDayClicked .c 2025-11-15 0
+    tkutils::tkumonthcanvas::getSelection
+} -result {2025-11-15}
+
+test tkumonthcanvas-1.9 {top-level month after quarter (inComposite reset)} -constraints tkmc -setup {
+    tkutils::tkumonthcanvas::setSelectMode multiple
+    tkutils::tkumonthcanvas::clearSelection; tkutils::tkumonthcanvas::clear .c
+    tkutils::tkumonthcanvas::drawQuarter .c 2025 10 10 10
+    tkutils::tkumonthcanvas::onDayClicked .c 2025-11-15 0
+    tkutils::tkumonthcanvas::clearSelection; tkutils::tkumonthcanvas::clear .c
+    tkutils::tkumonthcanvas::drawMonth .c 2025 12 10 10
+} -body {
+    tkutils::tkumonthcanvas::onDayClicked .c 2025-12-24 0
+    tkutils::tkumonthcanvas::getSelection
+} -result {2025-12-24}
+
+test tkumonthcanvas-1.10 {select callback receives the selection} -constraints tkmc -setup {
+    tkutils::tkumonthcanvas::setSelectMode multiple; freshMonth
+    set ::lastsel ""
+    tkutils::tkumonthcanvas::setCallback select {apply {{w sel} {set ::lastsel $sel}}}
+} -cleanup {
+    tkutils::tkumonthcanvas::setCallback select ""
+} -body {
+    tkutils::tkumonthcanvas::onDayClicked .c 2025-10-24 0 0
+    tkutils::tkumonthcanvas::onDayClicked .c 2025-10-25 0 1
+    set ::lastsel
+} -result {2025-10-24 2025-10-25}
+
+# ---- error handling --------------------------------------------------------
+
+test tkumonthcanvas-2.1 {setSelectMode rejects unknown mode} -constraints tkmc -body {
+    catch {tkutils::tkumonthcanvas::setSelectMode bogus} e o
+    dict get $o -errorcode
+} -result {TKUTILS TKMONTHCANVAS SELECTMODE}
+
+test tkumonthcanvas-2.2 {setSelection rejects a non-date token} -constraints tkmc -setup {
+    tkutils::tkumonthcanvas::setSelectMode multiple; freshMonth
+} -body {
+    catch {tkutils::tkumonthcanvas::setSelection {foo}} e o
+    dict get $o -errorcode
+} -result {TKUTILS TKMONTHCANVAS SELECT}
+
+if {$hasTkmc} { destroy .c }
+cleanupTests

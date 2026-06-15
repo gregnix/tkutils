@@ -1,0 +1,62 @@
+.TH tkumonthcanvas n 0.5 tkutils
+.SH tkutils::tkumonthcanvas
+.PP
+Calendar \fBcanvas\fR toolkit: draws month / quarter / year views onto a Tk canvas, with themes, multi\-day selection and click callbacks. Date and holiday logic come from \fBtical\fR (\fBtical::config\fR, \fBtical::locale\fR, \fBtical::holidays\fR, \fBtical::view::month\fR), so this is an \fBoptional\fR widget (not loaded by the tkutils umbrella).
+.PP
+Unlike the \fBwidget $path\fR widgets, this is a \fBprocedural\fR toolkit that draws onto a canvas you create and manage (state is per\-namespace = one active canvas).
+.SS API
+.CS
+package require tkutils::tkumonthcanvas
+
+::tkutils::tkumonthcanvas::init ?-fontsize 11? ?-font Arial? \
+    ?-locale de_DE? ?-timezone :Europe/Berlin? ?-theme default? \
+    ?-onDayClick cmd? ?-onWeekClick cmd? ?-onMonthClick cmd?
+
+# draw onto a canvas $c
+::tkutils::tkumonthcanvas::drawMonth   $c year month ?x0 y0?
+::tkutils::tkumonthcanvas::drawQuarter $c year month ?x0 y0?   ;# quarter containing month
+::tkutils::tkumonthcanvas::drawYear    $c year ?x0 y0 cols?
+::tkutils::tkumonthcanvas::clear       $c
+
+# sizes (for -scrollregion) -> {width height}
+::tkutils::tkumonthcanvas::getMonthSize
+::tkutils::tkumonthcanvas::getQuarterSize
+::tkutils::tkumonthcanvas::getYearSize ?cols?
+
+# themes
+::tkutils::tkumonthcanvas::setTheme default|dark|light
+::tkutils::tkumonthcanvas::defineTheme name spec
+::tkutils::tkumonthcanvas::getThemeValue key        ;# e.g. background
+
+# callbacks
+::tkutils::tkumonthcanvas::setCallback day    cmd   ;# cmd $c date
+::tkutils::tkumonthcanvas::setCallback week   cmd   ;# cmd $c year weeknr
+::tkutils::tkumonthcanvas::setCallback month  cmd   ;# cmd $c year month
+::tkutils::tkumonthcanvas::setCallback select cmd   ;# cmd $c selectionList
+
+# multi-day selection
+::tkutils::tkumonthcanvas::setSelectMode none|single|multiple
+::tkutils::tkumonthcanvas::getSelection             ;# sorted ISO dates
+::tkutils::tkumonthcanvas::setSelection dates       ;# ISO dates and A..B ranges
+::tkutils::tkumonthcanvas::clearSelection ?refresh?
+
+# helpers / notes
+::tkutils::tkumonthcanvas::getWeekDates  year weeknr
+::tkutils::tkumonthcanvas::getMonthDates year month
+::tkutils::tkumonthcanvas::addNote date text
+::tkutils::tkumonthcanvas::hasNote date
+::tkutils::tkumonthcanvas::setNotes dict
+.CE
+.SS Selection
+.PP
+With \fBselectmode multiple\fR: plain click selects one day, \fBShift\fR\-click selects the inclusive range from the anchor, \fBCtrl\fR\-click toggles a single day. The selected cell outline uses the theme's \fBselectOutline\fR colour.
+.SS Errors
+.PP
+\fBreturn \-code error \-errorcode {TKUTILS TKMONTHCANVAS <REASON>}\fR (\fBSELECTMODE\fR, \fBSELECT\fR, ...).
+.SS Demo
+.CS
+wish examples/demo-tkumonthcanvas.tcl
+.CE
+.SS "See also"
+.PP
+\fBtical(n)\fR, \fBtkutils::tkutical\fR.

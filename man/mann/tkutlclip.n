@@ -1,8 +1,13 @@
 .TH tkutlclip n 0.1 tkutils
 .SH tkutils::tkutlclip
 .PP
-Copy \fBtablelist\fR rows to the clipboard as TSV or CSV \(em the common
-"Ctrl+C copies the selection" behaviour tablelist lacks.
+Copy \fBtablelist\fR rows to the clipboard as TSV or CSV — the common "Ctrl+C copies the selection as spreadsheet\-pasteable text" behaviour that tablelist itself does not provide. Library\-neutral.
+.SS Package
+.CS
+package require tkutils::tkutlclip 0.1
+.CE
+.PP
+Requires \fBTk\fR and \fBtablelist\fR. Uses \fBtclutils::tucsv\fR for CSV quoting when available (falls back to a built\-in quoter otherwise).
 .SS Commands
 .CS
 ::tkutils::tkutlclip::copySelection   tbl ?options?
@@ -10,17 +15,42 @@ Copy \fBtablelist\fR rows to the clipboard as TSV or CSV \(em the common
 ::tkutils::tkutlclip::asText          tbl rows ?options?
 ::tkutils::tkutlclip::installBindings tbl ?options?
 .CE
-.SS Options
 .PP
-\fB\-format\fR tsv|csv (default tsv), \fB\-header\fR 0|1, \fB\-formatted\fR 0|1
-(displayed vs raw), \fB\-columns\fR visible|all. CSV uses \fBtclutils::tucsv\fR
-when present.
-.SS Example
+\fBtbl\fR is the tablelist widget. \fBcopySelection\fR/\fBcopyAll\fR return the number of rows copied; \fBasText\fR returns the built string without touching the clipboard.
+.SS Options
+.TS
+l l l.
+Option	Default	Meaning
+\fB\-format\fR	\fBtsv\fR	\fBtsv\fR or \fBcsv\fR
+\fB\-header\fR	\fB0\fR	prepend column titles as the first line
+\fB\-formatted\fR	\fB1\fR	use displayed values (\fBgetformatted\fR) vs raw cells
+\fB\-columns\fR	\fBvisible\fR	\fBvisible\fR (skip hidden columns) or \fBall\fR
+.TE
+.SS Usage
 .CS
+package require Tk
+package require tablelist
+package require tkutils::tkutlclip
+
+tablelist::tablelist .t -columns {0 Article left 0 Qty right 0 Price right}
+# ... insert rows ...
+
+# Ctrl+C copies the selected rows as TSV
 ::tkutils::tkutlclip::installBindings .t
+
+# Copy everything as CSV with a header row
 ::tkutils::tkutlclip::copyAll .t -format csv -header 1
 .CE
+.PP
+Get the text without using the clipboard:
+.CS
+set tsv [::tkutils::tkutlclip::asText .t {0 1 2} -header 1]
+.CE
+.SS Notes
+.IP \(bu
+TSV replaces embedded tabs/newlines with spaces so pasted cells stay aligned. Use CSV when cells may contain those characters and you need them preserved.
+.IP \(bu
+\fBinstallBindings\fR binds \fB<<Copy>>\fR on the tablelist body, so it coexists with normal text\-entry copy in edited cells.
 .SS "Error codes"
-\fB\-errorcode {TKUTILS TKUTLCLIP <REASON>}\fR (OPTION, FORMAT, COLUMNS).
-.SH KEYWORDS
-tablelist, clipboard, copy, csv, tsv
+.PP
+\fB\-errorcode {TKUTILS TKUTLCLIP <REASON>}\fR (\fBOPTION\fR, \fBFORMAT\fR, \fBCOLUMNS\fR).

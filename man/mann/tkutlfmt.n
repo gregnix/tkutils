@@ -1,26 +1,72 @@
 .TH tkutlfmt n 0.1 tkutils
 .SH tkutils::tkutlfmt
 .PP
-Per\-column display formatting for a \fBtablelist\fR widget via
-\fB\-formatcommand\fR. The raw cell value is unchanged (so sorting/filtering see
-the number); only the shown text is formatted. Pairs with \fBtkutlsort\fR.
+Per\-column display formatting for a \fBtablelist\fR widget, via tablelist's \fB\-formatcommand\fR. The underlying cell value stays unchanged, so sorting and filtering still operate on the raw number while the user sees a grouped / currency / percent / date string. Pairs with \fBtkutils::tkutlsort\fR. Library\-neutral.
+.SS Package
+.CS
+package require tkutils::tkutlfmt 0.1
+.CE
+.PP
+Requires \fBTk\fR and \fBtablelist\fR. Uses \fBtclutils::tunum\fR to parse raw values when present (falls back to a built\-in parser).
 .SS Commands
 .CS
 ::tkutils::tkutlfmt::column  tbl col type ?options?
 ::tkutils::tkutlfmt::columns tbl {col type ?{options}? ...}
 .CE
-.SS Types
+.SS "Format types"
+.TS
+l l.
+type	example (raw → shown)
+\fBinteger\fR	\fB1234567\fR → \fB1.234.567\fR
+\fBnumber\fR	\fB1234.5\fR  → \fB1.234,50\fR
+\fBcurrency\fR	\fB1234.5\fR  → \fB1.234,50 €\fR
+\fBpercent\fR	\fB0.125\fR   → \fB12,5 %\fR
+\fBdate\fR	\fB1717200000\fR → \fB01.06.2024\fR
+.TE
 .PP
-\fBinteger\fR (1.234.567), \fBnumber\fR (1.234,56), \fBcurrency\fR (1.234,56 \(eu),
-\fBpercent\fR (12,5 %), \fBdate\fR (clock reformat). Numeric types right\-align.
+Numeric types are right\-aligned automatically (override with \fB\-align\fR).
 .SS Options
+.TS
+l l l l.
+Option	Default	Applies to	Meaning
+\fB\-locale\fR	\fBeu\fR	numeric	\fBeu\fR (\fB.\fR/\fB,\fR) or \fBus\fR (\fB,\fR/\fB.\fR)
+\fB\-decimals\fR	type	number/currency/%	decimal places
+\fB\-group\fR	locale	numeric	thousands separator
+\fB\-decimal\fR	locale	numeric	decimal separator
+\fB\-symbol\fR	\fB€\fR	currency	currency symbol
+\fB\-symbolpos\fR	\fBpost\fR	currency	\fBpre\fR or \fBpost\fR
+\fB\-align\fR	auto	all	\fBright\fR/\fBleft\fR/\fBcenter\fR
+\fB\-informat\fR	\fB{}\fR	date	\fBclock scan\fR format (else auto/epoch)
+\fB\-outformat\fR	\fB%Y\-%m\-%d\fR	date	\fBclock format\fR format
+.TE
+.SS Usage
+.CS
+package require Tk
+package require tablelist
+package require tkutils::tkutlfmt
+
+tablelist::tablelist .t -columns {0 Article left 0 Price right 0 Share right 0 Date left}
+# raw values: Price=1234.5  Share=0.125  Date=epoch
+\&.t insert end [list Apple 1234.5 0.125 1717200000]
+
+::tkutils::tkutlfmt::column .t 1 currency
+::tkutils::tkutlfmt::column .t 2 percent
+::tkutils::tkutlfmt::column .t 3 date -outformat "%d.%m.%Y"
+.CE
 .PP
-\fB\-locale\fR eu|us, \fB\-decimals\fR, \fB\-group\fR, \fB\-decimal\fR,
-\fB\-symbol\fR, \fB\-symbolpos\fR pre|post, \fB\-align\fR; date:
-\fB\-informat\fR, \fB\-outformat\fR.
+Bulk form (optional brace\-grouped options per column):
+.CS
+::tkutils::tkutlfmt::columns .t {
+    1 currency {-symbol $ -symbolpos pre -locale us}
+    2 percent
+    3 date {-outformat %d.%m.%Y}
+}
+.CE
+.SS Notes
+.IP \(bu
+Store \fBraw numbers\fR in the cells (e.g. \fB1234.5\fR, not \fB"1.234,50 €"\fR); the formatter renders them and \fBtkutlsort\fR/native sort compares them numerically.
+.IP \(bu
+Non\-numeric / non\-date cells are passed through unchanged.
 .SS "Error codes"
-\fB\-errorcode {TKUTILS TKUTLFMT <REASON>}\fR (TYPE, OPTION, LOCALE).
-.SH "SEE ALSO"
-tkutils::tkutlsort(n)
-.SH KEYWORDS
-tablelist, format, currency, percent, date
+.PP
+\fB\-errorcode {TKUTILS TKUTLFMT <REASON>}\fR (\fBTYPE\fR, \fBOPTION\fR, \fBLOCALE\fR).

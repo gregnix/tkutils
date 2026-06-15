@@ -1,4 +1,4 @@
-# tkutils::tkcanvaspng
+# tkutils::tkucanvaspng
 
 Render a Tk **canvas** to a **PNG** (pure Tcl, no external tools) via
 `tclutils::tupngdraw`. Useful for exporting canvas drawings/charts. Requires Tk plus
@@ -7,15 +7,15 @@ Render a Tk **canvas** to a **PNG** (pure Tcl, no external tools) via
 
 ## API
 ```tcl
-package require tkutils::tkcanvaspng
+package require tkutils::tkucanvaspng
 
 # PNG bytes of the canvas:
-set png [::tkutils::tkcanvaspng::render $canvas \
+set png [::tkutils::tkucanvaspng::render $canvas \
     ?-region {x1 y1 x2 y2}? ?-scale N? ?-background color? \
     ?-textcmd cmd? ?-fontmap map?]
 
 # write straight to a file (returns the file name):
-::tkutils::tkcanvaspng::write out.png $canvas ?same options?
+::tkutils::tkucanvaspng::write out.png $canvas ?same options?
 ```
 - `-region` defaults to `[$canvas bbox all]`; an empty canvas is an error.
 - `-scale` is a positive-integer pixel multiplier.

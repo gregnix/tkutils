@@ -31,4 +31,4 @@ wish bin/tkutical.tcl ?YYYY-MM-DD?
 .CE
 .SS "See also"
 .PP
-\fBtical(n)\fR, \fBtkutils::tkmonthcanvas\fR.
+\fBtical(n)\fR, \fBtkutils::tkumonthcanvas\fR.

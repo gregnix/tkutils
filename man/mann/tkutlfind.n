@@ -1,28 +1,60 @@
 .TH tkutlfind n 0.1 tkutils
 .SH tkutils::tkutlfind
 .PP
-Incremental find with match highlighting for a \fBtablelist\fR widget. Unlike a
-filter, it highlights matching cells and steps through them. Complements
-\fBtkutils::tkufilterbar\fR.
+Incremental find with match highlighting for a \fBtablelist\fR widget. Unlike a filter (which hides non\-matching rows), \fBtkutlfind\fR highlights the matching cells and lets you step through them with next/prev. Complements \fBtkutils::tkufilterbar\fR. Library\-neutral.
+.SS Package
+.CS
+package require tkutils::tkutlfind 0.1
+.CE
+.PP
+Requires \fBTk\fR and \fBtablelist\fR.
 .SS Commands
 .CS
-::tkutils::tkutlfind::find    tbl query ?options?
-::tkutils::tkutlfind::next    tbl
-::tkutils::tkutlfind::prev    tbl
-::tkutils::tkutlfind::matches tbl
+::tkutils::tkutlfind::find    tbl query ?options?   ;# -> match count, highlights
+::tkutils::tkutlfind::next    tbl                   ;# -> {row col} | {}
+::tkutils::tkutlfind::prev    tbl                   ;# -> {row col} | {}
+::tkutils::tkutlfind::matches tbl                   ;# -> list of {row col}
 ::tkutils::tkutlfind::clear   tbl
 .CE
-.SS Options
 .PP
-\fB\-columns\fR (default all visible), \fB\-mode\fR substring|exact|glob|regexp,
-\fB\-nocase\fR 0|1, \fB\-highlightbg\fR, \fB\-highlightfg\fR. \fBnext\fR/\fBprev\fR
-cycle the matches, scrolling each into view.
-.SS Example
+\fBnext\fR/\fBprev\fR cycle through the matches (wrapping), scrolling each into view (\fBseecell\fR) and activating its row.
+.SS "Options (find)"
+.TS
+l l l.
+Option	Default	Meaning
+\fB\-columns\fR	all visible	columns to search
+\fB\-mode\fR	\fBsubstring\fR	\fBsubstring\fR, \fBexact\fR, \fBglob\fR, \fBregexp\fR
+\fB\-nocase\fR	\fB1\fR	case\-insensitive matching
+\fB\-highlightbg\fR	\fB#ffe9a8\fR	background for matching cells
+\fB\-highlightfg\fR	\fB{}\fR	optional foreground for matching cells
+.TE
+.SS Usage
 .CS
+package require Tk
+package require tablelist
+package require tkutils::tkutlfind
+
+# search box that highlights as you type
+entry .e -textvariable q
 bind .e <KeyRelease> { ::tkutils::tkutlfind::find .t $q }
-bind . <F3>          { ::tkutils::tkutlfind::next .t }
+bind .e <Return>     { ::tkutils::tkutlfind::next .t }
+
+# F3 / Shift-F3 to step through matches
+bind . <F3>       { ::tkutils::tkutlfind::next .t }
+bind . <Shift-F3> { ::tkutils::tkutlfind::prev .t }
 .CE
+.PP
+Search only one column with a regular expression:
+.CS
+::tkutils::tkutlfind::find .t {^A.*t$} -mode regexp -columns 0
+.CE
+.SS Notes
+.IP \(bu
+Matching uses the \fBdisplayed\fR values (\fBgetformatted\fR), so it finds what the user sees (e.g. formatted numbers from \fBtkutlfmt\fR).
+.IP \(bu
+Re\-run \fBfind\fR after sorting/filtering, since row indices change.
+.IP \(bu
+\fBclear\fR restores the cells' original background (and foreground if set).
 .SS "Error codes"
-\fB\-errorcode {TKUTILS TKUTLFIND <REASON>}\fR (MODE, OPTION).
-.SH KEYWORDS
-tablelist, find, search, highlight
+.PP
+\fB\-errorcode {TKUTILS TKUTLFIND <REASON>}\fR (\fBMODE\fR, \fBOPTION\fR).

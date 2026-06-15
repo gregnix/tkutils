@@ -1,26 +1,36 @@
 .TH tkutltools n 0.1 tkutils
 .SH tkutils::tkutltools
 .PP
-Umbrella for the tablelist extension family. Requiring this one package pulls in
-\fBtablelist\fR plus all \fBtkutl*\fR helpers and the shared
-\fBtclutils::tunum\fR number backend.
-.PP
-It is kept separate from the main \fBtkutils\fR umbrella, which loads only
-pure\-Tk/tclutils modules; \fBtablelist\fR is external, so require this only
-where tablelist is present.
-.SS Loads
+Umbrella for the tablelist extension family. Requiring this one package pulls in \fBtablelist\fR (external) plus all \fBtkutl*\fR helpers and their shared \fBtclutils::tunum\fR number backend.
+.SS Package
 .CS
-tkutils::tkutlsort   tkutils::tkutlfmt    tkutils::tkutlclip
-tkutils::tkutlfooter tkutils::tkutlfind   tkutils::tkutlstate
-tkutils::tkutltree   tclutils::tunum
+package require tkutils::tkutltools 0.1
 .CE
+.PP
+It is kept \fBseparate\fR from the main \fBtkutils\fR umbrella, which by design loads only modules with pure\-Tk/tclutils dependencies. \fBtablelist\fR is external, so require \fBtkutltools\fR only where tablelist is available.
+.SS Loads
+.TS
+l l.
+Module	Purpose
+\fBtkutils::tkutlsort\fR	type\-aware column sorting (num/currency via tunum)
+\fBtkutils::tkutlfmt\fR	per\-column display formatting
+\fBtkutils::tkutlclip\fR	copy rows to clipboard (TSV/CSV)
+\fBtkutils::tkutlfooter\fR	synced footer + autosum/autoagg
+\fBtkutils::tkutlfind\fR	incremental find + highlight
+\fBtkutils::tkutlstate\fR	save/restore column layout
+\fBtkutils::tkutltree\fR	nested data ↔ multi\-column tree
+\fBtclutils::tunum\fR	shared number parse/sum backend
+.TE
 .SS Usage
 .CS
+package require Tk
 package require tkutils::tkutltools
+
+# all tkutl* commands are now available
+tablelist::tablelist .t -columns {0 Article left 0 Price right}
+::tkutils::tkutlsort::column .t 1 num
+::tkutils::tkutlfmt::column  .t 1 currency
+::tkutils::tkutlclip::installBindings .t
 .CE
-.SH "SEE ALSO"
-tkutils::tkutlsort(n), tkutils::tkutlfmt(n), tkutils::tkutlclip(n),
-tkutils::tkutlfooter(n), tkutils::tkutlfind(n), tkutils::tkutlstate(n),
-tkutils::tkutltree(n), tclutils::tunum(n)
-.SH KEYWORDS
-tablelist, umbrella, bundle
+.PP
+See the individual module docs for details.

@@ -33,4 +33,4 @@ wish bin/tkutical.tcl ?YYYY-MM-DD?
 ```
 
 ## See also
-`tical(n)`, `tkutils::tkmonthcanvas`.
+`tical(n)`, `tkutils::tkumonthcanvas`.

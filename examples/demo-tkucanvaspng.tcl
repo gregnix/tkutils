@@ -1,6 +1,6 @@
 #!/usr/bin/env tclsh
-# demo-tkcanvaspng.tcl -- draw a Tk canvas and export it to a PNG with
-# tkutils::tkcanvaspng (pure Tcl via tclutils::tupngdraw; no Tk image needed).
+# demo-tkucanvaspng.tcl -- draw a Tk canvas and export it to a PNG with
+# tkutils::tkucanvaspng (pure Tcl via tclutils::tupngdraw; no Tk image needed).
 # Optional widget -- not in the tkutils umbrella, so we require it directly.
 set here [file dirname [file normalize [info script]]]
 set tmDir [file normalize [file join $here .. lib tm]]
@@ -14,24 +14,24 @@ if {[info exists ::env(TCLUTILS_TM)]} {
     }
 }
 package require Tk
-package require tkutils::tkcanvaspng
+package require tkutils::tkucanvaspng
 
-wm title . "tkcanvaspng demo"
+wm title . "tkucanvaspng demo"
 set out [file join $here canvas-demo.png]
 
 canvas .c -width 360 -height 220 -background white -highlightthickness 0
-# a few item kinds tkcanvaspng can rasterise
+# a few item kinds tkucanvaspng can rasterise
 .c create rectangle 20 20 160 90 -fill "#cfe8ff" -outline "#1e5fa8" -width 2
 .c create oval      200 20 340 90 -fill "#ffe0cf" -outline "#c2541e" -width 2
 .c create line      20 120 340 120 -fill "#333333" -width 3 -arrow last
 .c create polygon   60 200 110 150 160 200 -fill "#d7f0d0" -outline "#2e7d32" -width 2
 .c create arc       210 140 330 210 -start 20 -extent 200 -style pieslice \
     -fill "#efe0ff" -outline "#6a1b9a" -width 2
-.c create text      180 105 -text "tkcanvaspng" -fill "#202020" -font {Helvetica 14 bold}
+.c create text      180 105 -text "tkucanvaspng" -fill "#202020" -font {Helvetica 14 bold}
 
 proc export {} {
     .c configure -cursor watch; update idletasks
-    set png [::tkutils::tkcanvaspng::write $::out .c -scale 2]
+    set png [::tkutils::tkucanvaspng::write $::out .c -scale 2]
     .c configure -cursor {}
     .status configure -text "wrote $::out  ([file size $::out] bytes)"
 }

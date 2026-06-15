@@ -1,24 +1,63 @@
 .TH tkutltree n 0.1 tkutils
 .SH tkutils::tkutltree
 .PP
-Convert between nested data and a \fBtablelist\fR tree, with free column
-mapping. A node is a dict of named fields plus an optional list of child nodes;
-\fB\-fields\fR maps field names to columns in order.
+Convert between nested data and a \fBtablelist\fR tree, with \fBfree column mapping\fR. A node is a dict of named fields plus an optional list of child nodes; \fB\-fields\fR maps field names to columns in order, so each tree row carries several columns — not just a key/value pair. Library\-neutral.
+.SS Package
+.CS
+package require tkutils::tkutltree 0.1
+.CE
+.PP
+Requires \fBTk\fR and \fBtablelist\fR. The tablelist should have a tree column (\fB\-treecolumn\fR).
+.SS "Data model"
+.CS
+set data {
+    {name Root size 0 type dir children {
+        {name docs size 0 type dir children {
+            {name a.txt size 12 type file}
+            {name b.txt size 34 type file}
+        }}
+        {name img.png size 900 type file}
+    }}
+}
+.CE
+.PP
+Each node is a dict: \fB<field> <value> ...\fR plus an optional \fBchildren\fR (configurable via \fB\-childrenkey\fR) holding a list of child nodes. The top level is a list of nodes.
 .SS Commands
 .CS
 ::tkutils::tkutltree::fromData tbl data -fields {f ...} ?-childrenkey children? ?-parent root?
 ::tkutils::tkutltree::toData   tbl       -fields {f ...} ?-childrenkey children? ?-node root?
 ::tkutils::tkutltree::clear    tbl ?-node root?
 .CE
-.SS "Data model"
+.IP \(bu
+\fB\-fields\fR (required) — field names in column order. Field \fIi\fR fills column \fIi\fR; missing fields become empty cells.
+.IP \(bu
+\fB\-childrenkey\fR — the node key holding child nodes (default \fBchildren\fR).
+.IP \(bu
+\fB\-parent\fR\fB / \fR\fB\-node\fR — a tablelist node reference (full key) to build under / read from (default \fBroot\fR, the whole tree).
+.SS Usage
+.CS
+package require Tk
+package require tablelist
+package require tkutils::tkutltree
+
+tablelist::tablelist .t -columns {0 Name left 0 Size right 0 Type left} -treecolumn 0
+pack .t
+
+::tkutils::tkutltree::fromData .t $data -fields {name size type}
+
+# ... user expands/edits ...
+
+set data2 [::tkutils::tkutltree::toData .t -fields {name size type}]
+.CE
 .PP
-Each node: \fB<field> <value> ...\fR plus an optional \fBchildren\fR
-(configurable) list of child nodes. \fB\-fields\fR (required) names the columns
-in order; missing fields become empty cells. \fBfromData\fR/\fBtoData\fR
-round\-trip is stable.
+\fBfromData\fR/\fBtoData\fR round\-trip is stable: reading a tree back and rebuilding it yields the same structure.
+.SS Notes
+.IP \(bu
+The number of \fB\-fields\fR should match the number of columns you want filled; extra columns are left empty, extra fields are ignored.
+.IP \(bu
+\fBtoData\fR reads the \fBraw\fR cell values (\fBget\fR), so it returns the stored data, not any \fB\-formatcommand\fR display text.
+.IP \(bu
+Use a different \fB\-childrenkey\fR if your data already uses \fBchildren\fR for something else.
 .SS "Error codes"
-\fB\-errorcode {TKUTILS TKUTLTREE <REASON>}\fR (FIELDS, OPTION).
-.SH "SEE ALSO"
-tkutils::tkutablelist(n)
-.SH KEYWORDS
-tablelist, tree, dict, hierarchy
+.PP
+\fB\-errorcode {TKUTILS TKUTLTREE <REASON>}\fR (\fBFIELDS\fR, \fBOPTION\fR).

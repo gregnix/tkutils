@@ -1,36 +1,74 @@
 .TH tkutlfooter n 0.1 tkutils
 .SH tkutils::tkutlfooter
 .PP
-A footer row for a \fBtablelist\fR widget, realised as a second single\-row tablelist below the main table ("header at the bottom" look).
+A footer row for a \fBtablelist\fR widget, realised as a second single\-row tablelist below the main table ("header at the bottom" look). The footer mirrors the main table's column widths, order and alignment, keeps horizontal scrolling in sync, and can compute auto\-sums. Library\-neutral — no references to any application.
+.SS Package
+.CS
+package require tkutils::tkutlfooter 0.1
+.CE
 .PP
-The footer mirrors the main table's column widths, order and alignment, keeps horizontal scrolling in sync, and can compute auto\-sums. Library\-neutral.
+Requires \fBtablelist\fR. Uses \fBscrollutil\fR for scroll sync when available (falls back to a manual bridge otherwise), and \fBtclutils::tunum\fR for \fBautosum\fR number parsing when available (falls back to a built\-in parser otherwise).
 .SS Commands
 .CS
-::tkutils::tkutlfooter::attach  tblMain tblFoot ?\-autowire 1?
+::tkutils::tkutlfooter::attach  tblMain tblFoot ?-autowire 1?
 ::tkutils::tkutlfooter::update  tblMain tblFoot
 ::tkutils::tkutlfooter::setvals tblFoot {val0 val1 ...}
-::tkutils::tkutlfooter::autosum tblMain tblFoot ?\-columns {1 2}? ?\-label "SUM:"? ?\-format "%.2f"?
+::tkutils::tkutlfooter::autosum tblMain tblFoot ?-columns {1 2}? ?-label "SUM:"? ?-format "%.2f"?
 ::tkutils::tkutlfooter::detach  tblMain tblFoot
 .CE
+.SS "Quick Start"
+.CS
+package require Tk
+package require tablelist
+package require tkutils::tkutlfooter
+
+tablelist::tablelist .t -columns {0 "Article" left 0 "Price" right} -stretch all
+tablelist::tablelist .f -showlabels 0 -height 1
+pack .t -fill both -expand 1
+pack .f -fill x
+
+\&.t insert end {Apple 1,50}
+\&.t insert end {Pear  2,00}
+\&.t insert end {Cherry 4,20}
+
+::tkutils::tkutlfooter::attach  .t .f
+::tkutils::tkutlfooter::autosum .t .f -columns {1} -label "Sum:" -format "%.2f"
+.CE
+.PP
+The footer now shows \fBSum:\fR and \fB7.70\fR, and stays aligned with the main table when columns are resized, reordered or scrolled.
 .SS attach
 .PP
-Configures \fItblFoot\fR as a label\-less, non\-selectable single footer row, clones the main table's columns, and wires up the sync bindings. With \fB\-autowire 1\fR (default) horizontal scrolling is coupled: via a \fBscrollutil::scrollsync\fR widget when \fBscrollutil\fR is present, otherwise via a manual \fB\-xscrollcommand\fR bridge.
+Configures \fBtblFoot\fR as a label\-less, non\-selectable single footer row, clones the main table's columns, and wires up the sync bindings. With \fB\-autowire 1\fR (default) horizontal scrolling is coupled: via a \fBscrollutil::scrollsync\fR widget when \fBscrollutil\fR is present, otherwise via a manual \fB\-xscrollcommand\fR bridge.
 .SS update
 .PP
-Re\-applies the main table's column order, widths, alignment and stretch to the footer. Bound automatically to \fB<<TablelistColumnResized>>\fR, \fB<<TablelistColumnMoved>>\fR and \fB<Configure>\fR.
+Re\-applies the main table's column order, widths, alignment and stretch to the footer. Called automatically on \fB<<TablelistColumnResized>>\fR, \fB<<TablelistColumnMoved>>\fR and \fB<Configure>\fR; call it manually after programmatic column changes if needed.
 .SS setvals
 .PP
-Writes explicit values into the footer row, indexed by column.
+Writes explicit values into the footer row (indexed by column).
+.CS
+::tkutils::tkutlfooter::setvals .f {Total 8,70}
+.CE
 .SS autosum
 .PP
-Computes column sums over the main table and writes the formatted totals into the footer; column 0 receives \fB\-label\fR. Only the columns in \fB\-columns\fR are summed (default: all). Number parsing uses \fBtclutils::tunum\fR when available, otherwise a built\-in parser. Display\-only \(em re\-run after data changes.
+Computes column sums over the main table and writes the formatted totals into the footer. Column 0 receives \fB\-label\fR. Only the columns in \fB\-columns\fR are summed (default: all). Number parsing uses \fBtclutils::tunum\fR when available.
+.CS
+::tkutils::tkutlfooter::autosum .t .f -columns {1 3} -label "Σ" -format "%.2f"
+.CE
+.PP
+\fBautosum\fR is display\-only — it does not maintain a data model; re\-run it after the table's data changes.
+.SS autoagg
+.PP
+Like \fBautosum\fR, but with a per\-column aggregate function. \fB\-columns\fR is a \fB{col func col func ...}\fR list; \fBfunc\fR is one of \fBsum\fR, \fBavg\fR, \fBmin\fR, \fBmax\fR, \fBcount\fR (all rows) or \fBcountnum\fR (numeric rows). Numeric results use \fB\-format\fR; counts are integers. Column 0 receives \fB\-label\fR.
+.CS
+::tkutils::tkutlfooter::autoagg .t .f \
+    -columns {1 sum 2 avg 3 max} -label "Σ" -format "%.2f"
+.CE
 .SS detach
 .PP
 Removes the sync bindings and restores the original scroll wiring.
 .SS "Error codes"
 .PP
 Errors are raised with \fB\-errorcode {TKUTILS TKUTLFOOTER <REASON>}\fR.
-.SH "SEE ALSO"
-tkutils::tkutablelist(n), tclutils::tunum(n)
-.SH KEYWORDS
-tablelist, footer, sum, scroll sync
+.SS "PDF export"
+.PP
+\fBpdf4tcltable\fR (in \fBpdf4tcllib\fR) can render the footer into a PDF: pass the footer widget as \fB\-footer\fR, e.g. \fB::pdf4tcllib::tablelist::render $pdf .t $x $y \-footer .f\fR.
