@@ -1,0 +1,26 @@
+.TH tkutlstate n 0.1 tkutils
+.SH tkutils::tkutlstate
+.PP
+Save and restore a \fBtablelist\fR's column layout \(em widths, hidden state,
+display order and the active sort \(em so an application can persist how the
+user arranged a table.
+.SS Commands
+.CS
+::tkutils::tkutlstate::save            tbl
+::tkutils::tkutlstate::restore         tbl state
+::tkutils::tkutlstate::saveToFile      tbl path
+::tkutils::tkutlstate::restoreFromFile tbl path
+.CE
+.PP
+The state is a plain Tcl dict (text\-storable). \fBrestore\fR only touches
+columns present in both the saved state and the current table, so it degrades
+gracefully when the table changed.
+.SS Example
+.CS
+::tkutils::tkutlstate::saveToFile .t $cfg
+::tkutils::tkutlstate::restoreFromFile .t $cfg
+.CE
+.SS "Error codes"
+\fB\-errorcode {TKUTILS TKUTLSTATE STATE}\fR for a non\-state value.
+.SH KEYWORDS
+tablelist, persistence, columns, layout

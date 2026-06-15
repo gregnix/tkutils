@@ -1,0 +1,36 @@
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+set here [file dirname [file normalize [info script]]]
+tcl::tm::path add [file normalize [file join $here .. lib tm]]
+catch {tcl::tm::path add [file normalize [file join $here .. .. tclutils lib tm]]}
+testConstraint hasTk  [expr {![catch {package require Tk}]}]
+testConstraint hasTbl [expr {![catch {package require tablelist}]}]
+package require tkutils::tkutltree
+set ::data {
+    {name Root size 0 children {
+        {name sub size 0 children {{name a size 12} {name b size 34}}}
+        {name img size 900}
+    }}
+}
+proc mkTbl {} {
+    catch {destroy .t}
+    tablelist::tablelist .t -columns {20 Name left 8 Size right} -treecolumn 0
+    return .t
+}
+test tkutltree-1.1 {fromData builds hierarchy} -constraints {hasTk hasTbl} -body {
+    mkTbl; ::tkutils::tkutltree::fromData .t $::data -fields {name size}
+    set root [lindex [.t childkeys root] 0]
+    list [.t childcount root] [.t childcount $root]
+} -result {1 2}
+test tkutltree-1.2 {toData idempotent} -constraints {hasTk hasTbl} -body {
+    mkTbl; ::tkutils::tkutltree::fromData .t $::data -fields {name size}
+    set b1 [::tkutils::tkutltree::toData .t -fields {name size}]
+    mkTbl; ::tkutils::tkutltree::fromData .t $b1 -fields {name size}
+    set b2 [::tkutils::tkutltree::toData .t -fields {name size}]
+    expr {$b1 eq $b2}
+} -result 1
+test tkutltree-1.3 {fields required} -constraints {hasTk hasTbl} -body {
+    mkTbl; catch {::tkutils::tkutltree::fromData .t $::data} e; set e
+} -match glob -result {*-fields is required*}
+cleanupTests

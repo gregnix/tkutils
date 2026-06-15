@@ -210,4 +210,89 @@ proc ::tkutils::tkutlfooter::_parseNumber {s} {
     return [expr {[string is double -strict $t] ? $t+0.0 : ""}]
 }
 
+# Per-column aggregations into the footer. -columns is a {col func col func ...}
+# list; func is one of: sum avg min max count countnum. Numeric results use
+# -format; count/countnum are integers. Column 0 receives -label.
+#   ::tkutils::tkutlfooter::autoagg .t .f -columns {1 sum 2 avg 3 max} -label "Σ"
+proc ::tkutils::tkutlfooter::autoagg {tbl foot args} {
+    array set opt {-columns {} -label "" -format "%.2f"}
+    array set opt $args
+    if {[llength $opt(-columns)] % 2 != 0} {
+        _err SPEC "-columns must be a {col func col func ...} list"
+    }
+    set n [$tbl columncount]
+    set out [lrepeat $n ""]
+    if {$n > 0 && $opt(-label) ne ""} { lset out 0 $opt(-label) }
+
+    foreach {col func} $opt(-columns) {
+        if {$col < 0 || $col >= $n} continue
+        set vals {}
+        for {set r 0} {$r < [$tbl size]} {incr r} {
+            lappend vals [$tbl cellcget $r,$col -text]
+        }
+        set res [_agg $func $vals]
+        if {$res eq ""} continue
+        if {$func in {count countnum}} {
+            lset out $col $res
+        } else {
+            lset out $col [format $opt(-format) $res]
+        }
+    }
+    setvals $foot $out
+    return
+}
+
+# Apply one aggregate to a list of string values. Returns "" when undefined.
+proc ::tkutils::tkutlfooter::_agg {func vals} {
+    switch -- $func {
+        count    { return [llength $vals] }
+        countnum {
+            set c 0
+            foreach v $vals { if {[_num $v] ne ""} { incr c } }
+            return $c
+        }
+        sum { return [_sum $vals] }
+        avg {
+            set nums [_nums $vals]
+            if {![llength $nums]} { return "" }
+            set s 0.0
+            foreach x $nums { set s [expr {$s + $x}] }
+            return [expr {$s / [llength $nums]}]
+        }
+        min {
+            set nums [_nums $vals]
+            if {![llength $nums]} { return "" }
+            set r [lindex $nums 0]
+            foreach x $nums { if {$x < $r} { set r $x } }
+            return $r
+        }
+        max {
+            set nums [_nums $vals]
+            if {![llength $nums]} { return "" }
+            set r [lindex $nums 0]
+            foreach x $nums { if {$x > $r} { set r $x } }
+            return $r
+        }
+        default { _err FUNC "unknown aggregate \"$func\"" }
+    }
+}
+
+# Parse one value to a number ("" if not numeric). Prefers tclutils::tunum.
+proc ::tkutils::tkutlfooter::_num {v} {
+    if {![catch {package require tclutils::tunum}]} {
+        return [::tclutils::tunum::parse $v -default ""]
+    }
+    return [_parseNumber $v]
+}
+
+# All numeric values from a list (unparsable entries dropped).
+proc ::tkutils::tkutlfooter::_nums {vals} {
+    set out {}
+    foreach v $vals {
+        set x [_num $v]
+        if {$x ne ""} { lappend out $x }
+    }
+    return $out
+}
+
 package provide tkutils::tkutlfooter 0.1

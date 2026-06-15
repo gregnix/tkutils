@@ -1,0 +1,48 @@
+.TH tkufiletree n 0.1 tkutils
+.SH tkutils::tkufiletree
+.PP
+A lazy file\-system tree built on \fBtkutils::tkutree\fR. Shows a directory hierarchy under a root; subdirectories are read from disk only when expanded (no full walk). Files can be filtered by glob patterns, and activating a file fires a callback with its full path. Tk 8.6+ and 9.x.
+.SS API
+.CS
+::tkutils::tkufiletree::widget       path ?options?
+::tkutils::tkufiletree::setRoot      path dir
+::tkutils::tkufiletree::refresh      path
+::tkutils::tkufiletree::up           path        ;# re-root to parent dir
+::tkutils::tkufiletree::selectedPath path        ;# full path or ""
+::tkutils::tkufiletree::root         path        ;# current root dir or ""
+::tkutils::tkufiletree::reveal       path target  ;# expand+select a path
+::tkutils::tkufiletree::treeview     path        ;# raw ttk::treeview
+.CE
+.PP
+\fBreveal\fR expands the directory chain down to \fBtarget\fR (a path under the root), selects it and scrolls it into view, populating ancestors as needed. If the exact target is not a node (e.g. excluded by the filter), the deepest existing ancestor — its folder — is selected instead. It returns 1 when the exact target was selected, else 0, and never raises. Together with \fBroot\fR and \fBsetRoot\fR this lets a host application keep the tree pointing at — and highlighting — whatever it just opened elsewhere. \fBup\fR re\-roots to the parent directory (also bound to \fBBackSpace\fR) and reveals the previous root.
+.SS "Options (widget)"
+.IP \(bu
+\fB\-root dir\fR — starting directory (default: current directory).
+.IP \(bu
+\fB\-filter {pat ...}\fR — glob patterns; only matching files are shown (directories are always shown). Empty = all files. Case\-insensitive.
+.IP \(bu
+\fB\-files 0|1\fR — show files at all (default 1; 0 = directories only).
+.IP \(bu
+\fB\-showhidden 0|1\fR — include dot\-entries (default 0).
+.IP \(bu
+\fB\-onactivate cmd\fR — called with the full path when a file is activated (double\-click or Return).
+.IP \(bu
+\fB\-onselect cmd\fR — called with the full path on selection change.
+.IP \(bu
+\fB\-height n\fR — visible rows (default 16).
+.IP \(bu
+\fB\-isolatekeys 0|1\fR — when 1, drop the toplevel from the tree's bindtags so a host application's global key bindings do not also fire while the tree has focus (default 0). Keyboard navigation, expand/collapse and \fBBackSpace\fR (go up) stay local to the tree.
+.PP
+Item ids are the normalized full paths, so \fBselectedPath\fR and the callbacks hand back ready\-to\-use paths.
+.SS Example
+.CS
+package require tkutils::tkufiletree
+set t [::tkutils::tkufiletree::widget .t \
+          -root [pwd] -filter {*.png *.jpg *.gif *.bmp} \
+          -onactivate {apply {p {puts "open: $p"}}}]
+pack $t -fill both -expand 1
+.CE
+.SS Demo
+.CS
+tclsh examples/demo-tkufiletree.tcl ?startdir?
+.CE

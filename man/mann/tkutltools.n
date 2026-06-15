@@ -1,0 +1,26 @@
+.TH tkutltools n 0.1 tkutils
+.SH tkutils::tkutltools
+.PP
+Umbrella for the tablelist extension family. Requiring this one package pulls in
+\fBtablelist\fR plus all \fBtkutl*\fR helpers and the shared
+\fBtclutils::tunum\fR number backend.
+.PP
+It is kept separate from the main \fBtkutils\fR umbrella, which loads only
+pure\-Tk/tclutils modules; \fBtablelist\fR is external, so require this only
+where tablelist is present.
+.SS Loads
+.CS
+tkutils::tkutlsort   tkutils::tkutlfmt    tkutils::tkutlclip
+tkutils::tkutlfooter tkutils::tkutlfind   tkutils::tkutlstate
+tkutils::tkutltree   tclutils::tunum
+.CE
+.SS Usage
+.CS
+package require tkutils::tkutltools
+.CE
+.SH "SEE ALSO"
+tkutils::tkutlsort(n), tkutils::tkutlfmt(n), tkutils::tkutlclip(n),
+tkutils::tkutlfooter(n), tkutils::tkutlfind(n), tkutils::tkutlstate(n),
+tkutils::tkutltree(n), tclutils::tunum(n)
+.SH KEYWORDS
+tablelist, umbrella, bundle

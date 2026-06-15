@@ -1,0 +1,22 @@
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+set here [file dirname [file normalize [info script]]]
+tcl::tm::path add [file normalize [file join $here .. lib tm]]
+catch {tcl::tm::path add [file normalize [file join $here .. .. tclutils lib tm]]}
+testConstraint hasTk  [expr {![catch {package require Tk}]}]
+testConstraint hasTbl [expr {![catch {package require tablelist}]}]
+
+test tkutltools-1.1 {umbrella loads whole family} -constraints {hasTk hasTbl} -body {
+    package require tkutils::tkutltools
+    set missing {}
+    foreach m {tkutlsort tkutlfmt tkutlclip tkutlfooter tkutlfind tkutlstate tkutltree} {
+        if {[catch {package present tkutils::$m}]} { lappend missing $m }
+    }
+    set missing
+} -result {}
+test tkutltools-1.2 {tunum backend present} -constraints {hasTk hasTbl} -body {
+    package require tkutils::tkutltools
+    expr {[package present tclutils::tunum] ne ""}
+} -result 1
+cleanupTests

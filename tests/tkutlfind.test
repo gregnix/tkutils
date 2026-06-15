@@ -1,0 +1,30 @@
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+set here [file dirname [file normalize [info script]]]
+tcl::tm::path add [file normalize [file join $here .. lib tm]]
+catch {tcl::tm::path add [file normalize [file join $here .. .. tclutils lib tm]]}
+testConstraint hasTk  [expr {![catch {package require Tk}]}]
+testConstraint hasTbl [expr {![catch {package require tablelist}]}]
+package require tkutils::tkutlfind
+proc mkTbl {} {
+    catch {destroy .t}
+    tablelist::tablelist .t -columns {14 A left 14 K left}
+    .t insert end {Apfel Obst}; .t insert end {Birne Obst}
+    .t insert end {Karotte Gemuese}; .t insert end {Apfelsaft Getraenk}
+    return .t
+}
+test tkutlfind-1.1 {find count + matches} -constraints {hasTk hasTbl} -body {
+    mkTbl
+    set n [::tkutils::tkutlfind::find .t apfel]
+    list $n [::tkutils::tkutlfind::matches .t]
+} -result {2 {{0 0} {3 0}}}
+test tkutlfind-1.2 {next cycles} -constraints {hasTk hasTbl} -body {
+    mkTbl; ::tkutils::tkutlfind::find .t apfel
+    list [::tkutils::tkutlfind::next .t] [::tkutils::tkutlfind::next .t] [::tkutils::tkutlfind::next .t]
+} -result {{0 0} {3 0} {0 0}}
+test tkutlfind-1.3 {clear removes highlight} -constraints {hasTk hasTbl} -body {
+    mkTbl; ::tkutils::tkutlfind::find .t apfel; ::tkutils::tkutlfind::clear .t
+    .t cellcget 0,0 -background
+} -result {}
+cleanupTests

@@ -1,0 +1,33 @@
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+set here [file dirname [file normalize [info script]]]
+tcl::tm::path add [file normalize [file join $here .. lib tm]]
+catch {tcl::tm::path add [file normalize [file join $here .. .. tclutils lib tm]]}
+testConstraint hasTk  [expr {![catch {package require Tk}]}]
+testConstraint hasTbl [expr {![catch {package require tablelist}]}]
+package require tkutils::tkutlfooter
+proc mkPair {} {
+    catch {destroy .t}; catch {destroy .f}
+    tablelist::tablelist .t -columns {12 A left 8 N right 12 P right}
+    .t insert end {a 3 1,50}; .t insert end {b 5 2,00}
+    .t insert end {c 12 4,20}; .t insert end {d 7 3,10}
+    tablelist::tablelist .f -showlabels 0 -height 1 -columns {12 {} left 8 {} right 12 {} right}
+    ::tkutils::tkutlfooter::attach .t .f
+}
+test tkutlfooter-1.1 {autosum} -constraints {hasTk hasTbl} -body {
+    mkPair
+    ::tkutils::tkutlfooter::autosum .t .f -columns {1} -label S -format %g
+    .f get 0
+} -result {S 27 {}}
+test tkutlfooter-2.1 {autoagg avg/max} -constraints {hasTk hasTbl} -body {
+    mkPair
+    ::tkutils::tkutlfooter::autoagg .t .f -columns {1 max 2 avg} -label X -format %g
+    .f get 0
+} -result {X 12 2.7}
+test tkutlfooter-2.2 {autoagg count} -constraints {hasTk hasTbl} -body {
+    mkPair
+    ::tkutils::tkutlfooter::autoagg .t .f -columns {2 countnum} -label C
+    lindex [.f get 0] 2
+} -result 4
+cleanupTests

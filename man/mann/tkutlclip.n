@@ -1,0 +1,26 @@
+.TH tkutlclip n 0.1 tkutils
+.SH tkutils::tkutlclip
+.PP
+Copy \fBtablelist\fR rows to the clipboard as TSV or CSV \(em the common
+"Ctrl+C copies the selection" behaviour tablelist lacks.
+.SS Commands
+.CS
+::tkutils::tkutlclip::copySelection   tbl ?options?
+::tkutils::tkutlclip::copyAll         tbl ?options?
+::tkutils::tkutlclip::asText          tbl rows ?options?
+::tkutils::tkutlclip::installBindings tbl ?options?
+.CE
+.SS Options
+.PP
+\fB\-format\fR tsv|csv (default tsv), \fB\-header\fR 0|1, \fB\-formatted\fR 0|1
+(displayed vs raw), \fB\-columns\fR visible|all. CSV uses \fBtclutils::tucsv\fR
+when present.
+.SS Example
+.CS
+::tkutils::tkutlclip::installBindings .t
+::tkutils::tkutlclip::copyAll .t -format csv -header 1
+.CE
+.SS "Error codes"
+\fB\-errorcode {TKUTILS TKUTLCLIP <REASON>}\fR (OPTION, FORMAT, COLUMNS).
+.SH KEYWORDS
+tablelist, clipboard, copy, csv, tsv

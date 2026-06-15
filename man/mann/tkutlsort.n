@@ -1,0 +1,27 @@
+.TH tkutlsort n 0.1 tkutils
+.SH tkutils::tkutlsort
+.PP
+Type\-aware column sorting for a \fBtablelist\fR widget. tablelist sorts
+dictionary/ASCII by default, mis\-ordering numeric and currency columns;
+\fBtkutlsort\fR sets the right \fB\-sortmode\fR per column, including a
+\fBnum\fR mode that compares human numbers via \fBtclutils::tunum\fR.
+.SS Commands
+.CS
+::tkutils::tkutlsort::column  tbl col type ?cmd?
+::tkutils::tkutlsort::columns tbl {col type col type ...}
+.CE
+.SS Types
+.PP
+\fBstring\fR (dictionary), \fBnocase\fR (asciinocase), \fBinteger\fR, \fBreal\fR,
+\fBnum\fR (human/currency via tunum), \fBcommand\fR (your 2\-arg proc in ?cmd?).
+.SS Example
+.CS
+::tkutils::tkutlsort::columns .t {0 string 1 num 2 integer}
+.t sortbycolumn 1 -increasing
+.CE
+.SS "Error codes"
+\fB\-errorcode {TKUTILS TKUTLSORT <REASON>}\fR (TYPE, CMD, SPEC).
+.SH "SEE ALSO"
+tkutils::tkutlfmt(n), tclutils::tunum(n)
+.SH KEYWORDS
+tablelist, sort, numeric, currency

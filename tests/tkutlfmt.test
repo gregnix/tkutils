@@ -1,0 +1,28 @@
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+set here [file dirname [file normalize [info script]]]
+tcl::tm::path add [file normalize [file join $here .. lib tm]]
+catch {tcl::tm::path add [file normalize [file join $here .. .. tclutils lib tm]]}
+testConstraint hasTk  [expr {![catch {package require Tk}]}]
+testConstraint hasTbl [expr {![catch {package require tablelist}]}]
+package require tkutils::tkutlfmt
+proc mkTbl {} {
+    catch {destroy .t}
+    tablelist::tablelist .t -columns {12 A left 12 P right 8 S right}
+    .t insert end [list x 1234.5 0.125]
+    return .t
+}
+test tkutlfmt-1.1 {currency display} -constraints {hasTk hasTbl} -body {
+    mkTbl; ::tkutils::tkutlfmt::column .t 1 currency
+    lindex [.t getformatted 0] 1
+} -result "1.234,50 \u20AC"
+test tkutlfmt-1.2 {percent display} -constraints {hasTk hasTbl} -body {
+    mkTbl; ::tkutils::tkutlfmt::column .t 2 percent
+    lindex [.t getformatted 0] 2
+} -result "12,5 %"
+test tkutlfmt-1.3 {raw value unchanged} -constraints {hasTk hasTbl} -body {
+    mkTbl; ::tkutils::tkutlfmt::column .t 1 currency
+    lindex [.t get 0] 1
+} -result 1234.5
+cleanupTests

@@ -1,0 +1,27 @@
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+set here [file dirname [file normalize [info script]]]
+tcl::tm::path add [file normalize [file join $here .. lib tm]]
+catch {tcl::tm::path add [file normalize [file join $here .. .. tclutils lib tm]]}
+testConstraint hasTk  [expr {![catch {package require Tk}]}]
+testConstraint hasTbl [expr {![catch {package require tablelist}]}]
+package require tkutils::tkutlsort
+proc mkTbl {} {
+    catch {destroy .t}
+    tablelist::tablelist .t -columns {16 A left 14 P right}
+    foreach r {{a "9,90"} {b "10,00"} {c "1.234,56"} {d "2,50"}} {.t insert end $r}
+    return .t
+}
+test tkutlsort-1.1 {num sort orders numerically} -constraints {hasTk hasTbl} -body {
+    mkTbl
+    ::tkutils::tkutlsort::column .t 1 num
+    .t sortbycolumn 1 -increasing
+    lmap r [.t get 0 end] {lindex $r 1}
+} -result {2,50 9,90 10,00 1.234,56}
+test tkutlsort-1.2 {unknown type errors} -constraints {hasTk hasTbl} -body {
+    mkTbl
+    catch {::tkutils::tkutlsort::column .t 1 bogus} e
+    set e
+} -match glob -result {*unknown sort type*}
+cleanupTests

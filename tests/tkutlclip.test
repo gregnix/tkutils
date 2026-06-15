@@ -1,0 +1,25 @@
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+set here [file dirname [file normalize [info script]]]
+tcl::tm::path add [file normalize [file join $here .. lib tm]]
+catch {tcl::tm::path add [file normalize [file join $here .. .. tclutils lib tm]]}
+testConstraint hasTk  [expr {![catch {package require Tk}]}]
+testConstraint hasTbl [expr {![catch {package require tablelist}]}]
+package require tkutils::tkutlclip
+proc mkTbl {} {
+    catch {destroy .t}
+    tablelist::tablelist .t -columns {12 A left 8 N right}
+    .t insert end {Apple 3}
+    .t insert end {"Pear, x" 5}
+    return .t
+}
+test tkutlclip-1.1 {asText tsv} -constraints {hasTk hasTbl} -body {
+    mkTbl
+    ::tkutils::tkutlclip::asText .t {0 1} -format tsv
+} -result "Apple\t3\nPear, x\t5"
+test tkutlclip-1.2 {asText csv quotes comma} -constraints {hasTk hasTbl} -body {
+    mkTbl
+    string match {*"Pear, x"*} [::tkutils::tkutlclip::asText .t {0 1} -format csv]
+} -result 1
+cleanupTests

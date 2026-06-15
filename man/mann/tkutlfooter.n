@@ -1,0 +1,36 @@
+.TH tkutlfooter n 0.1 tkutils
+.SH tkutils::tkutlfooter
+.PP
+A footer row for a \fBtablelist\fR widget, realised as a second single\-row tablelist below the main table ("header at the bottom" look).
+.PP
+The footer mirrors the main table's column widths, order and alignment, keeps horizontal scrolling in sync, and can compute auto\-sums. Library\-neutral.
+.SS Commands
+.CS
+::tkutils::tkutlfooter::attach  tblMain tblFoot ?\-autowire 1?
+::tkutils::tkutlfooter::update  tblMain tblFoot
+::tkutils::tkutlfooter::setvals tblFoot {val0 val1 ...}
+::tkutils::tkutlfooter::autosum tblMain tblFoot ?\-columns {1 2}? ?\-label "SUM:"? ?\-format "%.2f"?
+::tkutils::tkutlfooter::detach  tblMain tblFoot
+.CE
+.SS attach
+.PP
+Configures \fItblFoot\fR as a label\-less, non\-selectable single footer row, clones the main table's columns, and wires up the sync bindings. With \fB\-autowire 1\fR (default) horizontal scrolling is coupled: via a \fBscrollutil::scrollsync\fR widget when \fBscrollutil\fR is present, otherwise via a manual \fB\-xscrollcommand\fR bridge.
+.SS update
+.PP
+Re\-applies the main table's column order, widths, alignment and stretch to the footer. Bound automatically to \fB<<TablelistColumnResized>>\fR, \fB<<TablelistColumnMoved>>\fR and \fB<Configure>\fR.
+.SS setvals
+.PP
+Writes explicit values into the footer row, indexed by column.
+.SS autosum
+.PP
+Computes column sums over the main table and writes the formatted totals into the footer; column 0 receives \fB\-label\fR. Only the columns in \fB\-columns\fR are summed (default: all). Number parsing uses \fBtclutils::tunum\fR when available, otherwise a built\-in parser. Display\-only \(em re\-run after data changes.
+.SS detach
+.PP
+Removes the sync bindings and restores the original scroll wiring.
+.SS "Error codes"
+.PP
+Errors are raised with \fB\-errorcode {TKUTILS TKUTLFOOTER <REASON>}\fR.
+.SH "SEE ALSO"
+tkutils::tkutablelist(n), tclutils::tunum(n)
+.SH KEYWORDS
+tablelist, footer, sum, scroll sync

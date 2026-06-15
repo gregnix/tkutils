@@ -1,0 +1,24 @@
+.TH tkutltree n 0.1 tkutils
+.SH tkutils::tkutltree
+.PP
+Convert between nested data and a \fBtablelist\fR tree, with free column
+mapping. A node is a dict of named fields plus an optional list of child nodes;
+\fB\-fields\fR maps field names to columns in order.
+.SS Commands
+.CS
+::tkutils::tkutltree::fromData tbl data -fields {f ...} ?-childrenkey children? ?-parent root?
+::tkutils::tkutltree::toData   tbl       -fields {f ...} ?-childrenkey children? ?-node root?
+::tkutils::tkutltree::clear    tbl ?-node root?
+.CE
+.SS "Data model"
+.PP
+Each node: \fB<field> <value> ...\fR plus an optional \fBchildren\fR
+(configurable) list of child nodes. \fB\-fields\fR (required) names the columns
+in order; missing fields become empty cells. \fBfromData\fR/\fBtoData\fR
+round\-trip is stable.
+.SS "Error codes"
+\fB\-errorcode {TKUTILS TKUTLTREE <REASON>}\fR (FIELDS, OPTION).
+.SH "SEE ALSO"
+tkutils::tkutablelist(n)
+.SH KEYWORDS
+tablelist, tree, dict, hierarchy

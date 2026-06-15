@@ -1,0 +1,26 @@
+.TH tkutlfmt n 0.1 tkutils
+.SH tkutils::tkutlfmt
+.PP
+Per\-column display formatting for a \fBtablelist\fR widget via
+\fB\-formatcommand\fR. The raw cell value is unchanged (so sorting/filtering see
+the number); only the shown text is formatted. Pairs with \fBtkutlsort\fR.
+.SS Commands
+.CS
+::tkutils::tkutlfmt::column  tbl col type ?options?
+::tkutils::tkutlfmt::columns tbl {col type ?{options}? ...}
+.CE
+.SS Types
+.PP
+\fBinteger\fR (1.234.567), \fBnumber\fR (1.234,56), \fBcurrency\fR (1.234,56 \(eu),
+\fBpercent\fR (12,5 %), \fBdate\fR (clock reformat). Numeric types right\-align.
+.SS Options
+.PP
+\fB\-locale\fR eu|us, \fB\-decimals\fR, \fB\-group\fR, \fB\-decimal\fR,
+\fB\-symbol\fR, \fB\-symbolpos\fR pre|post, \fB\-align\fR; date:
+\fB\-informat\fR, \fB\-outformat\fR.
+.SS "Error codes"
+\fB\-errorcode {TKUTILS TKUTLFMT <REASON>}\fR (TYPE, OPTION, LOCALE).
+.SH "SEE ALSO"
+tkutils::tkutlsort(n)
+.SH KEYWORDS
+tablelist, format, currency, percent, date

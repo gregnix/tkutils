@@ -1,0 +1,28 @@
+.TH tkutlfind n 0.1 tkutils
+.SH tkutils::tkutlfind
+.PP
+Incremental find with match highlighting for a \fBtablelist\fR widget. Unlike a
+filter, it highlights matching cells and steps through them. Complements
+\fBtkutils::tkufilterbar\fR.
+.SS Commands
+.CS
+::tkutils::tkutlfind::find    tbl query ?options?
+::tkutils::tkutlfind::next    tbl
+::tkutils::tkutlfind::prev    tbl
+::tkutils::tkutlfind::matches tbl
+::tkutils::tkutlfind::clear   tbl
+.CE
+.SS Options
+.PP
+\fB\-columns\fR (default all visible), \fB\-mode\fR substring|exact|glob|regexp,
+\fB\-nocase\fR 0|1, \fB\-highlightbg\fR, \fB\-highlightfg\fR. \fBnext\fR/\fBprev\fR
+cycle the matches, scrolling each into view.
+.SS Example
+.CS
+bind .e <KeyRelease> { ::tkutils::tkutlfind::find .t $q }
+bind . <F3>          { ::tkutils::tkutlfind::next .t }
+.CE
+.SS "Error codes"
+\fB\-errorcode {TKUTILS TKUTLFIND <REASON>}\fR (MODE, OPTION).
+.SH KEYWORDS
+tablelist, find, search, highlight

@@ -1,0 +1,30 @@
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+set here [file dirname [file normalize [info script]]]
+tcl::tm::path add [file normalize [file join $here .. lib tm]]
+catch {tcl::tm::path add [file normalize [file join $here .. .. tclutils lib tm]]}
+testConstraint hasTk  [expr {![catch {package require Tk}]}]
+testConstraint hasTbl [expr {![catch {package require tablelist}]}]
+package require tkutils::tkutlstate
+proc mkTbl {} {
+    catch {destroy .t}
+    tablelist::tablelist .t -columns {10 A left 10 B right 10 C left}
+    .t insert end {1 2 3}; .t insert end {4 5 6}
+    return .t
+}
+test tkutlstate-1.1 {save/restore widths+hide+sort} -constraints {hasTk hasTbl} -body {
+    mkTbl
+    .t columnconfigure 0 -width 20; .t columnconfigure 2 -hide 1
+    .t sortbycolumn 1 -decreasing
+    set s [::tkutils::tkutlstate::save .t]
+    .t columnconfigure 0 -width 5; .t columnconfigure 2 -hide 0; .t sortbycolumn 0 -increasing
+    ::tkutils::tkutlstate::restore .t $s
+    list [.t columncget 0 -width] [.t columncget 2 -hide] [.t sortcolumn] [.t sortorder]
+} -result {20 1 1 decreasing}
+test tkutlstate-2.1 {restore rejects junk} -constraints {hasTk hasTbl} -body {
+    mkTbl
+    catch {::tkutils::tkutlstate::restore .t {not a state}} e
+    set e
+} -match glob -result {*not a tkutlstate dict*}
+cleanupTests

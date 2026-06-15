@@ -84,6 +84,18 @@ summed (default: all). Number parsing uses `tclutils::tunum` when available.
 `autosum` is display-only — it does not maintain a data model; re-run it after
 the table's data changes.
 
+## autoagg
+
+Like `autosum`, but with a per-column aggregate function. `-columns` is a
+`{col func col func ...}` list; `func` is one of `sum`, `avg`, `min`, `max`,
+`count` (all rows) or `countnum` (numeric rows). Numeric results use `-format`;
+counts are integers. Column 0 receives `-label`.
+
+```tcl
+::tkutils::tkutlfooter::autoagg .t .f \
+    -columns {1 sum 2 avg 3 max} -label "Σ" -format "%.2f"
+```
+
 ## detach
 
 Removes the sync bindings and restores the original scroll wiring.
