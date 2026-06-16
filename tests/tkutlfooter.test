@@ -6,7 +6,7 @@ tcl::tm::path add [file normalize [file join $here .. lib tm]]
 catch {tcl::tm::path add [file normalize [file join $here .. .. tclutils lib tm]]}
 testConstraint hasTk  [expr {![catch {package require Tk}]}]
 testConstraint hasTbl [expr {![catch {package require tablelist}]}]
-package require tkutils::tkutlfooter
+if {[testConstraint hasTbl]} { package require tkutils::tkutlfooter }
 proc mkPair {} {
     catch {destroy .t}; catch {destroy .f}
     tablelist::tablelist .t -columns {12 A left 8 N right 12 P right}

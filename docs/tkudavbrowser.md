@@ -43,3 +43,11 @@ operations (call `refresh` once first so the home set is known, else
 
 Pairs with `tkudavaccount` (connect) on one side and `tkuvcard` / `tkutodo`
 (content) on the other.
+
+## Additional exported commands
+
+Documented for completeness (same module, also covered by the test suite):
+
+```tcl
+tkudavbrowser::treeWidget path                 ;# return the internal ttk::treeview widget path (for custom bindings or styling)
+```

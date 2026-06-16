@@ -39,3 +39,11 @@ tkunotes::removeTag   $w id tag
 tkunotes::subtree     $w id        ;# standalone store of a branch
 tkunotes::saveSubtree $w id file   ;# export branch to JSON
 ```
+
+## Additional exported commands
+
+Documented for completeness (same module, also covered by the test suite):
+
+```tcl
+tkunotes::refresh path                         ;# rebuild the notes view from the current model
+```

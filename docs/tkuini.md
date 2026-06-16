@@ -28,3 +28,11 @@ tkuini::removeSection $w section
 tkuini::toText        $w            ;# current document as INI text
 tkuini::save          $w file
 ```
+
+## Additional exported commands
+
+Documented for completeness (same module, also covered by the test suite):
+
+```tcl
+tkuini::count path                             ;# return the number of entries currently shown
+```

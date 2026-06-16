@@ -59,3 +59,14 @@ render path ?offset?
 ## See also
 
 `tclutils::tubin`, `tclutils::tuhexdump`, `tclutils::common` (required).
+
+## Additional exported commands
+
+Documented for completeness (same module, also covered by the test suite):
+
+```tcl
+tkuhexedit::findText path pattern ?start?      ;# search the buffer and select the first match
+tkuhexedit::getData path                       ;# return the current edit buffer as raw bytes
+tkuhexedit::render path ?startOffset?          ;# redraw the hex and ASCII columns from the current buffer
+tkuhexedit::setData path data                  ;# replace the edit buffer with raw bytes DATA
+```

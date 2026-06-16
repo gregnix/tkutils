@@ -34,3 +34,17 @@ wish bin/tkutical.tcl ?YYYY-MM-DD?
 
 ## See also
 `tical(n)`, `tkutils::tkumonthcanvas`.
+
+## Additional exported commands
+
+Documented for completeness (same module, also covered by the test suite):
+
+```tcl
+tkutical::clearSelection path                  ;# clear the current date selection
+tkutical::getDate path                         ;# return the currently selected date
+tkutical::getMonth path                        ;# return the month currently displayed
+tkutical::getView path                         ;# return the active view mode
+tkutical::prev path                            ;# move the calendar one step back (month or view step)
+tkutical::setSelection path dates              ;# set the selected date programmatically
+tkutical::today path                           ;# jump the calendar to today
+```

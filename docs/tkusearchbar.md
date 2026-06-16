@@ -19,3 +19,11 @@ set w [::tkutils::tkusearchbar::widget .s ?-command cmd? ?-delay ms? \
 
 `-command` is called as `cmd searchText filterValue` (filter is "" when no
 `-filters` were given). Default `-delay` is 300 ms.
+
+## Additional exported commands
+
+Documented for completeness (same module, also covered by the test suite):
+
+```tcl
+tkusearchbar::setFilters path filters          ;# replace the filter drop-down's choices at runtime. If the bar was created without -filters, the separator and combobox are built lazily here. The first value becomes the current filter. Selecting an entry fires -command
+```

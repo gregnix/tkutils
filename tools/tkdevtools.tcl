@@ -686,6 +686,132 @@ proc packReset {} {
     set ::packN 0; set ::packCmd ""
 }
 
+# --- grid: interactive grid(7) sandbox (sibling of the pack tab) ----------
+proc buildGrid {f} {
+    set bar [frame $f.bar]
+    label $bar.r -text "-row:"
+    ttk::combobox $bar.row -textvariable ::gridRow -state readonly -width 3 \
+        -values {0 1 2 3 4}
+    label $bar.c -text "-column:"
+    ttk::combobox $bar.col -textvariable ::gridCol -state readonly -width 3 \
+        -values {0 1 2 3 4}
+    label $bar.st -text "-sticky:"
+    ttk::combobox $bar.sticky -textvariable ::gridSticky -state readonly -width 5 \
+        -values {{} n s e w ns ew ne nw se sw nsew}
+    label $bar.rs -text "-rowspan:"
+    ttk::combobox $bar.rspan -textvariable ::gridRspan -state readonly -width 3 \
+        -values {1 2 3}
+    label $bar.cs -text "-columnspan:"
+    ttk::combobox $bar.cspan -textvariable ::gridCspan -state readonly -width 3 \
+        -values {1 2 3}
+    button $bar.add   -text "Add cell" -command gridAddCell
+    button $bar.reset -text "Reset"    -command gridReset
+    pack $bar.r $bar.row $bar.c $bar.col $bar.st $bar.sticky \
+         $bar.rs $bar.rspan $bar.cs $bar.cspan $bar.add $bar.reset \
+        -side left -padx 3
+    pack $bar -fill x -pady 3
+    label $f.cmd -textvariable ::gridCmd -anchor w -fg #225 -font {Courier 10}
+    pack $f.cmd -fill x -padx 6 -pady 2
+    set ::gridDemo [frame $f.demo -relief sunken -bd 2 -bg #eeeeee]
+    pack $::gridDemo -fill both -expand 1 -padx 6 -pady 6
+    # give every cell room so that -sticky has a visible effect
+    for {set i 0} {$i < 5} {incr i} {
+        grid rowconfigure    $::gridDemo $i -weight 1 -minsize 40
+        grid columnconfigure $::gridDemo $i -weight 1 -minsize 60
+    }
+    set ::gridRow 0; set ::gridCol 0; set ::gridSticky {}
+    set ::gridRspan 1; set ::gridCspan 1; set ::gridN 0; set ::gridCmd ""
+}
+
+proc gridAddCell {} {
+    set d $::gridDemo
+    incr ::gridN
+    set colors {#ee8888 #88ee88 #8888ee #eeee88 #ee88ee #88eeee #eebb88 #88bbee}
+    set c [lindex $colors [expr {($::gridN-1)%[llength $colors]}]]
+    set w $d.cell$::gridN
+    label $w -text "cell $::gridN" -bg $c -relief raised -bd 2
+    set opt [list -row $::gridRow -column $::gridCol \
+        -rowspan $::gridRspan -columnspan $::gridCspan]
+    if {$::gridSticky ne ""} { lappend opt -sticky $::gridSticky }
+    grid $w {*}$opt
+    set ::gridCmd "grid $w $opt"
+}
+
+proc gridReset {} {
+    foreach c [winfo children $::gridDemo] { destroy $c }
+    set ::gridN 0; set ::gridCmd ""
+}
+
+# --- format / scan: interactive tester plus a conversion cheat sheet -------
+proc buildFormatScan {f} {
+    # format tester
+    set ft [labelframe $f.ft -text " format "]
+    label $ft.sl -text "Spec:"
+    entry $ft.spec -textvariable ::fmtSpec -width 28
+    label $ft.al -text "Args:"
+    entry $ft.args -textvariable ::fmtArgs -width 24
+    label $ft.ar -text "(space-separated list)" -fg #777
+    grid $ft.sl $ft.spec $ft.al $ft.args $ft.ar -sticky w -padx 3 -pady 2
+    label $ft.out -textvariable ::fmtOut -anchor w -fg #225 -font {Courier 10}
+    grid $ft.out -columnspan 5 -sticky we -padx 3 -pady {0 3}
+    pack $ft -fill x -padx 6 -pady 4
+
+    # scan tester
+    set st [labelframe $f.st -text " scan (inline) "]
+    label $st.il -text "Input:"
+    entry $st.input -textvariable ::scnInput -width 24
+    label $st.sl -text "Spec:"
+    entry $st.spec -textvariable ::scnSpec -width 24
+    grid $st.il $st.input $st.sl $st.spec -sticky w -padx 3 -pady 2
+    label $st.out -textvariable ::scnOut -anchor w -fg #225 -font {Courier 10}
+    grid $st.out -columnspan 4 -sticky we -padx 3 -pady {0 3}
+    pack $st -fill x -padx 6 -pady 4
+
+    # conversion cheat sheet
+    set t [scrolledTable $f {10 "Code" left 64 "Meaning / example" left} -height 12]
+    foreach row {
+        {%d "signed integer:  format %d 42 -> 42"}
+        {%i "integer, base from prefix (0x, 0):  scan only"}
+        {%u "unsigned integer"}
+        {%o "octal:  format %o 8 -> 10"}
+        {%x "hex lower:  format %x 255 -> ff"}
+        {%X "hex upper:  format %X 255 -> FF"}
+        {%b "binary:  format %b 5 -> 101"}
+        {%c "character from code point:  format %c 65 -> A"}
+        {%s "string:  format %-8s hi -> 'hi      '"}
+        {%f "fixed float:  format %.2f 3.14159 -> 3.14"}
+        {%e "scientific:  format %e 1234.0 -> 1.234000e+03"}
+        {%g "shortest of %e/%f"}
+        {%% "literal percent sign"}
+        {flags "width .prec - (left) + (sign) 0 (zero-pad) # (alt)"}
+        {pos "argument index:  format {%2\$s %1\$s} a b -> 'b a'"}
+        {scan "%n chars consumed, %\[set\] char class, * to skip"}
+    } {
+        $t insert end $row
+    }
+    set ::fmtSpec {%-6s = %05.2f}
+    set ::fmtArgs {pi 3.14159}
+    set ::scnInput {2026-06-16}
+    set ::scnSpec {%d-%d-%d}
+    foreach e [list $ft.spec $ft.args $st.input $st.spec] {
+        bind $e <KeyRelease> formatScanRun
+    }
+    formatScanRun
+}
+
+proc formatScanRun {} {
+    if {[catch {format $::fmtSpec {*}$::fmtArgs} r]} {
+        set ::fmtOut "-> error: $r"
+    } else {
+        set ::fmtOut "-> \[$r\]"
+    }
+    if {[catch {scan $::scnInput $::scnSpec} r]} {
+        set ::scnOut "-> error: $r"
+    } else {
+        set ::scnOut "-> values: {$r}  ([llength $r] item(s))"
+    }
+}
+
 # ============================ assemble ======================================
 wm title . "Tcl/Tk Developer Toolbox"
 
@@ -732,9 +858,11 @@ set ::toolTree {
     }
     "Layout" {
         pack    "pack"             buildPack
+        grid    "grid"             buildGrid
     }
     "Text / patterns" {
         regexp  "regexp"          buildRegexp
+        fmt     "format / scan"   buildFormatScan
         enc     "Encodings"       buildEncodings
         vevents "Virtual events"  buildVirtualEvents
     }

@@ -20,3 +20,11 @@ Toggling a task to done sets `STATUS:COMPLETED`, `PERCENT-COMPLETE:100` and a
 and removes `COMPLETED`. In editable mode, Space and double-click also toggle.
 The `-onchange` script is called as `{*}$cmd $path` after a change, so an app can
 persist (e.g. `tuical::toIcs [tkutodo::todos .t]` then PUT via `tudav`).
+
+## Additional exported commands
+
+Documented for completeness (same module, also covered by the test suite):
+
+```tcl
+tkutodo::treeWidget path                       ;# return the internal ttk::treeview widget path (for custom bindings or styling)
+```

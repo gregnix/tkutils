@@ -46,3 +46,11 @@ foreach i {1 2 3 4 5} { pack [ttk::button $c.b$i -text "Row $i"] -fill x }
 ```bash
 tclsh examples/demo-tkuscrolledframe.tcl     # needs scrollutil
 ```
+
+## Additional exported commands
+
+Documented for completeness (same module, also covered by the test suite):
+
+```tcl
+tkuscrolledframe::seerect path x1 y1 x2 y2 ?corner? ;# scroll the inner frame so the given region becomes visible
+```

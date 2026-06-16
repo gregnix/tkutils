@@ -20,3 +20,12 @@ set w [::tkutils::tkutree::widget .tr ?-columns ids? ?-headings texts? \
 `loadTree` takes a list of node dicts; keys per node: `text` (required),
 `values`, `open`, `id`, `children` (a list of nodes). `-command` is called with
 the selection list on `<<TreeviewSelect>>`.
+
+## Additional exported commands
+
+Documented for completeness (same module, also covered by the test suite):
+
+```tcl
+tkutree::clear path                            ;# remove all items from the tree
+tkutree::itemValues path id                    ;# return the column values stored for an item
+```
