@@ -42,7 +42,7 @@ package require tkutils::tkunotes   ;# or a single widget
 | `tkumd`      | tumd      | Markdown structure / TOC |
 | `tkujson`    | tujson    | JSON tree (from `parseTyped`) |
 | `tkucal`     | tucal     | Calendar text view |
-| `tkueditor`  | common    | Text editor (context menu, undo/redo, search/replace, goto, read-only) |
+| `tkueditor`  | tuiconv   | Text editor (toolbar, status bar, encoding/EOL, search/replace, undo/redo, goto, context menu) |
 | `tkuzip`     | tuzip     | ZIP member tree |
 | `tkufuzzy`   | tufuzzy   | Fuzzy search / best matches |
 | `tkudialog`  | Tk        | message / confirm / warning / **form** dialogs |

@@ -1,0 +1,144 @@
+# tests for tkutils::tkumdview
+package require tcltest
+namespace import ::tcltest::*
+
+set here [file dirname [file normalize [info script]]]
+tcl::tm::path add [file normalize [file join $here .. lib tm]]
+if {[info exists ::env(TCLUTILS_TM)]} {
+    tcl::tm::path add $::env(TCLUTILS_TM)
+} else {
+    foreach _c [lsort -decreasing [glob -nocomplain \
+            [file join $here .. .. tclutils*/lib/tm]]] {
+        tcl::tm::path add $_c; break
+    }
+}
+
+testConstraint haveTk [expr {![catch {package require Tk}]}]
+if {[testConstraint haveTk]} { wm withdraw . }
+package require tkutils::tkumdview
+
+set ::SAMPLE {# Title
+
+A paragraph with **bold**, *italic*, `code` and a [link](https://example.com).
+
+## Section A
+
+- one
+- two
+
+1. first
+2. second
+
+### Sub A
+
+```tcl
+set x 1
+```
+
+> a quote
+
+## Section B
+
+text
+}
+
+test mdview-1.1 {widget builds and returns its path} -constraints haveTk -body {
+    catch {destroy .w}
+    ::tkutils::tkumdview::widget .w
+} -result .w
+
+test mdview-1.2 {sub-widget accessors} -constraints haveTk -body {
+    catch {destroy .w}
+    set w [::tkutils::tkumdview::widget .w]
+    list [winfo exists [::tkutils::tkumdview::tocWidget $w]] \
+         [winfo exists [::tkutils::tkumdview::textWidget $w]]
+} -result {1 1}
+
+test mdview-2.1 {setMarkdown builds the heading outline} -constraints haveTk -body {
+    catch {destroy .w}
+    set w [::tkutils::tkumdview::widget .w]
+    ::tkutils::tkumdview::setMarkdown $w $::SAMPLE
+    set toc [::tkutils::tkumdview::tocWidget $w]
+    # Title is top-level; Section A/B nest under it; Sub A under Section A
+    list [$toc children {}] [$toc children [lindex [$toc children {}] 0]]
+} -result {h0 {h1 h3}}
+
+test mdview-2.2 {headings accessor returns level/text pairs} -constraints haveTk -body {
+    catch {destroy .w}
+    set w [::tkutils::tkumdview::widget .w]
+    ::tkutils::tkumdview::setMarkdown $w $::SAMPLE
+    ::tkutils::tkumdview::headings $w
+} -result {{1 Title} {2 {Section A}} {3 {Sub A}} {2 {Section B}}}
+
+test mdview-2.3 {getMarkdown round-trips the source} -constraints haveTk -body {
+    catch {destroy .w}
+    set w [::tkutils::tkumdview::widget .w]
+    ::tkutils::tkumdview::setMarkdown $w $::SAMPLE
+    string equal [::tkutils::tkumdview::getMarkdown $w] $::SAMPLE
+} -result 1
+
+test mdview-3.1 {preview is rendered (non-empty)} -constraints haveTk -body {
+    catch {destroy .w}
+    set w [::tkutils::tkumdview::widget .w]
+    ::tkutils::tkumdview::setMarkdown $w $::SAMPLE
+    expr {[string length [[::tkutils::tkumdview::textWidget $w] get 1.0 end-1c]] > 0}
+} -result 1
+
+test mdview-3.2 {block tags applied: h1, pre, quote, li} -constraints haveTk -body {
+    catch {destroy .w}
+    set w [::tkutils::tkumdview::widget .w]
+    ::tkutils::tkumdview::setMarkdown $w $::SAMPLE
+    set t [::tkutils::tkumdview::textWidget $w]
+    list [expr {[llength [$t tag ranges h1]] > 0}] \
+         [expr {[llength [$t tag ranges pre]] > 0}] \
+         [expr {[llength [$t tag ranges quote]] > 0}] \
+         [expr {[llength [$t tag ranges li]] > 0}]
+} -result {1 1 1 1}
+
+test mdview-3.3 {inline tags applied: strong, em, code, link} -constraints haveTk -body {
+    catch {destroy .w}
+    set w [::tkutils::tkumdview::widget .w]
+    ::tkutils::tkumdview::setMarkdown $w $::SAMPLE
+    set t [::tkutils::tkumdview::textWidget $w]
+    list [expr {[llength [$t tag ranges strong]] > 0}] \
+         [expr {[llength [$t tag ranges em]] > 0}] \
+         [expr {[llength [$t tag ranges code]] > 0}] \
+         [expr {[llength [$t tag ranges link]] > 0}]
+} -result {1 1 1 1}
+
+test mdview-3.4 {ordered list keeps its numbering (no expr coercion)} -constraints haveTk -body {
+    catch {destroy .w}
+    set w [::tkutils::tkumdview::widget .w]
+    ::tkutils::tkumdview::setMarkdown $w $::SAMPLE
+    set txt [[::tkutils::tkumdview::textWidget $w] get 1.0 end-1c]
+    list [string match {*1. first*} $txt] [string match {*2. second*} $txt]
+} -result {1 1}
+
+test mdview-3.5 {preview pane is read-only} -constraints haveTk -body {
+    catch {destroy .w}
+    set w [::tkutils::tkumdview::widget .w]
+    [::tkutils::tkumdview::textWidget $w] cget -state
+} -result disabled
+
+test mdview-4.1 {toHtml returns generated HTML for the document} -constraints haveTk -body {
+    catch {destroy .w}
+    set w [::tkutils::tkumdview::widget .w]
+    ::tkutils::tkumdview::setMarkdown $w $::SAMPLE
+    string match {<h1*Title*} [::tkutils::tkumdview::toHtml $w]
+} -result 1
+
+test mdview-4.2 {loadFile reads a utf-8 file and renders the content} -constraints haveTk -body {
+    catch {destroy .w}
+    set w [::tkutils::tkumdview::widget .w]
+    set dir [makeDirectory md]
+    set f [file join $dir doc.md]
+    set ch [open $f w]
+    fconfigure $ch -encoding utf-8
+    puts $ch "# Gr\u00f6\u00dfe\n\nbody"
+    close $ch
+    ::tkutils::tkumdview::loadFile $w $f
+    set txt [[::tkutils::tkumdview::textWidget $w] get 1.0 end-1c]
+    string match "*Gr\u00f6\u00dfe*" $txt
+} -result 1
+
+cleanupTests

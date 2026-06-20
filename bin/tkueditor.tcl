@@ -1,7 +1,9 @@
 #!/usr/bin/env tclsh
 # tkeditor -- small standalone editor app built on tkutils::tkueditor.
-# Adds a find/replace bar, a status line (file, modified, line:col) and the
-# usual accelerators on top of the editor widget.
+# The editor widget provides the toolbar (Open/Save/Undo/Redo/Cut/Copy/Find)
+# and the status bar (modified, encoding, line endings, Ln/Col). This launcher
+# adds a find/replace bar (replace is not on the toolbar) and the usual
+# keyboard accelerators.
 set here [file dirname [file normalize [info script]]]
 set tmDir [file normalize [file join $here .. lib tm]]
 tcl::tm::path add $tmDir
@@ -24,20 +26,8 @@ wm title . "tkeditor"
 set w [::tkutils::tkueditor::widget .ed]
 set T $w.t
 
-# ---- status line --------------------------------------------------------
-ttk::label .status -anchor w -padding {6 2}
-proc refreshStatus {} {
-    global w T
-    lassign [split [::tkutils::tkueditor::cursor $w] .] ln col
-    set f [::tkutils::tkueditor::currentFile $w]
-    set name [expr {$f eq "" ? "(unsaved)" : [file tail $f]}]
-    set mod [expr {[::tkutils::tkueditor::isModified $w] ? " *" : ""}]
-    .status configure -text "$name$mod    Ln [incr ln 0], Col [incr col 1]"
-}
-bind $T <KeyRelease>    {+refreshStatus}
-bind $T <ButtonRelease> {+refreshStatus}
-
 # ---- find / replace bar -------------------------------------------------
+# The widget's toolbar has a quick-find box; this bar adds replace.
 ttk::frame .bar -padding 4
 ttk::label .bar.lf -text "Find"
 ttk::entry .bar.find -width 24
@@ -57,8 +47,9 @@ proc findCmd {} {
     global w
     set n [.bar.find get]
     if {$n eq ""} return
-    ::tkutils::tkueditor::highlightAll $w $n {*}[flags]
+    set hits [::tkutils::tkueditor::highlightAll $w $n {*}[flags]]
     ::tkutils::tkueditor::findNext $w $n {*}[flags]
+    ::tkutils::tkueditor::setStatus $w "$hits match[expr {$hits == 1 ? {} : {es}}]"
     focus .ed.t
 }
 proc replaceCmd {all} {
@@ -67,9 +58,9 @@ proc replaceCmd {all} {
     if {$n eq ""} return
     set opt [flags]
     if {$all} { lappend opt -all }
-    ::tkutils::tkueditor::replace $w $n [.bar.repl get] {*}$opt
+    set k [::tkutils::tkueditor::replace $w $n [.bar.repl get] {*}$opt]
     ::tkutils::tkueditor::highlightAll $w $n {*}[flags]
-    refreshStatus
+    ::tkutils::tkueditor::setStatus $w "$k replaced"
 }
 proc showBar {} {
     grid .bar -row 0 -column 0 -sticky ew
@@ -90,7 +81,7 @@ bind .ed.t <Escape> hideBar
 proc doOpen {} {
     global w
     set f [tk_getOpenFile]
-    if {$f ne ""} { ::tkutils::tkueditor::loadFile $w $f; refreshStatus }
+    if {$f ne ""} { ::tkutils::tkueditor::loadFile $w $f }
 }
 proc doSave {} {
     global w
@@ -100,7 +91,6 @@ proc doSave {} {
         if {$f eq ""} return
     }
     ::tkutils::tkueditor::saveFile $w $f
-    refreshStatus
 }
 bind . <Control-o> doOpen
 bind . <Control-s> doSave
@@ -108,13 +98,13 @@ bind . <Control-f> showBar
 bind . <F3>        findCmd
 
 # ---- layout -------------------------------------------------------------
-grid .ed     -row 1 -column 0 -sticky nsew
-grid .status -row 2 -column 0 -sticky ew
+# Row 0 holds the (hidden) find/replace bar; row 1 the editor widget, which
+# carries its own toolbar at the top and status bar at the bottom.
+grid .ed -row 1 -column 0 -sticky nsew
 grid rowconfigure    . 1 -weight 1
 grid columnconfigure . 0 -weight 1
 grid remove .bar
 
 if {[llength $argv] > 0} { ::tkutils::tkueditor::loadFile $w [lindex $argv 0] }
-refreshStatus
 focus .ed.t
 vwait forever

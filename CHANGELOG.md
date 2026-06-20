@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.41.0
+
+Changes since 0.40.0.
+
+- `tkueditor` 0.2: optional toolbar (`tkutoolbar` + `tkuicon` icons, with a text
+  fallback when SVG is unavailable) carrying Open, Save, Undo, Redo, Cut, Copy
+  and a find box, and an optional status bar (`tkustatus`) showing the modified
+  flag, encoding, line-ending style and Ln/Col. Both default on; turn them off
+  with `-toolbar 0` / `-statusbar 0`.
+- `tkueditor` encoding-aware load/save via `tclutils::tuiconv` (default utf-8,
+  so a document behaves identically under Tcl 8.6 and 9.x). Line endings are
+  detected on load, normalised to LF in the buffer and restored on save.
+- `tkueditor` new API (the 0.1 API is unchanged): `-toolbar`, `-statusbar`,
+  `-encoding`, `-eol` options plus `encoding`, `eol`, `toolbarWidget`,
+  `statusbarWidget`, `setStatus`, `refreshStatus`. The toolbar's Undo/Redo and
+  Cut/Copy follow the undo stack and the selection; loading a file leaves the
+  cursor at the start. The `bin/tkueditor.tcl` launcher now uses the built-in
+  toolbar and status bar and keeps its find/replace bar.
+
 ## 0.40.0
 
 Changes since 0.28.0. The widget set grew substantially and the original core

@@ -12,7 +12,7 @@ package require tkutils::tkudiff 0.1
 package require tkutils::tkumd 0.1
 package require tkutils::tkujson 0.1
 package require tkutils::tkucal 0.1
-package require tkutils::tkueditor 0.1
+package require tkutils::tkueditor 0.2
 package require tkutils::tkuzip 0.1
 package require tkutils::tkufuzzy 0.1
 package require tkutils::tkudialog 0.1

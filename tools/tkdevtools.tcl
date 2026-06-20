@@ -250,7 +250,11 @@ proc unitConvert {args} {
 proc tzList {} {
     set zones {}; set dirs {}
     lappend dirs [file join [info library] tzdata]
-    foreach p $::tcl_pkgPath { lappend dirs [file join $p tzdata] }
+    # ::tcl_pkgPath is not defined on every Tcl build (notably some
+    # Windows installations), so guard the access before iterating it.
+    if {[info exists ::tcl_pkgPath]} {
+        foreach p $::tcl_pkgPath { lappend dirs [file join $p tzdata] }
+    }
     lappend dirs /usr/share/zoneinfo
     foreach base $dirs {
         if {![file isdirectory $base]} continue
@@ -399,9 +403,10 @@ proc keysymShow {K A k s} {
 
 # ============================ ttk Themes (tree) =============================
 proc buildThemes {f} {
-    set left [frame $f.left]
-    label $left.l -text "Themes / elements:"
-    ttk::treeview $left.tv -show tree -height 20 \
+    # ---- left: theme + element tree --------------------------------------
+    set left [ttk::frame $f.left]
+    ttk::label $left.l -text "Themes / elements (click a theme to apply):"
+    ttk::treeview $left.tv -show tree -height 22 \
         -yscrollcommand [list $left.sb set]
     ttk::scrollbar $left.sb -orient vertical -command [list $left.tv yview]
     grid $left.l  -row 0 -column 0 -columnspan 2 -sticky w
@@ -411,41 +416,224 @@ proc buildThemes {f} {
     pack $left -side left -fill y -padx 4 -pady 4
     set ::themeTree $left.tv
 
-    set r [labelframe $f.prev -text "Preview (selected theme applies app-wide)"]
-    ttk::button      $r.b  -text "ttk::button"
-    ttk::checkbutton $r.c  -text "ttk::checkbutton"
-    ttk::radiobutton $r.r  -text "ttk::radiobutton" -variable ::themeRb -value 1
-    ttk::entry       $r.e
-    ttk::combobox    $r.cb -values {one two three} -state readonly
-    ttk::progressbar $r.p  -value 60
-    ttk::scale       $r.s  -from 0 -to 100 -value 40
-    foreach w {b c r e cb p s} { pack $r.$w -anchor w -padx 8 -pady 5 -fill x }
-    $r.e insert 0 "ttk::entry"
-    pack $r -side left -fill both -expand 1 -padx 4 -pady 4
+    # ---- right: notebook (widget preview + style inspector) --------------
+    set nb [ttk::notebook $f.nb]
+    pack $nb -side left -fill both -expand 1 -padx 4 -pady 4
+
+    set pv [ttk::frame $nb.pv -padding 6]
+    themeBuildPreview $pv
+    $nb add $pv -text "Widget preview"
+
+    set ins [ttk::frame $nb.ins -padding 6]
+    themeBuildInspector $ins
+    $nb add $ins -text "Style inspector"
 
     themeReload
+    themeInspect
     bind $left.tv <<TreeviewSelect>> [list apply {{tv} {
         set id [lindex [$tv selection] 0]
-        if {$id ne "" && [$tv parent $id] eq ""} {
-            catch {ttk::style theme use [$tv item $id -text]}
-            themeReload
-        }
+        if {$id eq "" || [$tv parent $id] ne ""} return
+        set name [lindex [$tv item $id -values] 0]
+        if {$name eq ""} return
+        catch {ttk::style theme use $name}
+        themeReload
+        themeInspect
     }} $left.tv]
 }
+
+# ---- populate the theme/element tree -------------------------------------
 proc themeReload {} {
     set tv $::themeTree
     if {![winfo exists $tv]} return
     $tv delete [$tv children {}]
     set cur [ttk::style theme use]
     foreach th [lsort [ttk::style theme names]] {
-        set tag [expr {$th eq $cur ? " (active)" : ""}]
-        set node [$tv insert {} end -text "$th$tag" -open [expr {$th eq $cur}]]
+        set label [expr {$th eq $cur ? "$th  (active)" : $th}]
+        set node [$tv insert {} end -text $label -values [list $th] \
+            -open [expr {$th eq $cur}]]
         if {$th eq $cur} {
-            foreach el [lsort [ttk::style element names]] {
-                $tv insert $node end -text $el
-            }
+            set elems [lsort [ttk::style element names]]
+            set en [$tv insert $node end -text "elements ([llength $elems])"]
+            foreach el $elems { $tv insert $en end -text $el }
         }
     }
+}
+
+# ---- a broad gallery of ttk widgets so the theme can be eyeballed ---------
+proc themeBuildPreview {f} {
+    set m $f.menu
+    catch {destroy $m}
+    menu $m -tearoff 0
+    foreach lbl {"Item one" "Item two" "Item three"} { $m add command -label $lbl }
+
+    set g1 [ttk::labelframe $f.g1 -text "Buttons / choices" -padding 6]
+    ttk::button      $g1.b   -text "Button"
+    ttk::button      $g1.bd  -text "Disabled" -state disabled
+    ttk::menubutton  $g1.mb  -text "Menubutton" -menu $m
+    ttk::checkbutton $g1.c1  -text "Checked"   -variable ::themeChk1
+    ttk::checkbutton $g1.c2  -text "Unchecked" -variable ::themeChk2
+    ttk::radiobutton $g1.r1  -text "Option A"  -variable ::themeRb -value a
+    ttk::radiobutton $g1.r2  -text "Option B"  -variable ::themeRb -value b
+    ttk::radiobutton $g1.r3  -text "Option C"  -variable ::themeRb -value c
+    set ::themeChk1 1; set ::themeChk2 0; set ::themeRb a
+    grid $g1.b  $g1.bd $g1.mb -sticky w -padx 4 -pady 3
+    grid $g1.c1 $g1.c2        -sticky w -padx 4 -pady 3
+    grid $g1.r1 $g1.r2 $g1.r3 -sticky w -padx 4 -pady 3
+
+    set g2 [ttk::labelframe $f.g2 -text "Inputs" -padding 6]
+    ttk::label    $g2.le -text "entry:"
+    ttk::entry    $g2.e
+    ttk::label    $g2.lc -text "combobox:"
+    ttk::combobox $g2.cb -values {Alpha Beta Gamma} -state readonly
+    ttk::label    $g2.ls -text "spinbox:"
+    ttk::spinbox  $g2.sp -from 0 -to 100 -width 8
+    ttk::label    $g2.ld -text "disabled:"
+    ttk::entry    $g2.ed -state disabled
+    $g2.e insert 0 "editable text"
+    $g2.cb current 0
+    $g2.sp set 42
+    grid $g2.le $g2.e  -sticky w -padx 4 -pady 3
+    grid $g2.lc $g2.cb -sticky w -padx 4 -pady 3
+    grid $g2.ls $g2.sp -sticky w -padx 4 -pady 3
+    grid $g2.ld $g2.ed -sticky w -padx 4 -pady 3
+
+    set g3 [ttk::labelframe $f.g3 -text "Range / progress" -padding 6]
+    ttk::label       $g3.l1  -text "scale:"
+    ttk::scale       $g3.s   -from 0 -to 100 -value 40 -length 160
+    ttk::label       $g3.l2  -text "progress:"
+    ttk::progressbar $g3.p   -value 65 -length 160
+    ttk::separator   $g3.sep -orient horizontal
+    grid $g3.l1 $g3.s -sticky w -padx 4 -pady 3
+    grid $g3.l2 $g3.p -sticky w -padx 4 -pady 3
+    grid $g3.sep -row 2 -column 0 -columnspan 2 -sticky ew -pady 4
+
+    set g4 [ttk::labelframe $f.g4 -text "Containers / list" -padding 6]
+    set tnb [ttk::notebook $g4.nb]
+    foreach {tab txt} {one "Content of tab one" two "Content of tab two"} {
+        set p [ttk::frame $tnb.$tab -padding 8]
+        ttk::label $p.l -text $txt
+        pack $p.l -anchor w
+        $tnb add $p -text [string totitle $tab]
+    }
+    set tv [ttk::treeview $g4.tv -columns {size date} -height 4]
+    $tv heading #0   -text "Name"
+    $tv heading size -text "Size"
+    $tv heading date -text "Date"
+    $tv column size -width 70 -anchor e
+    $tv column date -width 90 -anchor center
+    foreach row {{report.pdf 248K 2026-01-04} {data.csv 12K 2026-02-11} \
+                 {notes.txt 3K 2026-03-02}} {
+        lassign $row n s d
+        $tv insert {} end -text $n -values [list $s $d]
+    }
+    grid $tnb -row 0 -column 0 -sticky nsew -padx 4 -pady 3
+    grid $tv  -row 1 -column 0 -sticky nsew -padx 4 -pady 3
+
+    grid $g1 -row 0 -column 0 -sticky nsew -padx 6 -pady 6
+    grid $g2 -row 0 -column 1 -sticky nsew -padx 6 -pady 6
+    grid $g3 -row 1 -column 0 -sticky nsew -padx 6 -pady 6
+    grid $g4 -row 1 -column 1 -sticky nsew -padx 6 -pady 6
+    grid columnconfigure $f 0 -weight 1
+    grid columnconfigure $f 1 -weight 1
+    grid rowconfigure    $f 0 -weight 1
+    grid rowconfigure    $f 1 -weight 1
+}
+
+# ---- style inspector: configure + map (table) and layout (tree) ----------
+proc themeBuildInspector {f} {
+    set bar [ttk::frame $f.bar]
+    ttk::label $bar.l -text "Style:"
+    ttk::combobox $bar.cb -textvariable ::themeStyleName -width 26 -values {
+        TButton TMenubutton TCheckbutton TRadiobutton
+        TEntry TCombobox TSpinbox TScale TProgressbar
+        TNotebook TNotebook.Tab Treeview Treeview.Item Heading
+        TLabel TLabelframe TLabelframe.Label TSeparator TSizegrip
+        TScrollbar Vertical.TScrollbar Horizontal.TScrollbar TFrame
+    }
+    ttk::button $bar.go -text "Inspect" -command themeInspect
+    pack $bar.l $bar.cb $bar.go -side left -padx 3
+    pack $bar -fill x -pady {0 4}
+    set ::themeStyleName TButton
+    bind $bar.cb <<ComboboxSelected>> themeInspect
+    bind $bar.cb <Return>             themeInspect
+
+    set lf1 [ttk::labelframe $f.cfg \
+        -text "configure (declared) + map (state-specific)" -padding 4]
+    set t [scrolledTable $lf1 \
+        {12 Kind left 22 Option left 24 State left 28 Value left} -height 12]
+    set ::themeCfgTable $t
+    catch {::tkutils::tkutlclip::installBindings $t}
+    catch {::tkutils::tkutlsort::columns $t {0 string 1 string 2 string 3 string}}
+    pack $lf1 -fill both -expand 1 -pady {0 4}
+
+    set lf2 [ttk::labelframe $f.lay -text "layout (element tree)" -padding 4]
+    set txt [text $lf2.t -height 9 -wrap none -font TkFixedFont \
+        -yscrollcommand [list $lf2.sb set]]
+    ttk::scrollbar $lf2.sb -orient vertical -command [list $txt yview]
+    grid $txt    -row 0 -column 0 -sticky nsew
+    grid $lf2.sb -row 0 -column 1 -sticky ns
+    grid rowconfigure    $lf2 0 -weight 1
+    grid columnconfigure $lf2 0 -weight 1
+    pack $lf2 -fill both -expand 1
+    set ::themeLayoutText $txt
+}
+
+# ---- fill the inspector for the currently selected style ------------------
+proc themeInspect {} {
+    if {![info exists ::themeCfgTable] || ![winfo exists $::themeCfgTable]} return
+    set style $::themeStyleName
+    set t $::themeCfgTable
+    if {[$t size] > 0} { $t delete 0 end }
+
+    if {[catch {ttk::style configure $style} cfg]} { set cfg {} }
+    foreach {opt val} $cfg {
+        $t insert end [list configure $opt "" $val]
+    }
+    if {[catch {ttk::style map $style} mp]} { set mp {} }
+    foreach {opt statemap} $mp {
+        foreach {state val} $statemap {
+            $t insert end [list map $opt $state $val]
+        }
+    }
+    if {[$t size] == 0} {
+        $t insert end [list "" "(no declared options for $style)" "" ""]
+    }
+
+    set txt $::themeLayoutText
+    $txt configure -state normal
+    $txt delete 1.0 end
+    if {[catch {ttk::style layout $style} lay] || $lay eq ""} {
+        $txt insert end "(no layout defined for style \"$style\")"
+    } else {
+        $txt insert end [themeFmtLayout $lay 0]
+    }
+    $txt configure -state disabled
+}
+
+# ---- pretty-print a ttk layout spec (a sequence of element + options) -----
+proc themeFmtLayout {spec indent} {
+    set pad [string repeat "    " $indent]
+    set out ""
+    set i 0
+    set n [llength $spec]
+    while {$i < $n} {
+        set el [lindex $spec $i]; incr i
+        set opts {}
+        set children {}
+        while {$i < $n && [string match -* [lindex $spec $i]]} {
+            set k [lindex $spec $i]
+            set v [lindex $spec [expr {$i + 1}]]
+            incr i 2
+            if {$k eq "-children"} { set children $v } else { lappend opts "$k $v" }
+        }
+        append out $pad $el
+        if {[llength $opts]} { append out "  ([join $opts {, }])" }
+        append out "\n"
+        if {[llength $children]} {
+            append out [themeFmtLayout $children [expr {$indent + 1}]]
+        }
+    }
+    return $out
 }
 
 # ============================ clock format codes ===========================

@@ -187,4 +187,183 @@ test tkueditor-3.9 {readonly blocks typed edits but setText still works} -constr
     list [::tkutils::tkueditor::readonly $w] $afterInsert [::tkutils::tkueditor::getText $w]
 } -result {1 x new}
 
+# --- 0.2: toolbar, status bar, encoding, line endings --------------------
+
+test tkueditor-4.1 {toolbar is built by default and is a real widget} -constraints haveTk -body {
+    catch {destroy .e}
+    set w [::tkutils::tkueditor::widget .e]
+    set tb [::tkutils::tkueditor::toolbarWidget $w]
+    list [expr {$tb ne ""}] [winfo exists $tb]
+} -result {1 1}
+
+test tkueditor-4.2 {-toolbar 0 omits the toolbar} -constraints haveTk -body {
+    catch {destroy .e}
+    set w [::tkutils::tkueditor::widget .e -toolbar 0]
+    ::tkutils::tkueditor::toolbarWidget $w
+} -result {}
+
+test tkueditor-4.3 {status bar is built by default} -constraints haveTk -body {
+    catch {destroy .e}
+    set w [::tkutils::tkueditor::widget .e]
+    set sb [::tkutils::tkueditor::statusbarWidget $w]
+    list [expr {$sb ne ""}] [winfo exists $sb]
+} -result {1 1}
+
+test tkueditor-4.4 {-statusbar 0 omits the status bar} -constraints haveTk -body {
+    catch {destroy .e}
+    set w [::tkutils::tkueditor::widget .e -statusbar 0]
+    ::tkutils::tkueditor::statusbarWidget $w
+} -result {}
+
+test tkueditor-4.5 {setStatus sets the main message} -constraints haveTk -body {
+    catch {destroy .e}
+    set w [::tkutils::tkueditor::widget .e]
+    ::tkutils::tkueditor::setStatus $w "Ready"
+    ::tkutils::tkustatus::getText [::tkutils::tkueditor::statusbarWidget $w]
+} -result {Ready}
+
+test tkueditor-4.6 {encoding defaults to utf-8 and is settable} -constraints haveTk -body {
+    catch {destroy .e}
+    set w [::tkutils::tkueditor::widget .e]
+    set a [::tkutils::tkueditor::encoding $w]
+    ::tkutils::tkueditor::encoding $w cp1252
+    list $a [::tkutils::tkueditor::encoding $w]
+} -result {utf-8 cp1252}
+
+test tkueditor-4.7 {eol defaults to lf, is settable, rejects bad values} -constraints haveTk -body {
+    catch {destroy .e}
+    set w [::tkutils::tkueditor::widget .e]
+    set a [::tkutils::tkueditor::eol $w]
+    ::tkutils::tkueditor::eol $w crlf
+    set b [::tkutils::tkueditor::eol $w]
+    set bad [catch {::tkutils::tkueditor::eol $w mac}]
+    list $a $b $bad
+} -result {lf crlf 1}
+
+test tkueditor-4.8 {refreshStatus updates the position field} -constraints haveTk -body {
+    catch {destroy .e}
+    set w [::tkutils::tkueditor::widget .e]
+    ::tkutils::tkueditor::setText $w "a\nb\nc"
+    ::tkutils::tkueditor::gotoLine $w 2
+    ::tkutils::tkustatus::fieldText [::tkutils::tkueditor::statusbarWidget $w] pos
+} -result {Ln 2, Col 0}
+
+test tkueditor-4.9 {loadFile decodes utf-8 by default} -constraints haveTk -body {
+    catch {destroy .e}
+    set w [::tkutils::tkueditor::widget .e]
+    set dir [makeDirectory ed]
+    set in [file join $dir u.txt]
+    set fh [open $in wb]
+    fconfigure $fh -translation binary
+    puts -nonewline $fh [encoding convertto utf-8 "Gr\u00f6\u00dfe\n"]
+    close $fh
+    ::tkutils::tkueditor::loadFile $w $in
+    # "Größe" is five characters when decoded as utf-8
+    string length [lindex [split [::tkutils::tkueditor::getText $w] \n] 0]
+} -result 5
+
+test tkueditor-4.10 {loadFile detects CRLF and normalises the buffer to LF} -constraints haveTk -body {
+    catch {destroy .e}
+    set w [::tkutils::tkueditor::widget .e]
+    set dir [makeDirectory ed]
+    set in [file join $dir crlf.txt]
+    set fh [open $in wb]
+    fconfigure $fh -translation binary
+    puts -nonewline $fh "a\r\nb\r\n"
+    close $fh
+    ::tkutils::tkueditor::loadFile $w $in
+    set buf [::tkutils::tkueditor::getText $w]
+    list [::tkutils::tkueditor::eol $w] [string first "\r" $buf]
+} -result {crlf -1}
+
+test tkueditor-4.11 {loadFile detects LF} -constraints haveTk -body {
+    catch {destroy .e}
+    set w [::tkutils::tkueditor::widget .e]
+    set dir [makeDirectory ed]
+    set in [file join $dir lf.txt]
+    set fh [open $in wb]
+    fconfigure $fh -translation binary
+    puts -nonewline $fh "a\nb\n"
+    close $fh
+    ::tkutils::tkueditor::loadFile $w $in
+    ::tkutils::tkueditor::eol $w
+} -result {lf}
+
+test tkueditor-4.12 {saveFile -eol crlf writes CRLF bytes} -constraints haveTk -body {
+    catch {destroy .e}
+    set w [::tkutils::tkueditor::widget .e]
+    set dir [makeDirectory ed]
+    set out [file join $dir out.txt]
+    ::tkutils::tkueditor::setText $w "a\nb"
+    ::tkutils::tkueditor::saveFile $w $out -eol crlf
+    set fh [open $out rb]
+    fconfigure $fh -translation binary
+    set bytes [read $fh]
+    close $fh
+    expr {[string first "\r\n" $bytes] >= 0}
+} -result 1
+
+test tkueditor-4.13 {encoding round-trip preserves utf-8 bytes} -constraints haveTk -body {
+    catch {destroy .e}
+    set w [::tkutils::tkueditor::widget .e]
+    set dir [makeDirectory ed]
+    set in [file join $dir u.txt]
+    set out [file join $dir o.txt]
+    set fh [open $in wb]
+    fconfigure $fh -translation binary
+    puts -nonewline $fh [encoding convertto utf-8 "Gr\u00f6\u00dfe\n"]
+    close $fh
+    ::tkutils::tkueditor::loadFile $w $in
+    ::tkutils::tkueditor::saveFile $w $out
+    set fh [open $out rb]
+    fconfigure $fh -translation binary
+    set bytes [read $fh]
+    close $fh
+    expr {$bytes eq [encoding convertto utf-8 "Gr\u00f6\u00dfe\n"]}
+} -result 1
+
+test tkueditor-4.14 {setText leaves the cursor at the start} -constraints haveTk -body {
+    catch {destroy .e}
+    set w [::tkutils::tkueditor::widget .e]
+    ::tkutils::tkueditor::setText $w "alpha\nbeta\ngamma"
+    ::tkutils::tkueditor::cursor $w
+} -result 1.0
+
+test tkueditor-4.15 {loadFile leaves the cursor at the start} -constraints haveTk -body {
+    catch {destroy .e}
+    set w [::tkutils::tkueditor::widget .e]
+    set dir [makeDirectory ed]
+    set in [file join $dir c.txt]
+    set fh [open $in wb]
+    fconfigure $fh -translation binary
+    puts -nonewline $fh "one\ntwo\nthree\n"
+    close $fh
+    ::tkutils::tkueditor::loadFile $w $in
+    ::tkutils::tkueditor::cursor $w
+} -result 1.0
+
+test tkueditor-4.16 {toolbar Undo follows the undo stack} -constraints haveTk -body {
+    catch {destroy .e}
+    set w [::tkutils::tkueditor::widget .e]
+    set tb [::tkutils::tkueditor::toolbarWidget $w]
+    set ub [::tkutils::tkutoolbar::buttonWidget $tb undo]
+    ::tkutils::tkueditor::setText $w "x"
+    set before [$ub instate disabled]
+    $w.t insert end "Y"
+    event generate $w.t <<Modified>>
+    list $before [$ub instate disabled]
+} -result {1 0}
+
+test tkueditor-4.17 {toolbar Cut/Copy follow the selection} -constraints haveTk -body {
+    catch {destroy .e}
+    set w [::tkutils::tkueditor::widget .e]
+    set tb [::tkutils::tkueditor::toolbarWidget $w]
+    set cb [::tkutils::tkutoolbar::buttonWidget $tb cut]
+    ::tkutils::tkueditor::setText $w "hello"
+    set before [$cb instate disabled]
+    $w.t tag add sel 1.0 1.3
+    event generate $w.t <<Selection>>
+    list $before [$cb instate disabled]
+} -result {1 0}
+
 cleanupTests

@@ -1,0 +1,114 @@
+# tests for tkutils::tkupdfinspect
+package require tcltest
+namespace import ::tcltest::*
+
+set here [file dirname [file normalize [info script]]]
+tcl::tm::path add [file normalize [file join $here .. lib tm]]
+if {[info exists ::env(TCLUTILS_TM)]} {
+    tcl::tm::path add $::env(TCLUTILS_TM)
+} else {
+    foreach _c [lsort -decreasing [glob -nocomplain \
+            [file join $here .. .. tclutils*/lib/tm]]] {
+        tcl::tm::path add $_c; break
+    }
+}
+
+# Tk is needed for the widget; skip the GUI tests headless-less environments.
+testConstraint haveTk [expr {![catch {package require Tk}]}]
+if {[testConstraint haveTk]} { wm withdraw . }
+package require tkutils::tkupdfinspect
+
+# A tiny but structurally valid PDF: catalog, pages, one page, info.
+proc makeSamplePdf {dir} {
+    set f [file join $dir sample.pdf]
+    set body "%PDF-1.5\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n2 0 obj\n<< /Type /Pages /Kids \[3 0 R\] /Count 1 >>\nendobj\n3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox \[0 0 612 792\] >>\nendobj\n4 0 obj\n<< /Title (Sample PDF) /Author (tkutils) >>\nendobj\ntrailer\n<< /Root 1 0 R /Info 4 0 R >>\n%%EOF\n"
+    set ch [open $f wb]
+    fconfigure $ch -translation binary
+    puts -nonewline $ch $body
+    close $ch
+    return $f
+}
+
+test pdfinspect-1.1 {widget builds and returns its path} -constraints haveTk -body {
+    catch {destroy .w}
+    ::tkutils::tkupdfinspect::widget .w
+} -result .w
+
+test pdfinspect-1.2 {sub-widget accessors} -constraints haveTk -body {
+    catch {destroy .w}
+    set w [::tkutils::tkupdfinspect::widget .w]
+    list [winfo exists [::tkutils::tkupdfinspect::treeWidget $w]] \
+         [winfo exists [::tkutils::tkupdfinspect::textWidget $w]]
+} -result {1 1}
+
+test pdfinspect-2.1 {loadFile populates the top-level tree nodes} -constraints haveTk -body {
+    catch {destroy .w}
+    set w [::tkutils::tkupdfinspect::widget .w]
+    set dir [makeDirectory pdf]
+    ::tkutils::tkupdfinspect::loadFile $w [makeSamplePdf $dir]
+    [::tkutils::tkupdfinspect::treeWidget $w] children {}
+} -result {doc meta trailer zugferd objects}
+
+test pdfinspect-2.2 {loadFile lists the indirect objects as children} -constraints haveTk -body {
+    catch {destroy .w}
+    set w [::tkutils::tkupdfinspect::widget .w]
+    set dir [makeDirectory pdf]
+    ::tkutils::tkupdfinspect::loadFile $w [makeSamplePdf $dir]
+    [::tkutils::tkupdfinspect::treeWidget $w] children objects
+} -result {obj-1 obj-2 obj-3 obj-4}
+
+test pdfinspect-2.3 {summary accessor exposes the parsed version} -constraints haveTk -body {
+    catch {destroy .w}
+    set w [::tkutils::tkupdfinspect::widget .w]
+    set dir [makeDirectory pdf]
+    ::tkutils::tkupdfinspect::loadFile $w [makeSamplePdf $dir]
+    dict get [::tkutils::tkupdfinspect::summary $w] version
+} -result 1.5
+
+test pdfinspect-2.4 {currentFile reflects the loaded path} -constraints haveTk -body {
+    catch {destroy .w}
+    set w [::tkutils::tkupdfinspect::widget .w]
+    set dir [makeDirectory pdf]
+    set f [makeSamplePdf $dir]
+    ::tkutils::tkupdfinspect::loadFile $w $f
+    string equal [::tkutils::tkupdfinspect::currentFile $w] $f
+} -result 1
+
+test pdfinspect-3.1 {Document node renders a non-empty summary on load} -constraints haveTk -body {
+    catch {destroy .w}
+    set w [::tkutils::tkupdfinspect::widget .w]
+    set dir [makeDirectory pdf]
+    ::tkutils::tkupdfinspect::loadFile $w [makeSamplePdf $dir]
+    set t [::tkutils::tkupdfinspect::textWidget $w]
+    expr {[string length [$t get 1.0 end-1c]] > 0}
+} -result 1
+
+test pdfinspect-3.2 {selecting an object shows its raw content} -constraints haveTk -body {
+    catch {destroy .w}
+    set w [::tkutils::tkupdfinspect::widget .w]
+    set dir [makeDirectory pdf]
+    ::tkutils::tkupdfinspect::loadFile $w [makeSamplePdf $dir]
+    set tree [::tkutils::tkupdfinspect::treeWidget $w]
+    $tree selection set obj-1
+    update
+    set t [::tkutils::tkupdfinspect::textWidget $w]
+    string match "1 0 obj*Catalog*" [$t get 1.0 end-1c]
+} -result 1
+
+test pdfinspect-3.3 {detail pane is read-only} -constraints haveTk -body {
+    catch {destroy .w}
+    set w [::tkutils::tkupdfinspect::widget .w]
+    [::tkutils::tkupdfinspect::textWidget $w] cget -state
+} -result disabled
+
+test pdfinspect-4.1 {loadFile on a non-PDF raises a tupdf error} -constraints haveTk -body {
+    catch {destroy .w}
+    set w [::tkutils::tkupdfinspect::widget .w]
+    set dir [makeDirectory pdf]
+    set bad [file join $dir notpdf.txt]
+    set ch [open $bad w]; puts $ch "hello"; close $ch
+    catch {::tkutils::tkupdfinspect::loadFile $w $bad} err opts
+    dict get $opts -errorcode
+} -result {TCLUTILS TUPDF FORMAT}
+
+cleanupTests
