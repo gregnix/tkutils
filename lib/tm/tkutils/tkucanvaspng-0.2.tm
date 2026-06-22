@@ -18,7 +18,7 @@
 
 package require Tcl 8.6-
 package require tclutils::common 0.1
-package require tclutils::tupngdraw 0.11
+package require tclutils::tupngdraw 0.12
 
 namespace eval ::tkutils {}
 namespace eval ::tkutils::tkucanvaspng {
