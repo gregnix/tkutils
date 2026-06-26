@@ -1,15 +1,18 @@
-.TH tkueditor n 0.1 tkutils
+.TH tkueditor n 0.2 tkutils
 .SH tkutils::tkueditor
 .PP
-Simple text editor widget: an editable text area with file load/save, search and modified tracking. File I/O uses the tclutils common helpers.
+Text editor widget: an editable text area with file load/save, search, modified tracking, an optional toolbar and an optional status bar. Encoding\-aware file I/O goes through \fBtclutils::tuiconv\fR and defaults to utf\-8; line endings are normalised to LF in the buffer and restored on save.
 .SS API
 .CS
-set w [::tkutils::tkueditor::widget .w ?-width N? ?-height N? ?-wrap mode?]
+set w [::tkutils::tkueditor::widget .w ?-width N? ?-height N? ?-wrap mode? \
+          ?-toolbar bool? ?-statusbar bool? ?-encoding ENC? ?-eol lf|crlf?]
 ::tkutils::tkueditor::setText     $w text       ;# replace buffer (clears modified)
 ::tkutils::tkueditor::getText     $w
-::tkutils::tkueditor::loadFile    $w path
-::tkutils::tkueditor::saveFile    $w ?path?      ;# path optional if loaded from file
+::tkutils::tkueditor::loadFile    $w path ?-encoding ENC?
+::tkutils::tkueditor::saveFile    $w ?path? ?-encoding ENC? ?-eol lf|crlf?
 ::tkutils::tkueditor::currentFile $w
+::tkutils::tkueditor::encoding    $w ?ENC?       ;# get/set encoding for load/save
+::tkutils::tkueditor::eol         $w ?lf|crlf?   ;# get/set line-ending style for save
 ::tkutils::tkueditor::find        $w needle ?-from idx? ?-nocase?   ;# index or ""
 ::tkutils::tkueditor::findAll     $w needle ?-nocase?               ;# list of indices
 ::tkutils::tkueditor::findNext    $w needle ?-nocase?               ;# select+see next, wraps
@@ -21,9 +24,37 @@ set w [::tkutils::tkueditor::widget .w ?-width N? ?-height N? ?-wrap mode?]
 ::tkutils::tkueditor::readonly    $w ?bool?       ;# get/set read-only (setText still works)
 ::tkutils::tkueditor::isModified  $w
 .CE
+.SS "Widget options"
+.PP
+\fB\-width\fR, \fB\-height\fR and \fB\-wrap\fR configure the underlying text widget as before. \fB\-toolbar\fR and \fB\-statusbar\fR (both default \fB1\fR) decide whether the toolbar and status bar are built; set them to \fB0\fR for a bare editor. \fB\-encoding\fR (default \fButf\-8\fR) and \fB\-eol\fR (default \fBlf\fR) set the initial encoding and line\-ending style used by \fBloadFile\fR/\fBsaveFile\fR.
 .SS "Search and replace"
 .PP
 \fBfind\fR returns the first match index from \fB\-from\fR (default \fB1.0\fR); \fBfindAll\fR returns every match. \fBfindNext\fR is the interactive variant: it searches forward from the cursor, wraps to the top, selects the hit, moves the insert mark past it and scrolls it into view, so calling it repeatedly walks through the matches. \fBreplace\fR changes the first match (or every match with \fB\-all\fR) in a single undo step and returns how many it replaced; the scan resumes past each replacement, so a replacement that contains the needle is not re\-matched. \fBhighlightAll\fR tags all matches (default tag \fBmatch\fR, restyle it via the text widget) and \fBclearHighlight\fR removes them.
+.SS "Encoding and line endings"
+.PP
+File I/O is encoding\-aware via \fBtclutils::tuiconv\fR. The default encoding is \fButf\-8\fR, so a document loads and saves identically under Tcl 8.6 (whose channels otherwise default to the system encoding \-\- cp1252 on Windows, latin\-1 elsewhere) and Tcl 9 (utf\-8). Override per call with \fB\-encoding\fR, or set it for the editor with \fBencoding $w ENC\fR; the value is remembered and reused on save.
+.PP
+Because \fBtuiconv\fR does no end\-of\-line translation, the editor handles it itself. On load the file's style is detected, the buffer is normalised to LF (what a Tk text widget expects), and the original style is remembered. On save the buffer is converted back to that style. Read or change it with \fBeol $w ?lf|crlf?\fR, or override a single save with \fBsaveFile $w path \-eol crlf\fR.
+.CS
+::tkutils::tkueditor::loadFile $w doc.txt -encoding cp1252  ;# load a legacy file
+::tkutils::tkueditor::encoding $w utf-8                      ;# convert on next save
+::tkutils::tkueditor::saveFile $w doc.txt -eol crlf          ;# write Windows line ends
+.CE
+.SS Toolbar
+.PP
+When \fB\-toolbar\fR is on, the editor builds a \fBtkutils::tkutoolbar\fR above the text area with Open, Save, Undo, Redo, Cut, Copy, a search entry and a Find button. Open and Save use the standard file dialogs; the search entry (and the Find button) run \fBfindNext\fR. Icons come from \fBtkutils::tkuicon\fR; without SVG support (tksvg on Tk 8.6, native on Tk 9) the buttons fall back to their text labels.
+.CS
+set tb [::tkutils::tkueditor::toolbarWidget $w]   ;# the tkutoolbar ("" if disabled)
+::tkutils::tkutoolbar::addButton $tb run "Run" $cmd -tooltip "Run"   ;# add your own
+.CE
+.SS "Status bar"
+.PP
+When \fB\-statusbar\fR is on, the editor builds a \fBtkutils::tkustatus\fR below the text area. The main (left) message is free for the application; \fBloadFile\fR/\fBsaveFile\fR put the file name there. Named fields on the right show the modified flag, the encoding, the line\-ending style (LF/CRLF) and the cursor position (Ln/Col), updated automatically as the cursor, selection or modified state change.
+.CS
+::tkutils::tkueditor::statusbarWidget $w          ;# the tkustatus ("" if disabled)
+::tkutils::tkueditor::setStatus       $w "Ready"  ;# set the main message
+::tkutils::tkueditor::refreshStatus   $w          ;# recompute pos/mod/enc/eol fields
+.CE
 .SS Launcher
 .CS
 tclsh bin/tkueditor.tcl notes.txt
@@ -37,3 +68,6 @@ Right\-clicking the text area opens an edit menu with Undo, Redo, Cut, Copy, Pas
 ::tkutils::tkueditor::addMenuSeparator $w
 ::tkutils::tkueditor::selectAll      $w
 .CE
+.SS Dependencies
+.PP
+\fBtclutils::tuiconv\fR (encoding\-aware I/O). When the toolbar or status bar is enabled, \fBtkutils::tkutoolbar\fR, \fBtkutils::tkustatus\fR and, for icons, \fBtkutils::tkuicon\fR (which uses \fBtclutils::tusvg\fR) are loaded as well.

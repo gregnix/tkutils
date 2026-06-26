@@ -1,4 +1,4 @@
-.TH tkutlfooter n 0.1 tkutils
+.TH tkutlfooter n 0.2 tkutils
 .SH tkutils::tkutlfooter
 .PP
 A footer row for a \fBtablelist\fR widget, realised as a second single\-row tablelist below the main table ("header at the bottom" look). The footer mirrors the main table's column widths, order and alignment, keeps horizontal scrolling in sync, and can compute auto\-sums. Library\-neutral — no references to any application.
@@ -7,7 +7,7 @@ A footer row for a \fBtablelist\fR widget, realised as a second single\-row tabl
 package require tkutils::tkutlfooter 0.1
 .CE
 .PP
-Requires \fBtablelist\fR. Uses \fBscrollutil\fR for scroll sync when available (falls back to a manual bridge otherwise), and \fBtclutils::tunum\fR for \fBautosum\fR number parsing when available (falls back to a built\-in parser otherwise).
+Requires \fBtablelist\fR. Horizontal scroll sync chains the main table's \fB\-xscrollcommand\fR (no \fBscrollutil\fR needed). \fBautosum\fR/\fBautoagg\fR use \fBtclutils::tunum\fR for number parsing when available (falls back to a built\-in parser otherwise).
 .SS Commands
 .CS
 ::tkutils::tkutlfooter::attach  tblMain tblFoot ?-autowire 1?
@@ -36,9 +36,11 @@ pack .f -fill x
 .CE
 .PP
 The footer now shows \fBSum:\fR and \fB7.70\fR, and stays aligned with the main table when columns are resized, reordered or scrolled.
+.PP
+Since 0.2 the footer also clones the main table's \fB\-titlecolumns\fR, hidden columns and \fB\-stretch\fR policy, and the horizontal\-scroll coupling \fIchains\fR the main table's existing \fB\-xscrollcommand\fR instead of replacing it. This means a table that already has its own scrollbar (e.g. inside a wrapper) keeps that scrollbar working while the footer stays aligned \-\- including under frozen title columns.
 .SS attach
 .PP
-Configures \fBtblFoot\fR as a label\-less, non\-selectable single footer row, clones the main table's columns, and wires up the sync bindings. With \fB\-autowire 1\fR (default) horizontal scrolling is coupled: via a \fBscrollutil::scrollsync\fR widget when \fBscrollutil\fR is present, otherwise via a manual \fB\-xscrollcommand\fR bridge.
+Configures \fBtblFoot\fR as a label\-less, non\-selectable single footer row, clones the main table's columns, and wires up the sync bindings. With \fB\-autowire 1\fR (default) horizontal scrolling is coupled by chaining the main table's \fB\-xscrollcommand\fR: the footer is moved to the same position and the table's original scroll command (e.g. a scrollbar's \fBset\fR) is then invoked, so a pre\-existing scrollbar keeps working.
 .SS update
 .PP
 Re\-applies the main table's column order, widths, alignment and stretch to the footer. Called automatically on \fB<<TablelistColumnResized>>\fR, \fB<<TablelistColumnMoved>>\fR and \fB<Configure>\fR; call it manually after programmatic column changes if needed.

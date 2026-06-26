@@ -1,0 +1,120 @@
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+set haveTk 1
+if {[catch {package require Tk 8.6-}]} { set haveTk 0 }
+testConstraint haveTk $haveTk
+
+set here [file dirname [file normalize [info script]]]
+set tmDir [file normalize [file join $here .. lib tm]]
+catch {tcl::tm::path add $tmDir}
+set tclTm [file normalize [file join $here .. .. tclutils lib tm]]
+catch {tcl::tm::path add $tclTm}
+if {[info exists ::env(TKUTILS_TM)]} { catch {tcl::tm::path add $::env(TKUTILS_TM)} }
+if {[info exists ::env(TCLUTILS_TM)]} { catch {tcl::tm::path add $::env(TCLUTILS_TM)} }
+
+if {$haveTk} {
+    package require tkutils::tkulayoutcanvas 0.1
+    package require tclutils::tulayout 0.1
+}
+
+set ns ::tkutils::tkulayoutcanvas
+
+set ::DEMO_BLOCKS {
+    header {label Header x 20 y 25 w 170 h 15 show 1}
+    body   {label Body   x 20 y 55 w 170 h 40 show 1}
+    footer {label Footer x 20 y 0  w 170 h 10 show 1 lockedY 1}
+}
+set ::DEMO_DEFS {
+    header {label Header w 170 h 15}
+    body   {label Body   w 170 h 40}
+    footer {label Footer w 170 h 10 lockedY 1}
+}
+
+proc mkwidget {} {
+    catch {destroy .f}
+    pack [ttk::frame .f] -fill both -expand 1
+    $::ns\::widget .f.lc -blocks $::DEMO_BLOCKS -definitions $::DEMO_DEFS \
+        -width 400 -height 300
+    pack .f.lc -fill both -expand 1
+    update
+}
+
+test tkulayoutcanvas-1.1 {widget creates canvas and lists blocks} -constraints haveTk -body {
+    mkwidget
+    set c [$::ns\::getCanvas .f.lc]
+    list [winfo class $c] [dict size [$::ns\::getBlocks .f.lc]]
+} -result {Canvas 3}
+
+test tkulayoutcanvas-1.2 {select highlights a block} -constraints haveTk -body {
+    mkwidget
+    $::ns\::select .f.lc header
+    set tags [.f.lc.pw.view.cv gettags block_header]
+    expr {"block" in $tags}
+} -result 1
+
+test tkulayoutcanvas-1.3 {property spinbox snaps block position} -constraints haveTk -body {
+    mkwidget
+    $::ns\::select .f.lc body
+    .f.lc.pw.props.form.sx delete 0 end
+    .f.lc.pw.props.form.sx insert 0 27
+    $::ns\::_onSpin .f.lc x
+    .f.lc.pw.props.form.sy delete 0 end
+    .f.lc.pw.props.form.sy insert 0 58
+    $::ns\::_onSpin .f.lc y
+    set b [dict get [$::ns\::getBlocks .f.lc] body]
+    list [dict get $b x] [dict get $b y]
+} -result {25.0 60.0}
+
+test tkulayoutcanvas-1.4 {auto-y block keeps y at 0 when x changes} -constraints haveTk -body {
+    mkwidget
+    $::ns\::select .f.lc footer
+    .f.lc.pw.props.form.sx delete 0 end
+    .f.lc.pw.props.form.sx insert 0 35
+    $::ns\::_onSpin .f.lc x
+    dict get [dict get [$::ns\::getBlocks .f.lc] footer] y
+} -result 0.0
+
+test tkulayoutcanvas-1.5 {mergePreset applies tulayout merge} -constraints haveTk -body {
+    mkwidget
+    $::ns\::mergePreset .f.lc {header {x 40 show 0}}
+    set b [dict get [$::ns\::getBlocks .f.lc] header]
+    list [dict get $b x] [dict get $b show]
+} -result {40.0 0}
+
+test tkulayoutcanvas-1.6 {onchange fires after property edit} -constraints haveTk -body {
+    mkwidget
+    set ::chg 0
+    $::ns\::configure .f.lc -onchange {apply {{p b} { set ::chg [dict size $b] }}}
+    $::ns\::select .f.lc body
+    .f.lc.pw.props.form.sx delete 0 end
+    .f.lc.pw.props.form.sx insert 0 30
+    $::ns\::_onSpin .f.lc x
+    set ::chg
+} -result 3
+
+test tkulayoutcanvas-1.7 {drag moves block on canvas} -constraints haveTk -body {
+    mkwidget
+    set c .f.lc.pw.view.cv
+    lassign [$c bbox [lindex [$c find withtag block_body] 0]] x0 y0 x1 y1
+    set mx [expr {($x0 + $x1) / 2.0}]
+    set my [expr {($y0 + $y1) / 2.0}]
+    event generate $c <ButtonPress-1> -x $mx -y $my; update
+    event generate $c <B1-Motion> -x [expr {$mx + 15}] -y [expr {$my + 15}]; update
+    event generate $c <ButtonRelease-1> -x [expr {$mx + 15}] -y [expr {$my + 15}]; update
+    set b [dict get [$::ns\::getBlocks .f.lc] body]
+    list [dict get $b x] [dict get $b y]
+} -result {25.0 60.0}
+
+test tkulayoutcanvas-2.1 {unknown widget errors} -constraints haveTk -body {
+    catch {$::ns\::getBlocks .nope} m o
+    dict get $o -errorcode
+} -result {TKUTILS TKULAYOUTCANVAS NOWIDGET}
+
+test tkulayoutcanvas-2.2 {unknown option at creation errors} -constraints haveTk -body {
+    catch {destroy .f2}
+    catch {$::ns\::widget .f2.lc -bogus 1} m o
+    dict get $o -errorcode
+} -result {TKUTILS TKULAYOUTCANVAS OPTION}
+
+cleanupTests

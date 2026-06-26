@@ -15,3 +15,9 @@ set w [::tkutils::tkusearchbar::widget .s ?-command cmd? ?-delay ms? \
 .CE
 .PP
 \fB\-command\fR is called as \fBcmd searchText filterValue\fR (filter is "" when no \fB\-filters\fR were given). Default \fB\-delay\fR is 300 ms.
+.SS "Additional exported commands"
+.PP
+Documented for completeness (same module, also covered by the test suite):
+.CS
+tkusearchbar::setFilters path filters          ;# replace the filter drop-down's choices at runtime. If the bar was created without -filters, the separator and combobox are built lazily here. The first value becomes the current filter. Selecting an entry fires -command
+.CE

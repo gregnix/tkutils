@@ -12,9 +12,10 @@ application.
 package require tkutils::tkutlfooter 0.1
 ```
 
-Requires `tablelist`. Uses `scrollutil` for scroll sync when available (falls
-back to a manual bridge otherwise), and `tclutils::tunum` for `autosum` number
-parsing when available (falls back to a built-in parser otherwise).
+Requires `tablelist`. Horizontal scroll sync chains the main table's
+`-xscrollcommand` (no `scrollutil` needed). `autosum`/`autoagg` use
+`tclutils::tunum` for number parsing when available (falls back to a built-in
+parser otherwise).
 
 ## Commands
 
@@ -49,12 +50,21 @@ pack .f -fill x
 The footer now shows `Sum:` and `7.70`, and stays aligned with the main table
 when columns are resized, reordered or scrolled.
 
+Since 0.2 the footer also clones the main table's `-titlecolumns`, hidden
+columns and `-stretch` policy, and the horizontal-scroll coupling *chains* the
+main table's existing `-xscrollcommand` instead of replacing it. This means a
+table that already has its own scrollbar (e.g. inside a wrapper) keeps that
+scrollbar working while the footer stays aligned -- including under frozen
+title columns.
+
 ## attach
 
 Configures `tblFoot` as a label-less, non-selectable single footer row, clones
 the main table's columns, and wires up the sync bindings. With `-autowire 1`
-(default) horizontal scrolling is coupled: via a `scrollutil::scrollsync` widget
-when `scrollutil` is present, otherwise via a manual `-xscrollcommand` bridge.
+(default) horizontal scrolling is coupled by chaining the main table's
+`-xscrollcommand`: the footer is moved to the same position and the table's
+original scroll command (e.g. a scrollbar's `set`) is then invoked, so a
+pre-existing scrollbar keeps working.
 
 ## update
 

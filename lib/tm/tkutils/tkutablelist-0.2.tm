@@ -20,7 +20,8 @@ namespace eval ::tkutils::tkutablelist {
         loadCsv sortBy tableWidget cellText setCell getRow setRow deleteRow \
         selection selectedRows selectRows configureColumn fromNotes \
         configureRow configureCell insertChild expand collapse \
-        toCsv saveCsv editEndCommand selectCommand doubleCommand
+        toCsv saveCsv editEndCommand selectCommand doubleCommand \
+        footerWidget footerSet footerSum
     variable state
 }
 
@@ -94,7 +95,7 @@ proc ::tkutils::tkutablelist::widget {path args} {
     variable state
     array set o {-columns {} -stretch all -titlecolumns 0 -sortable 1 \
         -editable 0 -selectmode extended -stripes "" -editendcommand "" \
-        -selectcommand "" -doublecommand ""}
+        -selectcommand "" -doublecommand "" -footer 0}
     foreach {opt val} $args {
         if {![info exists o($opt)]} {
             return -code error -errorcode {TKUTILS TKUTABLELIST OPTION} \
@@ -117,7 +118,8 @@ proc ::tkutils::tkutablelist::widget {path args} {
         -stretch $o(-stretch) -titlecolumns $o(-titlecolumns) \
         -selectmode $o(-selectmode) \
         -editendcommand [list ::tkutils::tkutablelist::_editEnd $path] \
-        -yscrollcommand [list $path.ys set] -xscrollcommand [list $path.xs set]
+        -yscrollcommand [list $path.ys set] \
+        -xscrollcommand [list ::tkutils::tkutablelist::_xscroll $path]
     if {$o(-stripes) ne ""} { $tbl configure -stripebackground $o(-stripes) }
     if {$o(-sortable)} {
         $tbl configure -labelcommand [list ::tkutils::tkutablelist::_sortClick $path]
@@ -134,7 +136,112 @@ proc ::tkutils::tkutablelist::widget {path args} {
     grid $path.xs -sticky ew
     grid rowconfigure $path 0 -weight 1
     grid columnconfigure $path 0 -weight 1
+    set state($path,footer) $o(-footer)
+    if {$o(-footer)} {
+        set foot $path.foot
+        tablelist::tablelist $foot -showlabels 0 -showseparators 0 \
+            -selectmode none -exportselection 0 -height 1 \
+            -titlecolumns $o(-titlecolumns) -stretch $o(-stretch)
+        _footerSync $path
+        $foot insert end [lrepeat [$tbl columncount] ""]
+        $foot rowconfigure 0 -selectable 0
+        # Footer zwischen Tabellenkoerper (Zeile 0) und H-Scrollbar (-> Zeile 2)
+        grid $foot   -row 1 -column 0 -sticky ew
+        grid configure $path.xs -row 2
+        bind $tbl <<TablelistColumnResized>> +[list ::tkutils::tkutablelist::_footerSync $path]
+        bind $tbl <<TablelistColumnMoved>>   +[list ::tkutils::tkutablelist::_footerSync $path]
+        bind $tbl <Configure>                +[list ::tkutils::tkutablelist::_footerSync $path]
+        after idle [list ::tkutils::tkutablelist::_footerSync $path]
+    }
     return $path
+}
+
+# Horizontal-Scroll der Tabelle: Scrollbar aktualisieren UND -- falls vorhanden --
+# den Footer auf dieselbe Position spiegeln. Ersetzt das blanke "$path.xs set",
+# damit die Scrollbar weiter bedient wird (im Gegensatz zu scrollutil::scrollsync,
+# das das alte xscrollcommand ueberschreibt).
+proc ::tkutils::tkutablelist::_xscroll {path first last} {
+    $path.xs set $first $last
+    if {[winfo exists $path.foot]} { catch {$path.foot xview moveto $first} }
+    return
+}
+
+# Footer-Spalten an die Haupttabelle angleichen: Anzahl, Breite, Ausrichtung,
+# verdeckte Spalten. Wird initial und bei Resize/Spaltenverschiebung gerufen.
+proc ::tkutils::tkutablelist::_footerSync {path} {
+    if {![winfo exists $path.foot]} return
+    set tbl $path.tbl; set foot $path.foot
+    set n [$tbl columncount]
+    while {[$foot columncount] < $n} { $foot insertcolumns end 1 "" }
+    while {[$foot columncount] > $n} { $foot deletecolumns end end }
+    for {set c 0} {$c < $n} {incr c} {
+        $foot columnconfigure $c \
+            -width [$tbl columncget $c -width] \
+            -align [$tbl columncget $c -align] \
+            -hide  [$tbl columncget $c -hide]
+    }
+    catch {$foot xview moveto [lindex [$tbl xview] 0]}
+    return
+}
+
+# Footer-Tablelist (oder "" wenn kein Footer).
+proc ::tkutils::tkutablelist::footerWidget {path} {
+    if {[winfo exists $path.foot]} { return $path.foot }
+    return ""
+}
+
+# Footer-Zellen setzen (eine Liste, ein Wert je Spalte).
+proc ::tkutils::tkutablelist::footerSet {path values} {
+    if {![winfo exists $path.foot]} return
+    set foot $path.foot
+    set n [$foot columncount]
+    for {set c 0} {$c < $n} {incr c} {
+        $foot cellconfigure 0,$c -text [lindex $values $c]
+    }
+    return
+}
+
+# Spaltensummen (deutsch via tunum) in den Footer, je Summe unter ihrer Spalte;
+# optionales Label in -labelcolumn. -format wendet [format] auf die Summe an
+# (englischer Punkt!) -- fuer deutsche Waehrung stattdessen footerSet nutzen.
+proc ::tkutils::tkutablelist::footerSum {path args} {
+    if {![winfo exists $path.foot]} return
+    array set opt {-columns {} -label "" -labelcolumn 0 -format ""}
+    array set opt $args
+    set tbl $path.tbl
+    set n [$tbl columncount]
+    if {![llength $opt(-columns)]} { for {set c 0} {$c < $n} {incr c} { lappend opt(-columns) $c } }
+    set out [lrepeat $n ""]
+    if {$opt(-label) ne "" && $opt(-labelcolumn) >= 0 && $opt(-labelcolumn) < $n} {
+        lset out $opt(-labelcolumn) $opt(-label)
+    }
+    foreach c $opt(-columns) {
+        if {$c < 0 || $c >= $n} continue
+        set vals {}
+        for {set r 0} {$r < [$tbl size]} {incr r} { lappend vals [$tbl cellcget $r,$c -text] }
+        set tot [_gsum $vals]
+        if {$tot ne ""} {
+            if {$opt(-format) ne ""} { set tot [format $opt(-format) $tot] }
+            lset out $c $tot
+        }
+    }
+    footerSet $path $out
+    return
+}
+
+# Deutsch-tolerante Spaltensumme (tunum, sonst lokaler Parser). "" wenn nichts numerisch.
+proc ::tkutils::tkutablelist::_gsum {vals} {
+    if {![catch {package require tclutils::tunum}]} {
+        return [::tclutils::tunum::sum $vals -default ""]
+    }
+    set acc 0.0; set any 0
+    foreach v $vals {
+        set t [string trim $v]
+        if {$t eq ""} continue
+        set t [string map {. {} , .} $t]
+        if {[string is double -strict $t]} { set acc [expr {$acc + $t}]; set any 1 }
+    }
+    return [expr {$any ? $acc : ""}]
 }
 
 proc ::tkutils::tkutablelist::tableWidget {path} { return $path.tbl }
@@ -393,4 +500,4 @@ proc ::tkutils::tkutablelist::saveCsv {path file args} {
     return $file
 }
 
-package provide tkutils::tkutablelist 0.1
+package provide tkutils::tkutablelist 0.2

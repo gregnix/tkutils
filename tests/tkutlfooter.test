@@ -30,4 +30,35 @@ test tkutlfooter-2.2 {autoagg count} -constraints {hasTk hasTbl} -body {
     ::tkutils::tkutlfooter::autoagg .t .f -columns {2 countnum} -label C
     lindex [.f get 0] 2
 } -result 4
+test tkutlfooter-3.1 {attach chains a pre-existing -xscrollcommand instead of replacing it} -constraints {hasTk hasTbl} -body {
+    catch {destroy .t}; catch {destroy .f}
+    set ::origCalled ""
+    proc ::origRec {first last} { set ::origCalled [list $first $last] }
+    tablelist::tablelist .t -columns {12 A left 8 N right} -xscrollcommand [list ::origRec]
+    .t insert end {a 3}
+    tablelist::tablelist .f -showlabels 0 -height 1 -columns {12 {} left 8 {} right}
+    ::tkutils::tkutlfooter::attach .t .f
+    # invoke the (now chained) xscrollcommand the way tablelist would
+    uplevel #0 [list {*}[.t cget -xscrollcommand] 0.3 0.6]
+    set ::origCalled
+} -result {0.3 0.6}
+
+test tkutlfooter-3.2 {attach clones -titlecolumns onto the footer} -constraints {hasTk hasTbl} -body {
+    catch {destroy .t}; catch {destroy .f}
+    tablelist::tablelist .t -columns {12 A left 8 B right 8 C right} -titlecolumns 2
+    tablelist::tablelist .f -showlabels 0 -height 1 -columns {}
+    ::tkutils::tkutlfooter::attach .t .f
+    .f cget -titlecolumns
+} -result 2
+
+test tkutlfooter-3.3 {update clones hidden columns onto the footer} -constraints {hasTk hasTbl} -body {
+    catch {destroy .t}; catch {destroy .f}
+    tablelist::tablelist .t -columns {12 A left 8 B right 8 C right}
+    tablelist::tablelist .f -showlabels 0 -height 1 -columns {}
+    ::tkutils::tkutlfooter::attach .t .f
+    .t columnconfigure 2 -hide 1
+    ::tkutils::tkutlfooter::update .t .f
+    .f columncget 2 -hide
+} -result 1
+
 cleanupTests

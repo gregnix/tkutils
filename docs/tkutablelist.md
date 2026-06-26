@@ -68,6 +68,30 @@ set w [::tkutils::tkutablelist::widget .w ?-columns {t...}? ?-stretch all? \
 index, `end`, or a full key (see Hierarchy); `cell` is `"row,col"`. They accept
 the usual `-foreground`/`-background`/`-font` options and return the target.
 
+## Footer (summary row)
+
+With `-footer 1`, `widget` adds a second single-row tablelist directly below the
+table body and above the horizontal scrollbar. The wrapper keeps both in sync
+coherently: the table's `-xscrollcommand` updates the scrollbar **and** mirrors
+the footer's horizontal position (it does not get overwritten), and the footer
+clones the table's column widths, alignment, `-hide` flags and `-titlecolumns`
+on creation and on every column resize/move. So footer totals stay aligned under
+their columns even while scrolling, and the scrollbar keeps working.
+
+```tcl
+set w [::tkutils::tkutablelist::widget .t -columns {Article Qty Price} \
+           -titlecolumns 1 -footer 1]
+
+::tkutils::tkutablelist::footerWidget $w        ;# -> $w.foot  (or "" if no footer)
+::tkutils::tkutablelist::footerSet    $w {Sum: 18 7,70}        ;# one value per column
+::tkutils::tkutablelist::footerSum    $w -columns {1 2} -label Sum: -labelcolumn 0 ?-format %.2f?
+```
+
+`footerSum` totals the given columns (German-aware via `tclutils::tunum`, like
+`tkutlfooter::autosum`) and writes each sum under its own column, with `-label`
+in `-labelcolumn`. `-format` applies Tcl `[format]` to the sum (English dot) -- for
+locale-specific currency output, compute the strings yourself and use `footerSet`.
+
 ## Hierarchy (parent / child rows)
 
 ```tcl

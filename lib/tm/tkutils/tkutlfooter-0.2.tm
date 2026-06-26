@@ -1,7 +1,9 @@
 # tkutils::tkutlfooter -- a footer row for a tablelist widget, realised as a
 # second single-row tablelist ("header at the bottom" look). Mirrors the main
-# table's column widths, order and alignment and keeps horizontal scrolling in
-# sync (via scrollutil when present, else a manual bridge). Offers auto-sums.
+# table's column widths, order, alignment, -titlecolumns and hidden columns,
+# and keeps horizontal scrolling in sync by *chaining* the main table's
+# -xscrollcommand (so a scrollbar already wired to the table keeps working).
+# Offers auto-sums.
 # Library-neutral, no references to any application.
 #
 # API:
@@ -23,7 +25,6 @@ namespace eval ::tkutils {}
 namespace eval ::tkutils::tkutlfooter {
     namespace export attach update setvals autosum detach
     variable state
-    variable gid 0
 }
 
 proc ::tkutils::tkutlfooter::_err {reason msg} {
@@ -34,7 +35,6 @@ proc ::tkutils::tkutlfooter::_err {reason msg} {
 
 proc ::tkutils::tkutlfooter::attach {tbl foot args} {
     variable state
-    variable gid
     array set opt {-autowire 1}
     array set opt $args
 
@@ -49,27 +49,15 @@ proc ::tkutils::tkutlfooter::attach {tbl foot args} {
     $foot rowconfigure 0 -selectable 0 -name footer
 
     if {$opt(-autowire)} {
-        set wired 0
-        if {![catch {package require scrollutil}]} {
-            incr gid
-            set top [winfo toplevel $tbl]
-            if {$top eq "."} {
-                set ssPath ".tkutlfooterSync$gid"
-            } else {
-                set ssPath "$top.tkutlfooterSync$gid"
-            }
-            if {![catch {set ss [scrollutil::scrollsync $ssPath]}]} {
-                set state($tbl,ss) $ss
-                $ss setwidgets [list $tbl $foot]
-                set wired 1
-            }
-        }
-        if {!$wired} {
-            set origX [$tbl cget -xscrollcommand]
-            set state($tbl,origX) $origX
-            $tbl  configure -xscrollcommand [list ::tkutils::tkutlfooter::_xsync $tbl $foot $origX]
-            $foot configure -xscrollcommand [list ::tkutils::tkutlfooter::_xsync $tbl $foot ""]
-        }
+        # Chain the main table's existing -xscrollcommand instead of replacing
+        # it, so a scrollbar already wired to the table keeps being fed; mirror
+        # the footer to the same horizontal position. (A scrollutil::scrollsync
+        # would overwrite -xscrollcommand and only feed a scrollbar via its own
+        # -xscrollcommand, breaking a pre-existing scrollbar.)
+        set origX [$tbl cget -xscrollcommand]
+        set state($tbl,origX) $origX
+        $tbl configure -xscrollcommand \
+            [list ::tkutils::tkutlfooter::_xfollow $foot $origX]
     }
 
     bind $tbl <<TablelistColumnResized>> [list ::tkutils::tkutlfooter::update $tbl $foot]
@@ -86,12 +74,8 @@ proc ::tkutils::tkutlfooter::detach {tbl foot} {
     bind $tbl <<TablelistColumnMoved>>   {}
     bind $tbl <Configure>                {}
 
-    if {[info exists state($tbl,ss)]} {
-        catch {destroy $state($tbl,ss)}
-        unset state($tbl,ss)
-    } elseif {[info exists state($tbl,origX)]} {
-        catch {$tbl  configure -xscrollcommand $state($tbl,origX)}
-        catch {$foot configure -xscrollcommand ""}
+    if {[info exists state($tbl,origX)]} {
+        catch {$tbl configure -xscrollcommand $state($tbl,origX)}
         unset state($tbl,origX)
     }
     return
@@ -112,14 +96,9 @@ proc ::tkutils::tkutlfooter::update {tbl foot} {
     if {![catch {set order [$tbl cget -columnorder]}]} {
         catch {$foot configure -columnorder $order}
     }
-    set n [$tbl columncount]
-    for {set c 0} {$c < $n} {incr c} {
-        catch {$foot columnconfigure $c -width       [$tbl columncget $c -width]}
-        catch {$foot columnconfigure $c -align       [$tbl columncget $c -align]}
-        catch {$foot columnconfigure $c -stretchable [$tbl columncget $c -stretchable]}
-    }
+    _cloneColumns $tbl $foot
     if {[$foot size] == 0} {
-        $foot insert end [lrepeat $n ""]
+        $foot insert end [lrepeat [$tbl columncount] ""]
     }
     $foot rowconfigure 0 -selectable 0 -name footer
     return
@@ -169,13 +148,20 @@ proc ::tkutils::tkutlfooter::_cloneColumns {tbl foot} {
         } else {
             $foot columnconfigure $c -width $w -title $ttl -align $al
         }
+        catch {$foot columnconfigure $c -hide [$tbl columncget $c -hide]}
     }
+    # Widget-level options so the footer's frozen zone and stretch policy match
+    # the main table -- otherwise the same scroll fraction lands at different
+    # visible positions and the fixed columns drift apart.
+    catch {$foot configure -titlecolumns [$tbl cget -titlecolumns]}
+    catch {$foot configure -stretch      [$tbl cget -stretch]}
     return
 }
 
-# Manual x-scroll bridge (fallback without scrollutil).
-proc ::tkutils::tkutlfooter::_xsync {tbl foot orig first last} {
-    catch {$tbl  xview moveto $first}
+# Horizontal-scroll bridge: mirror the footer to the main table's position, then
+# call the table's original -xscrollcommand (chaining, not replacing -- so a
+# pre-existing scrollbar keeps being fed).
+proc ::tkutils::tkutlfooter::_xfollow {foot orig first last} {
     catch {$foot xview moveto $first}
     if {$orig ne ""} {
         uplevel #0 [list {*}$orig $first $last]
@@ -295,4 +281,4 @@ proc ::tkutils::tkutlfooter::_nums {vals} {
     return $out
 }
 
-package provide tkutils::tkutlfooter 0.1
+package provide tkutils::tkutlfooter 0.2

@@ -14,3 +14,9 @@ tkutodo::toggle .t ?index?       ;# flip done state of selected / given task
 .CE
 .PP
 Toggling a task to done sets \fBSTATUS:COMPLETED\fR, \fBPERCENT\-COMPLETE:100\fR and a \fBCOMPLETED\fR timestamp; toggling back restores \fBNEEDS\-ACTION\fR, \fBPERCENT\-COMPLETE:0\fR and removes \fBCOMPLETED\fR. In editable mode, Space and double\-click also toggle. The \fB\-onchange\fR script is called as \fB{*}$cmd $path\fR after a change, so an app can persist (e.g. \fBtuical::toIcs [tkutodo::todos .t]\fR then PUT via \fBtudav\fR).
+.SS "Additional exported commands"
+.PP
+Documented for completeness (same module, also covered by the test suite):
+.CS
+tkutodo::treeWidget path                       ;# return the internal ttk::treeview widget path (for custom bindings or styling)
+.CE

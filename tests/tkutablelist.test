@@ -306,4 +306,52 @@ test tkutablelist-6.3 {expand/collapse (all and by row) do not error} -constrain
     expr 1
 } -result 1
 
+test tkutablelist-7.1 {-footer 1 creates a footer widget} -constraints tablelist -body {
+    catch {destroy .t}
+    set w [::tkutils::tkutablelist::widget .t -columns {A B C} -footer 1]
+    expr {[::tkutils::tkutablelist::footerWidget $w] eq "$w.foot" && [winfo exists $w.foot]}
+} -result 1
+
+test tkutablelist-7.2 {footerWidget empty without -footer} -constraints tablelist -body {
+    catch {destroy .t}
+    set w [::tkutils::tkutablelist::widget .t -columns {A B}]
+    ::tkutils::tkutablelist::footerWidget $w
+} -result {}
+
+test tkutablelist-7.3 {footer clones column count and titlecolumns} -constraints tablelist -body {
+    catch {destroy .t}
+    set w [::tkutils::tkutablelist::widget .t -columns {A B C D} -titlecolumns 2 -footer 1]
+    set f [::tkutils::tkutablelist::footerWidget $w]
+    list [$f columncount] [$f cget -titlecolumns]
+} -result {4 2}
+
+test tkutablelist-7.4 {footerSet sets footer cells} -constraints tablelist -body {
+    catch {destroy .t}
+    set w [::tkutils::tkutablelist::widget .t -columns {A B C} -footer 1]
+    ::tkutils::tkutablelist::footerSet $w {Sum: {} 42}
+    [::tkutils::tkutablelist::footerWidget $w] get 0
+} -result {Sum: {} 42}
+
+test tkutablelist-7.5 {footerSum totals a column, German-aware (demo parity)} -constraints tablelist -body {
+    catch {destroy .t}
+    set w [::tkutils::tkutablelist::widget .t -columns {Article Price} -footer 1]
+    ::tkutils::tkutablelist::setRows $w {{Apple 1,50} {Pear 2,00} {Cherry 4,20}}
+    ::tkutils::tkutablelist::footerSum $w -columns {1} -label Sum: -format %.2f
+    [::tkutils::tkutablelist::footerWidget $w] get 0
+} -result {Sum: 7.70}
+
+test tkutablelist-7.6 {footer clones hidden columns} -constraints tablelist -body {
+    catch {destroy .t}
+    set w [::tkutils::tkutablelist::widget .t -columns {A B C} -footer 1]
+    ::tkutils::tkutablelist::configureColumn $w 2 -hide 1
+    ::tkutils::tkutablelist::_footerSync $w
+    [::tkutils::tkutablelist::footerWidget $w] columncget 2 -hide
+} -result 1
+
+test tkutablelist-7.7 {table xscrollcommand mirrors footer (coupling wired)} -constraints tablelist -body {
+    catch {destroy .t}
+    set w [::tkutils::tkutablelist::widget .t -columns {A B} -footer 1]
+    string match *_xscroll* [[::tkutils::tkutablelist::tableWidget $w] cget -xscrollcommand]
+} -result 1
+
 cleanupTests

@@ -27,4 +27,49 @@ test tkutlstate-2.1 {restore rejects junk} -constraints {hasTk hasTbl} -body {
     catch {::tkutils::tkutlstate::restore .t {not a state}} e
     set e
 } -match glob -result {*not a tkutlstate dict*}
+test tkutlstate-3.1 {saveVia/restoreVia round-trip via injected array storage} -constraints {hasTk hasTbl} -body {
+    mkTbl
+    array set ::store {}
+    proc ::setS {key val} { set ::store($key) $val }
+    proc ::getS {key}     { return [expr {[info exists ::store($key)] ? $::store($key) : ""}] }
+    .t columnconfigure 0 -width 17; .t sortbycolumn 2 -decreasing
+    ::tkutils::tkutlstate::saveVia .t ov [list ::setS]
+    .t columnconfigure 0 -width 4; .t sortbycolumn 0 -increasing
+    set ok [::tkutils::tkutlstate::restoreVia .t ov [list ::getS]]
+    list $ok [.t columncget 0 -width] [.t sortcolumn] [.t sortorder]
+} -result {1 17 2 decreasing}
+
+test tkutlstate-3.2 {restoreVia on a missing key returns 0 and applies nothing} -constraints {hasTk hasTbl} -body {
+    mkTbl
+    proc ::getEmpty {key} { return "" }
+    ::tkutils::tkutlstate::restoreVia .t nope [list ::getEmpty]
+} -result 0
+
+test tkutlstate-3.3 {autosave registers a binding that persists (debounced)} -constraints {hasTk hasTbl} -body {
+    mkTbl
+    set ::auto ""
+    proc ::recA {key val} { set ::auto [list $key $val] }
+    ::tkutils::tkutlstate::autosave .t mykey [list ::recA] -delay 20
+    # tablelist fires <<TablelistColumnResized>> on a real resize; run the
+    # registered script directly to exercise the chain deterministically.
+    set scr [bind .t <<TablelistColumnResized>>]
+    .t columnconfigure 0 -width 23
+    uplevel #0 $scr
+    after 90 {set ::wait 1}; vwait ::wait
+    list [llength $::auto] [lindex $::auto 0] \
+         [dict get [lindex $::auto 1] ncols]
+} -result {2 mykey 3}
+
+test tkutlstate-3.4 {cancelAutosave stops further persistence} -constraints {hasTk hasTbl} -body {
+    mkTbl
+    set ::auto ""
+    proc ::recA {key val} { set ::auto [list $key $val] }
+    ::tkutils::tkutlstate::autosave .t k [list ::recA] -delay 20
+    set scr [bind .t <<TablelistColumnResized>>]
+    ::tkutils::tkutlstate::cancelAutosave .t
+    uplevel #0 $scr
+    after 90 {set ::wait2 1}; vwait ::wait2
+    set ::auto
+} -result {}
+
 cleanupTests

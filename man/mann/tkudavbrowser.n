@@ -29,3 +29,9 @@ tkudavbrowser::deleteCollection  .b ?href?           ;# selected if href omitted
 New collections are created under the discovered home set (path = home + slug\-of\-name + \fB/\fR) via \fBtudav::mkCalendar\fR / \fBmkAddressbook\fR; \fBdeleteCollection\fR uses \fBtudav::delete\fR. All three refresh the tree afterwards and are network operations (call \fBrefresh\fR once first so the home set is known, else \fB{TKUTILS TKDAVBROWSER NOHOME}\fR).
 .PP
 Pairs with \fBtkudavaccount\fR (connect) on one side and \fBtkuvcard\fR / \fBtkutodo\fR (content) on the other.
+.SS "Additional exported commands"
+.PP
+Documented for completeness (same module, also covered by the test suite):
+.CS
+tkudavbrowser::treeWidget path                 ;# return the internal ttk::treeview widget path (for custom bindings or styling)
+.CE

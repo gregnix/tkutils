@@ -47,3 +47,9 @@ tclsh bin/tkutoolbar.tcl
 tclsh examples/demo-tkutoolbar.tcl          # text buttons, display modes
 tclsh examples/demo-tkutoolbar-icons.tcl    # icons (via tkuicon) + flat vs raised
 .CE
+.SS "Additional exported commands"
+.PP
+Documented for completeness (same module, also covered by the test suite):
+.CS
+tkutoolbar::addAction path name ?id?           ;# add a toolbar button bound to a tkuaction id (enabled/checked state follows the action)
+.CE

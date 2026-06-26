@@ -52,3 +52,12 @@ Requires Tk and therefore a graphical display.
 .SS "See also"
 .PP
 \fBtclutils::tubin\fR, \fBtclutils::tuhexdump\fR, \fBtclutils::common\fR (required).
+.SS "Additional exported commands"
+.PP
+Documented for completeness (same module, also covered by the test suite):
+.CS
+tkuhexedit::findText path pattern ?start?      ;# search the buffer and select the first match
+tkuhexedit::getData path                       ;# return the current edit buffer as raw bytes
+tkuhexedit::render path ?startOffset?          ;# redraw the hex and ASCII columns from the current buffer
+tkuhexedit::setData path data                  ;# replace the edit buffer with raw bytes DATA
+.CE
