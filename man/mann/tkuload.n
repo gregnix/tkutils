@@ -1,0 +1,32 @@
+.TH tkuload n 0.1 tkutils
+.SH tkutils::tkuload
+.PP
+Build a live Tk UI from a \fB.tkd\fR design (as produced by tkudesigner) and bind values to its named widgets. Pure Tk; namespace \fB::tkuload\fR. Loads the render engine \fBtkutils::tkurender\fR on demand.
+.SS Build
+.CS
+set ui [::tkuload::build         $parent $spec]   ;# spec = a .tkd dict
+set ui [::tkuload::buildFromFile $parent $path]   ;# read the .tkd from disk
+.CE
+.PP
+Returns a dict with \fBroot\fR (the container the UI was built into), \fBbyId\fR (node id -> widget), \fBbyType\fR (type -> list of widgets) and \fBbyName\fR (handle name -> widget, for nodes that were named in the designer). \fB$parent\fR must be an existing widget.
+.SS Values
+.PP
+Address controls by their designer name:
+.CS
+::tkuload::widgetByName $ui name              ;# the control widget
+::tkuload::setValue     $ui name value        ;# -> 1 set, 0 unknown name
+::tkuload::getValue     $ui name              ;# -> value ("" if none)
+::tkuload::fill         $ui {name value ...}  ;# set many (unknown skipped)
+::tkuload::collect      $ui ?{name ...}?      ;# -> dict; default = all named
+.CE
+.PP
+\fBsetValue\fR/\fBgetValue\fR dispatch on the resolved control class \(em entry, ttk entry/combobox/spinbox, text, listbox, tablelist, checkbutton, and tkutils megawidgets (e.g. \fBtkunumentry\fR) through their inner entry \(em neutralising \fB\-state\fR/\fB\-validate\fR around the write so readonly and key\-validated fields round\-trip.
+.SS Embedding
+.PP
+A loaded UI is just widgets under \fB$parent\fR; no editor is attached, so no selection or designer bindings are installed. Host code wires its own behaviour, e.g.:
+.CS
+bind [$tbl bodypath] <Double-1> {...}
+.CE
+.SS Errors
+.PP
+Carry \fB{TKULOAD <REASON>}\fR: \fBPARENT\fR (no such parent widget), \fBNONAME\fR (\fBwidgetByName\fR on an unknown name). \fBsetValue\fR on an unknown name returns \fB0\fR rather than erroring, so \fBfill\fR tolerates partial data.

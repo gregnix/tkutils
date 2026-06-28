@@ -1,0 +1,92 @@
+# Tests for the tkutils::tkuload loader + value binding. Self-contained: specs
+# are built via the core API (no app01 .tkd files).
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+set haveTk 1
+if {[catch {package require Tk 8.6-}]} { set haveTk 0 }
+testConstraint haveTk $haveTk
+set here [file dirname [file normalize [info script]]]
+set tmDir [file normalize [file join $here .. lib tm]]
+tcl::tm::path add $tmDir
+if {[info exists ::env(TCLUTILS_TM)]} {
+    tcl::tm::path add $::env(TCLUTILS_TM)
+} else {
+    set _tkuRoot [file dirname [file dirname $tmDir]]
+    foreach _c [lsort -decreasing [glob -nocomplain [file join [file dirname $_tkuRoot] tclutils*/lib/tm]]] {
+        tcl::tm::path add $_c
+        break
+    }
+}
+# fixtures are built through the core API, so require it explicitly alongside
+if {$haveTk} {
+    package require tkutils::tkurender
+    package require tkutils::tkuload
+}
+
+variable seq 0
+proc ::host {} { variable seq; return [toplevel .h[incr seq]] }
+
+# build a small spec via the core model API and return it
+proc ::spec {} {
+    ::tkurender::newModel
+    set f [::tkurender::addNode frame $::tkurender::D(root)]
+    ::tkurender::setName [::tkurender::addNode entry $f] entName
+    set c [::tkurender::addNode combobox $f]
+    ::tkurender::setName $c cbState
+    ::tkurender::setOpt  $c values {A B C}
+    return [::tkurender::serialize]
+}
+
+test tkuload-1.1 {build returns root/byId/byName} -constraints haveTk -body {
+    set ui [::tkuload::build [host] [spec]]
+    expr {[dict size [dict get $ui byId]] >= 3
+          && [dict exists [dict get $ui byName] entName]
+          && [dict exists [dict get $ui byName] cbState]}
+} -result 1
+
+test tkuload-1.2 {entry value round-trips by name} -constraints haveTk -body {
+    set ui [::tkuload::build [host] [spec]]
+    ::tkuload::setValue $ui entName Acme
+    ::tkuload::getValue $ui entName
+} -result Acme
+
+test tkuload-1.3 {combobox value round-trips} -constraints haveTk -body {
+    set ui [::tkuload::build [host] [spec]]
+    ::tkuload::setValue $ui cbState B
+    ::tkuload::getValue $ui cbState
+} -result B
+
+test tkuload-1.4 {fill then collect a subset} -constraints haveTk -body {
+    set ui [::tkuload::build [host] [spec]]
+    ::tkuload::fill $ui {entName Foo cbState C}
+    ::tkuload::collect $ui {entName cbState}
+} -result {entName Foo cbState C}
+
+test tkuload-2.1 {loaded widgets carry no editor select binding} -constraints haveTk -body {
+    set ui [::tkuload::build [host] [spec]]
+    set leak 0
+    foreach {id w} [dict get $ui byId] {
+        if {[string match *selectFromPreview* [bind $w <Button-1>]]} { incr leak }
+    }
+    set leak
+} -result 0
+
+test tkuload-2.2 {buildFromFile reads a .tkd from disk} -constraints haveTk -body {
+    set path [makeFile [spec] design.tkd]
+    set ui [::tkuload::buildFromFile [host] $path]
+    dict exists [dict get $ui byName] entName
+} -result 1
+
+# tkutils widget round-trip -- runs where tkutils::tkunumentry is available
+testConstraint haveNumentry \
+    [expr {$haveTk && [catch {::tkurender::pkgAvail tkunumentry} _r]==0 && $_r}]
+test tkuload-3.1 {tkunumentry value is accepted} -constraints {haveTk haveNumentry} -body {
+    ::tkurender::newModel
+    ::tkurender::setName [::tkurender::addNode tkunumentry $::tkurender::D(root)] numX
+    set ui [::tkuload::build [host] [::tkurender::serialize]]
+    ::tkuload::setValue $ui numX 100
+    expr {[::tkuload::getValue $ui numX] ne ""}
+} -result 1
+
+cleanupTests

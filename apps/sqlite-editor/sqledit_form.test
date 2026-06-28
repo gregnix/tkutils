@@ -1,0 +1,135 @@
+package require tcltest
+namespace import ::tcltest::*
+
+apply {{} {
+    foreach lib {TCLUTILS TKUTILS} {
+        if {[info exists ::env(${lib}_TM)]} { tcl::tm::path add $::env(${lib}_TM) }
+    }
+    set root [file dirname [file normalize [info script]]]
+    foreach base [list $root [file dirname $root]] {
+        foreach lib {tclutils tkutils} {
+            set tm [file join $base $lib lib tm]
+            if {[file isdirectory $tm]} { tcl::tm::path add $tm }
+        }
+    }
+}}
+set ::root [file dirname [file normalize [info script]]]
+set ::argv {}
+source [file join $::root sqledit-core.tcl]
+source [file join $::root be-sqlite.tcl]
+source [file join $::root sqledit-form.tcl]
+
+package require Tk
+::sqledit::buildApp .
+update idletasks
+
+set DB [file join [tcltest::temporaryDirectory] sqledit_form_[pid].db]
+file delete -force $DB
+package require sqlite3
+sqlite3 mk $DB
+mk eval {CREATE TABLE dept(id INTEGER PRIMARY KEY, name TEXT NOT NULL)}
+mk eval {INSERT INTO dept(id,name) VALUES (1,'Eng'),(2,'Sales')}
+mk eval {CREATE TABLE emp(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    dept_id INTEGER REFERENCES dept(id),
+    active BOOLEAN,
+    bio TEXT)}
+mk eval {INSERT INTO emp(name,dept_id,active,bio) VALUES
+    ('Alice',1,1,'hi'),('Bob',2,0,'yo'),('Carol',NULL,1,NULL)}
+mk eval {CREATE TABLE nopk(x TEXT, y TEXT)}
+mk eval {CREATE TABLE link(
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,
+    name_url TEXT,
+    club_url TEXT)}
+mk eval {INSERT INTO link(id,name,name_url,club_url) VALUES
+    (1,'A','https://example.org/a','https://example.org/ca'),
+    (2,'B','','')}
+mk close
+
+proc dbval {db sql} { sqlite3 q $db; set r [q eval $sql]; q close; return $r }
+
+::sqledit::_connectTo $DB
+::sqledit::_formLoadTable emp
+update idletasks
+
+test form-fields {fields come from the columns, in order} -body {
+    ::tkutils::tkuform::fieldNames $::sqledit::F(form)
+} -result {id name dept_id active bio}
+
+test form-fk-combo {FK column becomes a lookup combobox with referenced keys} -body {
+    set w [::tkutils::tkuform::widgetOf $::sqledit::F(form) dept_id]
+    set vals [$w cget -values]
+    list [winfo class $w] [expr {1 in $vals}] [expr {2 in $vals}] [expr {"" in $vals}]
+} -result {TCombobox 1 1 1}
+
+test form-bool-check {BOOLEAN column becomes a checkbutton} -body {
+    winfo class [::tkutils::tkuform::widgetOf $::sqledit::F(form) active]
+} -result {TCheckbutton}
+
+test form-text {TEXT column becomes a multiline text widget} -body {
+    winfo class [::tkutils::tkuform::widgetOf $::sqledit::F(form) bio]
+} -result {Text}
+
+test form-update-null {clearing a nullable FK stores SQL NULL, not ''} -body {
+    ::tkutils::tkuform::set $::sqledit::F(form) dept_id ""
+    ::sqledit::_formSave
+    update idletasks
+    dbval $DB {SELECT count(*) FROM emp WHERE name='Alice' AND dept_id IS NULL}
+} -result {1}
+
+test form-notnull-block {empty NOT NULL field blocks the insert} -body {
+    set before [dbval $DB {SELECT count(*) FROM emp}]
+    ::sqledit::_formNew
+    ::tkutils::tkuform::set $::sqledit::F(form) name ""
+    ::sqledit::_formSave
+    update idletasks
+    expr {[dbval $DB {SELECT count(*) FROM emp}] == $before}
+} -result 1
+
+test form-insert-ok {valid new record inserts with the chosen FK value} -body {
+    ::sqledit::_formNew
+    ::tkutils::tkuform::set $::sqledit::F(form) name "Dave"
+    ::tkutils::tkuform::set $::sqledit::F(form) dept_id 2
+    ::sqledit::_formSave
+    update idletasks
+    dbval $DB {SELECT dept_id FROM emp WHERE name='Dave'}
+} -result {2}
+
+test form-nopk {a table without a primary key is read-only} -body {
+    ::sqledit::_formLoadTable nopk
+    update idletasks
+    list [llength $::sqledit::F(pk)] \
+         [string match "*primary key*" [[set ::sqledit::F(note)] cget -text]]
+} -result {0 1}
+
+test form-link-cols {columns whose name contains "url" get open buttons} -body {
+    ::sqledit::_formLoadTable link
+    update idletasks
+    list [lsort $::sqledit::F(linkcols)] \
+         [winfo exists [::sqledit::_linkBtn name_url]] \
+         [winfo exists [::sqledit::_linkBtn club_url]]
+} -result {{club_url name_url} 1 1}
+
+test form-link-state {open button is enabled only for a URL value} -body {
+    set ::sqledit::F(idx) 0; ::sqledit::_formShow; update idletasks
+    set on [expr {"disabled" ni [[::sqledit::_linkBtn name_url] state]}]
+    set ::sqledit::F(idx) 1; ::sqledit::_formShow; update idletasks
+    set off [expr {"disabled" in [[::sqledit::_linkBtn name_url] state]}]
+    list $on $off
+} -result {1 1}
+
+test form-link-open {clicking open passes the current row's URL to _openUrl} -body {
+    set ::sqledit::F(idx) 0; ::sqledit::_formShow; update idletasks
+    set ::opened ""
+    rename ::sqledit::_openUrl ::sqledit::_openUrl_orig
+    proc ::sqledit::_openUrl {url} { set ::opened $url }
+    ::sqledit::_formOpenLink club_url
+    rename ::sqledit::_openUrl {}
+    rename ::sqledit::_openUrl_orig ::sqledit::_openUrl
+    set ::opened
+} -result {https://example.org/ca}
+
+file delete -force $DB
+cleanupTests

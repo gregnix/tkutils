@@ -1,0 +1,189 @@
+package require tcltest
+namespace import ::tcltest::*
+
+apply {{} {
+    foreach lib {TCLUTILS TKUTILS} {
+        if {[info exists ::env(${lib}_TM)]} { tcl::tm::path add $::env(${lib}_TM) }
+    }
+    set root [file dirname [file normalize [info script]]]
+    foreach base [list $root [file dirname $root]] {
+        foreach lib {tclutils tkutils} {
+            set tm [file join $base $lib lib tm]
+            if {[file isdirectory $tm]} { tcl::tm::path add $tm }
+        }
+    }
+}}
+set ::root [file dirname [file normalize [info script]]]
+set ::argv {}
+source [file join $::root sqledit-core.tcl]
+source [file join $::root be-sqlite.tcl]
+
+package require Tk
+::sqledit::buildApp .
+update idletasks
+
+# Populate the result grid from a known result set.
+set ::cols {id name age}
+set ::rows {{3 charlie 30} {1 alice 25} {2 bob 41}}
+::sqledit::_showResult $::cols $::rows
+update idletasks
+
+set ::W $::sqledit::S(w)
+set ::tbl [::tkutils::tkutablelist::tableWidget $::W]
+
+test result-show-1 {grid holds all rows after _showResult} -body {
+    ::tkutils::tkutablelist::size $::W
+} -result 3
+
+test result-sortmode-1 {numeric columns get a numeric sort mode, text stays dictionary} -body {
+    list [$::tbl columncget 0 -sortmode] \
+         [$::tbl columncget 1 -sortmode] \
+         [$::tbl columncget 2 -sortmode]
+} -result {real dictionary real}
+
+test result-sort-1 {sorting by the text column orders rows alphabetically} -body {
+    ::tkutils::tkutablelist::sortBy $::W 1 -increasing
+    update idletasks
+    set names {}
+    foreach r [::tkutils::tkutablelist::rows $::W] { lappend names [lindex $r 1] }
+    set names
+} -result {alice bob charlie}
+
+test result-sort-2 {numeric sort is by value, not lexical} -body {
+    ::tkutils::tkutablelist::sortBy $::W 2 -increasing
+    update idletasks
+    set ages {}
+    foreach r [::tkutils::tkutablelist::rows $::W] { lappend ages [lindex $r 2] }
+    set ages
+} -result {25 30 41}
+
+test result-filter-1 {live filter keeps only matching rows} -body {
+    ::sqledit::_resultFilter ali ""
+    update idletasks
+    ::tkutils::tkutablelist::size $::W
+} -result 1
+
+test result-filter-2 {filter matches any cell, case-insensitive} -body {
+    ::sqledit::_resultFilter BOB ""
+    update idletasks
+    set r [::tkutils::tkutablelist::getRow $::W 0]
+    lindex $r 1
+} -result bob
+
+test result-filter-3 {empty filter restores the full result} -body {
+    ::sqledit::_resultFilter "" ""
+    update idletasks
+    ::tkutils::tkutablelist::size $::W
+} -result 3
+
+test result-colfilter-setup {dropdown lists "All columns" plus the result columns} -body {
+    ::tkutils::tkusearchbar::setFilters $::sqledit::S(search) [linsert $::cols 0 "All columns"]
+    [set ::sqledit::S(search)].filter cget -values
+} -result {{All columns} id name age}
+
+test result-colfilter-all {"All columns" matches "1" in id and in age} -body {
+    ::sqledit::_resultFilter 1 "All columns"
+    update idletasks
+    ::tkutils::tkutablelist::size $::W
+} -result 2
+
+test result-colfilter-one {scoped to id, "1" matches only the id=1 row} -body {
+    ::sqledit::_resultFilter 1 id
+    update idletasks
+    set r [::tkutils::tkutablelist::getRow $::W 0]
+    list [::tkutils::tkutablelist::size $::W] [lindex $r 1]
+} -result {1 alice}
+
+test result-andterms-1 {two space-separated terms must both match (AND)} -body {
+    ::sqledit::_resultFilter "a 25" "All columns"
+    update idletasks
+    set r [::tkutils::tkutablelist::getRow $::W 0]
+    list [::tkutils::tkutablelist::size $::W] [lindex $r 1]
+} -result {1 alice}
+
+test result-andterms-2 {AND terms with no common row yield nothing} -body {
+    ::sqledit::_resultFilter "alice bob" "All columns"
+    update idletasks
+    ::tkutils::tkutablelist::size $::W
+} -result 0
+
+test result-colbar-1 {per-column filter bar filters its own column} -body {
+    ::sqledit::_showResult $::cols $::rows
+    ::sqledit::_resultColFilter {name al}
+    update idletasks
+    set r [::tkutils::tkutablelist::getRow $::W 0]
+    list [::tkutils::tkutablelist::size $::W] [lindex $r 1]
+} -result {1 alice}
+
+test result-colbar-combined {search text and per-column filter are ANDed} -body {
+    ::sqledit::_showResult $::cols $::rows
+    ::sqledit::_resultFilter 25 "All columns"
+    ::sqledit::_resultColFilter {name a}
+    update idletasks
+    set r [::tkutils::tkutablelist::getRow $::W 0]
+    list [::tkutils::tkutablelist::size $::W] [lindex $r 1]
+} -result {1 alice}
+
+test result-colbar-clear {empty column dict with empty search shows all} -body {
+    ::sqledit::_showResult $::cols $::rows
+    ::sqledit::_resultColFilter {}
+    update idletasks
+    ::tkutils::tkutablelist::size $::W
+} -result 3
+
+test result-clear-1 {clearing empties the grid and the stored result} -body {
+    ::sqledit::_clearResult
+    update idletasks
+    list [::tkutils::tkutablelist::size $::W] [llength $::sqledit::S(resrows)]
+} -result {0 0}
+
+# --- pagination ---------------------------------------------------------------
+set ::pcols {id}
+set ::prows {}
+for {set i 1} {$i <= 25} {incr i} { lappend ::prows [list $i] }
+
+test page-size-1 {a finite page size shows only one page} -body {
+    set ::sqledit::S(pagesize) 10; set ::sqledit::S(pagesizeText) 10
+    ::sqledit::_showResult $::pcols $::prows
+    update idletasks
+    ::tkutils::tkutablelist::size $::W
+} -result 10
+
+test page-next-1 {Next advances to the following page} -body {
+    ::sqledit::cmdPageNext
+    update idletasks
+    list [::tkutils::tkutablelist::size $::W] [lindex [::tkutils::tkutablelist::getRow $::W 0] 0]
+} -result {10 11}
+
+test page-last-1 {Last shows the remainder} -body {
+    ::sqledit::cmdPageLast
+    update idletasks
+    list [::tkutils::tkutablelist::size $::W] [lindex [::tkutils::tkutablelist::getRow $::W 0] 0]
+} -result {5 21}
+
+test page-sort-across-1 {header sort orders the whole set, not just the page} -body {
+    set ::sqledit::S(pagesize) 10; set ::sqledit::S(pagesizeText) 10
+    ::sqledit::_showResult $::pcols $::prows
+    set tbl [::tkutils::tkutablelist::tableWidget $::W]
+    ::sqledit::_resultSortClick $tbl 0
+    ::sqledit::_resultSortClick $tbl 0
+    update idletasks
+    lindex [::tkutils::tkutablelist::getRow $::W 0] 0
+} -result 25
+
+test page-all-1 {page size All shows everything on one page} -body {
+    set ::sqledit::S(pagesize) 0; set ::sqledit::S(pagesizeText) All
+    ::sqledit::_showResult $::pcols $::prows
+    update idletasks
+    ::tkutils::tkutablelist::size $::W
+} -result 25
+
+test page-filter-1 {filtering then paging counts the filtered set} -body {
+    set ::sqledit::S(pagesize) 10; set ::sqledit::S(pagesizeText) 10
+    ::sqledit::_showResult $::pcols $::prows
+    ::sqledit::_resultFilter 2 "All columns"
+    update idletasks
+    ::tkutils::tkutablelist::size $::W
+} -result 8
+
+cleanupTests

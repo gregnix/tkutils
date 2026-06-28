@@ -1,0 +1,193 @@
+package require tcltest
+namespace import ::tcltest::*
+
+set ::argv {}
+apply {{} {
+    foreach lib {TCLUTILS TKUTILS} {
+        if {[info exists ::env(${lib}_TM)]} { tcl::tm::path add $::env(${lib}_TM) }
+    }
+    set root [file dirname [file normalize [info script]]]
+    foreach base [list $root [file dirname $root]] {
+        foreach lib {tclutils tkutils} {
+            set tm [file join $base $lib lib tm]
+            if {[file isdirectory $tm]} { tcl::tm::path add $tm }
+        }
+    }
+}}
+set ::root [file dirname [file normalize [info script]]]
+source [file join $::root sqledit-core.tcl]
+source [file join $::root be-sqlite.tcl]
+
+set DB [file join [tcltest::temporaryDirectory] sqledit_[pid].db]
+file delete -force $DB
+
+test open-1 {open creates and reports a db} -body {
+    ::sqledit::_open $DB; ::sqledit::_isOpen
+} -result 1
+test ddl-1 {create table + insert reports change count} -body {
+    ::sqledit::_run {CREATE TABLE t (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL)}
+    dict get [::sqledit::_run {INSERT INTO t (name) VALUES ('alice'),('bob')}] changes
+} -result 2
+test ddl-2 {create a view, index and trigger} -body {
+    ::sqledit::_run {CREATE VIEW v AS SELECT name FROM t}
+    ::sqledit::_run {CREATE INDEX idx_name ON t(name)}
+    ::sqledit::_run {CREATE TRIGGER trg AFTER INSERT ON t BEGIN SELECT 1; END}
+    list [::sqledit::_objects table] [::sqledit::_objects view] \
+         [::sqledit::_objects index] [::sqledit::_objects trigger]
+} -result {t v idx_name trg}
+test seq-1 {AUTOINCREMENT populates sequences} -body {
+    expr {"t" in [::sqledit::_objects sequence]}
+} -result 1
+test select-1 {select returns columns and rows} -body {
+    set r [::sqledit::_run {SELECT id,name FROM t ORDER BY id}]
+    list [dict get $r columns] [dict get $r rows]
+} -result {{id name} {{1 alice} {2 bob}}}
+test select-2 {empty result set still reports its columns} -body {
+    set r [::sqledit::_run {SELECT id,name FROM t WHERE 1=0}]
+    list [dict get $r columns] [dict get $r rows]
+} -result {{id name} {}}
+test select-3 {DML reports no columns} -body {
+    dict get [::sqledit::_run {UPDATE t SET name=name WHERE 1=0}] columns
+} -result {}
+test columns-1 {column metadata: pk + notnull} -body {
+    set cols [::sqledit::_columns t]
+    list [dict get [lindex $cols 0] name] [dict get [lindex $cols 0] pk] \
+         [dict get [lindex $cols 1] notnull]
+} -result {id 1 1}
+test schemaof-1 {schemaOf returns the CREATE text} -body {
+    string match "CREATE TABLE t *" [::sqledit::_schemaOf t]
+} -result 1
+test info-1 {db info counts} -body {
+    set d [::sqledit::_info]
+    list [dict get $d count_table] [dict get $d count_view] \
+         [dict get $d count_index] [dict get $d count_trigger]
+} -result {1 1 1 1}
+test schemadump-1 {schema dump contains all CREATE statements} -body {
+    set s [::sqledit::_schemaDump]
+    list [string match "*CREATE TABLE t *" $s] [string match "*CREATE VIEW v*" $s] \
+         [string match "*CREATE INDEX idx_name*" $s] [string match "*CREATE TRIGGER trg*" $s]
+} -result {1 1 1 1}
+test history-1 {history records statements} -body {
+    set ::sqledit::HISTORY {}
+    ::sqledit::_historyAdd {SELECT 1} "1 rows"
+    ::sqledit::_historyAdd {DELETE FROM t} "0 changed"
+    list [llength [::sqledit::_history]] \
+         [dict get [lindex [::sqledit::_history] 1] status]
+} -result {2 {0 changed}}
+test export-csv-1 {csv export writes header + rows} -body {
+    set r [::sqledit::_run {SELECT id,name FROM t ORDER BY id}]
+    set f [file join [tcltest::temporaryDirectory] out_[pid].csv]
+    ::sqledit::_exportCsv $f [dict get $r columns] [dict get $r rows]
+    set fh [open $f r]; set data [read $fh]; close $fh; file delete $f
+    string map {\r {}} [string trim $data]
+} -result "id,name\n1,alice\n2,bob"
+test export-text-1 {text export contains the column names} -body {
+    set r [::sqledit::_run {SELECT id,name FROM t ORDER BY id}]
+    set f [file join [tcltest::temporaryDirectory] out_[pid].txt]
+    ::sqledit::_exportText $f [dict get $r columns] [dict get $r rows]
+    set fh [open $f r]; set data [read $fh]; close $fh; file delete $f
+    list [string match "*id*" $data] [string match "*alice*" $data]
+} -result {1 1}
+test export-json-1 {json export is valid; numbers stay numbers, names are strings} -body {
+    package require tclutils::tujson
+    set r [::sqledit::_run {SELECT id,name FROM t ORDER BY id}]
+    set f [file join [tcltest::temporaryDirectory] out_[pid].json]
+    ::sqledit::_exportJson $f [dict get $r columns] [dict get $r rows]
+    set fh [open $f r]; set data [read $fh]; close $fh; file delete $f
+    list [::tclutils::tujson::validate $data] \
+         [string match {*"id": 1*} $data] \
+         [string match {*"name": "alice"*} $data]
+} -result {1 1 1}
+test export-schema-1 {schema export writes a runnable script} -body {
+    set f [file join [tcltest::temporaryDirectory] out_[pid].sql]
+    ::sqledit::_exportSchema $f
+    set fh [open $f r]; set data [read $fh]; close $fh; file delete $f
+    string match "*CREATE TABLE t *" $data
+} -result 1
+proc writeCsv {name lines} {
+    set f [file join [tcltest::temporaryDirectory] $name]
+    set fh [open $f w]
+    foreach l $lines { puts $fh $l }
+    close $fh
+    return $f
+}
+test import-new-1 {import creates a new table from the header and inserts rows} -body {
+    set f [writeCsv imp_new_[pid].csv {city,pop Berlin,3600000 Paris,2100000}]
+    set n [::sqledit::_importCsv $f cities]
+    file delete $f
+    set r [::sqledit::_run {SELECT city,pop FROM cities ORDER BY pop DESC}]
+    list $n [dict get $r columns] [dict get $r rows]
+} -result {2 {city pop} {{Berlin 3600000} {Paris 2100000}}}
+
+test import-append-1 {import appends into an existing table (subset of columns)} -body {
+    set before [lindex [dict get [::sqledit::_run {SELECT count(*) FROM t}] rows] 0]
+    set f [writeCsv imp_app_[pid].csv {id,name 10,carol 11,dave}]
+    set n [::sqledit::_importCsv $f t]
+    file delete $f
+    set after [lindex [dict get [::sqledit::_run {SELECT count(*) FROM t}] rows] 0]
+    list $n [expr {$after - $before}]
+} -result {2 2}
+
+test import-noheader-1 {with -header 0 columns are named c1..cN and every row is data} -body {
+    set f [writeCsv imp_nh_[pid].csv {x,y a,b}]
+    set n [::sqledit::_importCsv $f imp0 -header 0]
+    file delete $f
+    set r [::sqledit::_run {SELECT c1,c2 FROM imp0}]
+    list $n [dict get $r columns] [dict get $r rows]
+} -result {2 {c1 c2} {{x y} {a b}}}
+
+test import-badcol-1 {appending a CSV column the table lacks fails with a clear errorcode} -body {
+    set f [writeCsv imp_bad_[pid].csv {id,nope 1,x}]
+    catch {::sqledit::_importCsv $f t} e o
+    file delete $f
+    dict get $o -errorcode
+} -result {SQLEDIT BADCOL}
+
+test import-empty-1 {an empty CSV is rejected} -body {
+    set f [writeCsv imp_empty_[pid].csv {}]
+    catch {::sqledit::_importCsv $f whatever} e o
+    file delete $f
+    dict get $o -errorcode
+} -result {SQLEDIT EMPTY}
+
+test queries-roundtrip-1 {saved queries round-trip through JSON; multi-line preserved} -body {
+    set p [file join [tcltest::temporaryDirectory] q_[pid].json]
+    set q [dict create top10 "SELECT * FROM t LIMIT 10" multi "SELECT a,\nb FROM t"]
+    ::sqledit::_saveQueries $p $q
+    set back [::sqledit::_loadQueries $p]
+    file delete $p
+    expr {[dict size $back] == 2
+       && [dict get $back top10] eq [dict get $q top10]
+       && [dict get $back multi] eq [dict get $q multi]}
+} -result 1
+test queries-missing-1 {loading a missing store yields an empty dict} -body {
+    ::sqledit::_loadQueries [file join [tcltest::temporaryDirectory] nope_[pid].json]
+} -result {}
+test queries-update-1 {re-saving updates and adds entries} -body {
+    set p [file join [tcltest::temporaryDirectory] q2_[pid].json]
+    ::sqledit::_saveQueries $p [dict create a "SELECT 1"]
+    ::sqledit::_saveQueries $p [dict create a "SELECT 2" b "SELECT 3"]
+    set back [::sqledit::_loadQueries $p]
+    file delete $p
+    list [dict get $back a] [dict get $back b]
+} -result {{SELECT 2} {SELECT 3}}
+
+test cap-1 {a row cap limits fetched rows and sets capped} -body {
+    ::sqledit::_run {CREATE TEMP TABLE big(n)}
+    for {set i 1} {$i <= 10} {incr i} { ::sqledit::_run "INSERT INTO big VALUES($i)" }
+    set r [::sqledit::_run {SELECT n FROM big ORDER BY n} 3]
+    list [llength [dict get $r rows]] [dict get $r capped]
+} -result {3 1}
+test cap-2 {no cap (0) fetches everything; capped is 0} -body {
+    set r [::sqledit::_run {SELECT n FROM big ORDER BY n}]
+    list [llength [dict get $r rows]] [dict get $r capped]
+} -result {10 0}
+
+test nodb-1 {run without an open db has a clear errorcode} -body {
+    ::sqledit::_close
+    catch {::sqledit::_run {SELECT 1}} e o
+    dict get $o -errorcode
+} -result {SQLEDIT NODB}
+
+file delete -force $DB
+cleanupTests

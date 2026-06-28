@@ -1,0 +1,188 @@
+# Headless smoke + data-operation tests for the CSV editor.
+# Requires Tk and the Tablelist megawidget (constraint "tablelist"); skips
+# cleanly otherwise. Run under Xvfb, e.g.:
+#   export TCLUTILS_TM=.../tclutils-0.35.0/lib/tm
+#   export TKUTILS_TM=.../tkutils-0.26.0/lib/tm
+#   xvfb-run -a tclsh csv-editor/tests/csv_editor.test
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+
+set here [file dirname [file normalize [info script]]]
+# Sourcing the app sets up the tcl::tm paths (honours *_TM env + siblings).
+source [file join $here .. csv_editor.tcl]
+
+set haveTk [expr {![catch {package require Tk 8.6-}]}]
+set haveTl [expr {$haveTk && ![catch {package require Tablelist}]}]
+testConstraint tablelist $haveTl
+if {$haveTl} { ::csvedit::buildApp . }
+
+proc writeFile {path text} {
+    set ch [open $path w]; fconfigure $ch -encoding utf-8 -translation lf
+    puts -nonewline $ch $text; close $ch
+}
+
+test csv-1.1 {load/save round-trip with semicolon delimiter + header} -constraints tablelist -body {
+    ::csvedit::_newDoc
+    set ::csvedit::S(delimName) Semicolon
+    set ::csvedit::S(header) 1
+    set ::csvedit::S(enc) utf-8
+    set dir [makeDirectory csvt]
+    set f1 [file join $dir in.csv]
+    writeFile $f1 "Name;Age\nAlice;30\nBob;25\n"
+    ::csvedit::_loadFile $f1
+    set cols1 [::tkutils::tkutablelist::columns $::csvedit::S(w)]
+    set rows1 [::tkutils::tkutablelist::rows $::csvedit::S(w)]
+    set f2 [file join $dir out.csv]
+    ::csvedit::_saveFile $f2
+    ::csvedit::_loadFile $f2
+    list $cols1 $rows1 \
+        [::tkutils::tkutablelist::columns $::csvedit::S(w)] \
+        [::tkutils::tkutablelist::rows $::csvedit::S(w)]
+} -result {{Name Age} {{Alice 30} {Bob 25}} {Name Age} {{Alice 30} {Bob 25}}}
+
+test csv-1.2 {load without header synthesises column names} -constraints tablelist -body {
+    ::csvedit::_newDoc
+    set ::csvedit::S(delimName) Comma
+    set ::csvedit::S(header) 0
+    set dir [makeDirectory csvt2]
+    set f [file join $dir nohdr.csv]
+    writeFile $f "a,b,c\nd,e,f\n"
+    ::csvedit::_loadFile $f
+    list [::tkutils::tkutablelist::columns $::csvedit::S(w)] \
+         [::tkutils::tkutablelist::size $::csvedit::S(w)]
+} -result {{Column1 Column2 Column3} 2}
+
+test csv-1.3 {encoding round-trip preserves non-ASCII} -constraints tablelist -body {
+    ::csvedit::_newDoc
+    set ::csvedit::S(delimName) Comma
+    set ::csvedit::S(header) 1
+    set ::csvedit::S(enc) utf-8
+    set dir [makeDirectory csvt3]
+    set f [file join $dir u.csv]
+    writeFile $f "City,Note\nM\u00fcnchen,Gr\u00fc\u00dfe\n"
+    ::csvedit::_loadFile $f
+    set f2 [file join $dir u2.csv]
+    ::csvedit::_saveFile $f2
+    ::csvedit::_loadFile $f2
+    lindex [::tkutils::tkutablelist::rows $::csvedit::S(w)] 0
+} -result [list M\u00fcnchen Gr\u00fc\u00dfe]
+
+test csv-1.4 {addColumn pads existing rows} -constraints tablelist -body {
+    ::csvedit::_newDoc
+    ::tkutils::tkutablelist::setColumns $::csvedit::S(w) {A B}
+    ::tkutils::tkutablelist::setRows $::csvedit::S(w) {{1 2} {3 4}}
+    ::csvedit::_addColumn C
+    list [::tkutils::tkutablelist::columns $::csvedit::S(w)] \
+         [llength [::tkutils::tkutablelist::getRow $::csvedit::S(w) 0]]
+} -result {{A B C} 3}
+
+test csv-1.5 {renameColumn / deleteColumn} -constraints tablelist -body {
+    ::csvedit::_newDoc
+    ::tkutils::tkutablelist::setColumns $::csvedit::S(w) {A B C}
+    ::tkutils::tkutablelist::setRows $::csvedit::S(w) {{1 2 3}}
+    ::csvedit::_renameColumn 0 X
+    ::csvedit::_deleteColumn 2
+    list [::tkutils::tkutablelist::columns $::csvedit::S(w)] \
+         [::tkutils::tkutablelist::getRow $::csvedit::S(w) 0]
+} -result {{X B} {1 2}}
+
+test csv-1.6 {deleteColumn out-of-range index is a no-op} -constraints tablelist -body {
+    ::csvedit::_newDoc
+    ::tkutils::tkutablelist::setColumns $::csvedit::S(w) {A B}
+    ::csvedit::_deleteColumn 9
+    ::tkutils::tkutablelist::columns $::csvedit::S(w)
+} -result {A B}
+
+test csv-1.7 {addRow / deleteRows} -constraints tablelist -body {
+    ::csvedit::_newDoc
+    ::tkutils::tkutablelist::setColumns $::csvedit::S(w) {A B}
+    ::csvedit::_addRow
+    ::csvedit::_addRow
+    set n1 [::tkutils::tkutablelist::size $::csvedit::S(w)]
+    ::csvedit::_deleteRows {0 5}
+    list $n1 [::tkutils::tkutablelist::size $::csvedit::S(w)]
+} -result {2 1}
+
+test csv-1.8 {space delimiter splits at first space; comments skipped} -constraints tablelist -body {
+    ::csvedit::_newDoc
+    set ::csvedit::S(delimName) Space
+    set ::csvedit::S(header) 0
+    set ::csvedit::S(skipcomment) 1
+    set ::csvedit::S(enc) utf-8
+    set dir [makeDirectory csvsp]
+    set f [file join $dir h.csv]
+    writeFile $f "# comment line\n01/01/2026 Neujahr\n01/06/2026 Heilige Drei Koenige (BW)\n"
+    ::csvedit::_loadFile $f
+    set cols [::tkutils::tkutablelist::columns $::csvedit::S(w)]
+    set n [::tkutils::tkutablelist::size $::csvedit::S(w)]
+    set r1 [::tkutils::tkutablelist::getRow $::csvedit::S(w) 1]
+    list $cols $n $r1
+} -result {{Column1 Column2} 2 {01/06/2026 {Heilige Drei Koenige (BW)}}}
+
+test csv-1.9 {space mode save/load round-trip} -constraints tablelist -body {
+    ::csvedit::_newDoc
+    set ::csvedit::S(delimName) Space
+    set ::csvedit::S(header) 0
+    set ::csvedit::S(skipcomment) 1
+    ::tkutils::tkutablelist::setColumns $::csvedit::S(w) {Column1 Column2}
+    ::tkutils::tkutablelist::setRows $::csvedit::S(w) {{01/01/2026 Neujahr} {05/01/2026 {Tag der Arbeit}}}
+    set dir [makeDirectory csvsp2]
+    set f [file join $dir out.csv]
+    ::csvedit::_saveFile $f
+    ::csvedit::_loadFile $f
+    ::tkutils::tkutablelist::rows $::csvedit::S(w)
+} -result {{01/01/2026 Neujahr} {05/01/2026 {Tag der Arbeit}}}
+
+test csv-2.1 {UTF-8 BOM is stripped on load} -constraints tablelist -body {
+    ::csvedit::_newDoc
+    set ::csvedit::S(delimName) Comma
+    set ::csvedit::S(header) 1
+    set ::csvedit::S(skipcomment) 1
+    set dir [makeDirectory csvbom]
+    set f [file join $dir bom.csv]
+    set ch [open $f w]; fconfigure $ch -encoding utf-8 -translation lf
+    puts -nonewline $ch "\uFEFFid,name\n1,Alice\n"; close $ch
+    ::csvedit::_loadFile $f
+    ::tkutils::tkutablelist::columns $::csvedit::S(w)
+} -result {id name}
+
+test csv-2.2 {malformed quotes load (lenient) instead of failing} -constraints tablelist -body {
+    ::csvedit::_newDoc
+    set ::csvedit::S(delimName) Comma
+    set ::csvedit::S(header) 1
+    set dir [makeDirectory csvbad]
+    set f [file join $dir bad.csv]
+    writeFile $f "id,note\n1,\"open quote with no close\n2,ok\n"
+    set rc [catch {::csvedit::_loadFile $f}]
+    list $rc [expr {[::tkutils::tkutablelist::size $::csvedit::S(w)] >= 1}]
+} -result {0 1}
+
+test csv-2.3 {embedded newline stays one row} -constraints tablelist -body {
+    ::csvedit::_newDoc
+    set ::csvedit::S(delimName) Comma
+    set ::csvedit::S(header) 1
+    set dir [makeDirectory csvnl]
+    set f [file join $dir nl.csv]
+    writeFile $f "id,notes\n1,\"Line one\nLine two\"\n"
+    ::csvedit::_loadFile $f
+    ::tkutils::tkutablelist::size $::csvedit::S(w)
+} -result 1
+
+test csv-3.1 {ragged semicolon rows (DATEV-style) keep all data, widen columns} -constraints tablelist -body {
+    ::csvedit::_newDoc
+    set ::csvedit::S(delimName) Semicolon
+    set ::csvedit::S(header) 1
+    set ::csvedit::S(enc) utf-8
+    set ::csvedit::S(skipcomment) 1
+    set dir [makeDirectory csvdatev]
+    set f [file join $dir d.csv]
+    # header has 2 columns; data rows have 4 (extra trailing fields incl. a flag)
+    writeFile $f "Konto;Name\n10000;ACME GmbH;;1\n10001;TechCorp;;0\n"
+    ::csvedit::_loadFile $f
+    list [llength [::tkutils::tkutablelist::columns $::csvedit::S(w)]] \
+         [::tkutils::tkutablelist::size $::csvedit::S(w)] \
+         [::tkutils::tkutablelist::getRow $::csvedit::S(w) 0]
+} -result {4 2 {10000 {ACME GmbH} {} 1}}
+
+cleanupTests

@@ -1,0 +1,86 @@
+# Headless tests for the search/replace core logic (no Tk required).
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+
+set here [file dirname [file normalize [info script]]]
+set tool [file normalize [file join $here .. search_replace_tool.tcl]]
+# sourcing does not build the GUI (guarded), only defines ::srtool procs
+set argv0_save $argv0
+source $tool
+
+# build a fixture tree
+set root [makeDirectory srt]
+makeDirectory sub  $root
+makeDirectory .git $root
+makeDirectory __pycache__ $root
+proc put {path text} { set c [open $path w]; fconfigure $c -translation lf; puts -nonewline $c $text; close $c }
+put [file join $root a.tcl] "set x 42\nset y 7\n# TODO fix\n"
+put [file join $root b.txt] "hello world\nHELLO again\n"
+put [file join $root c.md]  "# title\nsome text\n"
+put [file join $root sub d.tcl] "proc foo\n  set x 42\nreturn\n"
+put [file join $root .git g.tcl] "should be skipped\n"
+put [file join $root __pycache__ p.tcl] "skip me\n"
+put [file join $root star.txt] "a*b literal\n"
+
+set CI   {case 0 regex 0 recursive 1 multiline 0 encoding utf-8}
+set CS   {case 1 regex 0 recursive 1 multiline 0 encoding utf-8}
+set RE   {case 0 regex 1 recursive 1 multiline 0 encoding utf-8}
+set ML   {case 0 regex 0 recursive 1 multiline 1 encoding utf-8}
+
+test sr-1 {recursive single-line text search, pattern filter} -body {
+    ::srtool::countHits [::srtool::searchDir $root {*.tcl} "set x" $CI]
+} -result 2
+
+test sr-2 {case-sensitive} -body {
+    ::srtool::countHits [::srtool::searchDir $root {*.txt} "HELLO" $CS]
+} -result 1
+test sr-3 {case-insensitive} -body {
+    ::srtool::countHits [::srtool::searchDir $root {*.txt} "hello" $CI]
+} -result 2
+
+test sr-4 {regex} -body {
+    ::srtool::countHits [::srtool::searchDir $root {*.tcl} {set\s+\w+} $RE]
+} -result 3
+
+test sr-5 {pattern excludes non-matching extensions} -body {
+    ::srtool::countHits [::srtool::searchDir $root {*.tcl} "title" $CI]
+} -result 0
+
+test sr-6 {hidden + __pycache__ dirs skipped} -body {
+    ::srtool::countHits [::srtool::searchDir $root {*.tcl} "skip" $CI]
+} -result 0
+
+test sr-7 {multiline match spanning lines reports a range} -body {
+    set r [::srtool::searchDir $root {*.tcl} "foo\n  set x" $ML]
+    dict get [lindex [lindex $r 0] 1 0] line
+} -result 1-2
+
+test sr-8 {replace text counts and writes} -body {
+    set f [file join [makeDirectory w] a.tcl]
+    put $f "set x 42\n"
+    set c [::srtool::replaceInFile $f "42" "99" $CI]
+    list $c [string trim [::srtool::readFileEnc $f utf-8]]
+} -result {1 {set x 99}}
+
+test sr-9 {replace regex counts all} -body {
+    set f [file join [makeDirectory w2] a.tcl]
+    put $f "set x 42\nset y 7\n"
+    ::srtool::replaceInFile $f {\d+} "N" $RE
+} -result 2
+
+test sr-10 {non-regex replace treats metacharacters literally} -body {
+    set f [file join [makeDirectory w3] s.txt]
+    put $f "a*b\n"
+    set c [::srtool::replaceInFile $f "a*b" "X" $CI]
+    list $c [string trim [::srtool::readFileEnc $f utf-8]]
+} -result {1 X}
+
+test sr-11 {encoding fallback: invalid utf-8 does not throw} -body {
+    set f [file join [makeDirectory w4] bad.txt]
+    set ch [open $f wb]; fconfigure $ch -encoding iso8859-1 -translation binary
+    puts -nonewline $ch "\xff\xfe latin\n"; close $ch
+    expr {[catch {::srtool::readFileEnc $f utf-8} d] == 0 && [string length $d] > 0}
+} -result 1
+
+cleanupTests

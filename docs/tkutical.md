@@ -1,50 +1,38 @@
-# tkutils::tkutical
+# tkutils::tkutical  (optional widget)
 
-Calendar **widget** backed by the **tical** engine. Renders a month or week view on
-a canvas with optional week numbers and holidays and none|single|multiple day
-selection. Optional widget (requires tical; not in the tkutils umbrella).
+Month calendar widget that wraps the **tical** library. OPTIONAL: not in the
+tkutils umbrella; require it directly once `tical` is on the module path
+(`tical::view::month` + `tical::render::canvas`).
 
 ## API
-```tcl
-package require tkutils::tkutical
+    set w [::tkutils::tkutical::widget .w ?-year Y? ?-month M? \
+            ?-weeknumbers 0|1? ?-fontsize N? ?-holidays REGION? \
+            ?-selectmode none|single|multiple? ?-command CMD?]
+    ::tkutils::tkutical::setMonth   $w year month     ;# -> {y m}; throws on bad month
+    ::tkutils::tkutical::getMonth   $w                ;# -> {y m}
+    ::tkutils::tkutical::next       $w
+    ::tkutils::tkutical::prev       $w
+    ::tkutils::tkutical::today      $w
+    ::tkutils::tkutical::refresh    $w
+    ::tkutils::tkutical::selectMode $w none|single|multiple
+    ::tkutils::tkutical::getSelection   $w            ;# -> sorted ISO dates
+    ::tkutils::tkutical::setSelection   $w {dates / A..B ranges}
+    ::tkutils::tkutical::clearSelection $w
+    ::tkutils::tkutical::canvasWidget   $w            ;# underlying canvas
 
-set w [::tkutils::tkutical::widget .w \
-    ?-view month|week? ?-date YYYY-MM-DD? ?-year Y -month M? \
-    ?-weeknumbers 0|1? ?-fontsize N? ?-holidays list? \
-    ?-selectmode none|single|multiple? ?-command cmd?]
+`-command CMD` is called as `CMD $w $selection` on selection changes (selection
+modes only). Default `-selectmode single`. Errorcodes: `{TKUTILS TKUTICAL MONTH}`,
+`{TKUTILS TKUTICAL SELECTMODE}`.
 
-::tkutils::tkutical::setView  $w month|week    ;# getView
-::tkutils::tkutical::setDate  $w YYYY-MM-DD     ;# getDate  (reference date)
-::tkutils::tkutical::setMonth $w year month     ;# getMonth -> {year month}
-::tkutils::tkutical::next  $w                    ;# prev / today (step by the view's unit)
-::tkutils::tkutical::selectMode    $w mode
-::tkutils::tkutical::getSelection  $w            ;# setSelection / clearSelection
-::tkutils::tkutical::refresh       $w
-::tkutils::tkutical::canvasWidget  $w            ;# the underlying canvas
-```
-`-command cmd` is called with the selection list on selection change.
+## Install / run
+- Drop `lib/tm/tkutils/tkutical-0.1.tm` into the tkutils tree (do NOT add it to
+  the umbrella -- it is optional, like tkutablelist/tkusqlite).
+- Add the optional-widgets row already prepared in README.md.
+- Launcher: `bin/tkutical.tcl` (set `TICAL_DIR=/path/to/tical` or keep tical as a
+  sibling repo). e.g.  `TICAL_DIR=.../tical wish bin/tkutical.tcl 2025 10`
 
-## Errors
-`{TKUTILS TKUTICAL <REASON>}` (`VIEW`, `DATE`, `MONTH`, `SELECTMODE`).
-
-## Launcher
-```bash
-wish bin/tkutical.tcl ?YYYY-MM-DD?
-```
-
-## See also
-`tical(n)`, `tkutils::tkumonthcanvas`.
-
-## Additional exported commands
-
-Documented for completeness (same module, also covered by the test suite):
-
-```tcl
-tkutical::clearSelection path                  ;# clear the current date selection
-tkutical::getDate path                         ;# return the currently selected date
-tkutical::getMonth path                        ;# return the month currently displayed
-tkutical::getView path                         ;# return the active view mode
-tkutical::prev path                            ;# move the calendar one step back (month or view step)
-tkutical::setSelection path dates              ;# set the selected date programmatically
-tkutical::today path                           ;# jump the calendar to today
-```
+## Verification
+- tkutical.test: 8/8 on Tcl/Tk 9.0 (Xvfb).
+- With tical (or Tk) absent the suite SKIPS via the `tical` constraint
+  (8 skipped, 0 failed) -- never breaks the tkutils runner, which already runs
+  each test in its own process.

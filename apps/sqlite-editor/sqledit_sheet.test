@@ -1,0 +1,108 @@
+package require tcltest
+namespace import ::tcltest::*
+
+apply {{} {
+    foreach lib {TCLUTILS TKUTILS} {
+        if {[info exists ::env(${lib}_TM)]} { tcl::tm::path add $::env(${lib}_TM) }
+    }
+    set root [file dirname [file normalize [info script]]]
+    foreach base [list $root [file dirname $root]] {
+        foreach lib {tclutils tkutils} {
+            set tm [file join $base $lib lib tm]
+            if {[file isdirectory $tm]} { tcl::tm::path add $tm }
+        }
+    }
+}}
+set ::root [file dirname [file normalize [info script]]]
+set ::argv {}
+source [file join $::root sqledit-core.tcl]
+source [file join $::root be-sqlite.tcl]
+source [file join $::root sqledit-sheet.tcl]
+
+package require Tk
+::sqledit::buildApp .
+update idletasks
+
+set DB [file join [tcltest::temporaryDirectory] sqledit_sheet_[pid].db]
+file delete -force $DB
+package require sqlite3
+sqlite3 mk $DB
+mk eval {CREATE TABLE note(id INTEGER PRIMARY KEY AUTOINCREMENT, txt TEXT, pinned BOOLEAN)}
+mk eval {INSERT INTO note(txt,pinned) VALUES ('a',0),('b',1),('c',NULL)}
+mk eval {CREATE TABLE nopk(x TEXT)}
+mk eval {CREATE TABLE link(id INTEGER PRIMARY KEY, name TEXT, name_url TEXT)}
+mk eval {INSERT INTO link(id,name,name_url) VALUES (1,'A','https://example.org/a'),(2,'B','')}
+mk close
+
+proc dbval {db sql} { sqlite3 q $db; set r [q eval $sql]; q close; return $r }
+proc firstItem {} { return [lindex [$::sqledit::D(tv) children {}] 0] }
+
+::sqledit::_connectTo $DB
+::sqledit::_sheetLoad note
+update idletasks
+
+test sheet-columns {grid columns come from the table} -body {
+    $::sqledit::D(tv) cget -columns
+} -result {id txt pinned}
+
+test sheet-rows {all rows are loaded} -body {
+    llength [$::sqledit::D(tv) children {}]
+} -result {3}
+
+test sheet-edit {editing a cell writes back via PK and updates the grid} -body {
+    set it [firstItem]
+    ::sqledit::_sheetSetCell $it 1 "edited"
+    update idletasks
+    list [dbval $DB {SELECT txt FROM note WHERE id=1}] \
+         [lindex [$::sqledit::D(tv) item $it -values] 1]
+} -result {edited edited}
+
+test sheet-null {clearing a nullable cell stores SQL NULL} -body {
+    ::sqledit::_sheetSetCell [firstItem] 1 ""
+    update idletasks
+    dbval $DB {SELECT count(*) FROM note WHERE id=1 AND txt IS NULL}
+} -result {1}
+
+test sheet-add {add row inserts a record (DEFAULT VALUES)} -body {
+    ::sqledit::_sheetAddRow
+    update idletasks
+    dbval $DB {SELECT count(*) FROM note}
+} -result {4}
+
+test sheet-delete {delete row removes the selected record} -body {
+    set last [lindex [$::sqledit::D(tv) children {}] end]
+    ::sqledit::_sheetDeleteRow $last
+    update idletasks
+    dbval $DB {SELECT count(*) FROM note}
+} -result {3}
+
+test sheet-nopk {table without primary key is read-only} -body {
+    ::sqledit::_sheetLoad nopk
+    update idletasks
+    list [llength $::sqledit::D(pk)] \
+         [string match "*primary key*" [[set ::sqledit::D(note)] cget -text]]
+} -result {0 1}
+
+test sheet-ctx-detect {context menu detects URL vs non-URL cells} -body {
+    ::sqledit::_sheetLoad link
+    update idletasks
+    set items [$::sqledit::D(tv) children {}]
+    set urlCell  [lindex [$::sqledit::D(tv) item [lindex $items 0] -values] 2]
+    set emptyCell [lindex [$::sqledit::D(tv) item [lindex $items 1] -values] 2]
+    list [::sqledit::_isUrl $urlCell] [::sqledit::_isUrl $emptyCell]
+} -result {1 0}
+
+test sheet-ctx-open {open action passes the recorded cell value to _openUrl} -body {
+    set items [$::sqledit::D(tv) children {}]
+    set ::sqledit::D(ctxval) [lindex [$::sqledit::D(tv) item [lindex $items 0] -values] 2]
+    set ::opened ""
+    rename ::sqledit::_openUrl ::sqledit::_openUrl_orig
+    proc ::sqledit::_openUrl {url} { set ::opened $url }
+    ::sqledit::_sheetOpenUrl
+    rename ::sqledit::_openUrl {}
+    rename ::sqledit::_openUrl_orig ::sqledit::_openUrl
+    set ::opened
+} -result {https://example.org/a}
+
+file delete -force $DB
+cleanupTests

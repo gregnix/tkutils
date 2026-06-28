@@ -1,0 +1,65 @@
+package require tcltest
+namespace import ::tcltest::*
+
+# Use a throwaway store so the test never touches the real user config.
+set ::env(SQLEDIT_QUERIES) [file join [tcltest::temporaryDirectory] q_gui_[pid].json]
+file delete -force $::env(SQLEDIT_QUERIES)
+
+apply {{} {
+    foreach lib {TCLUTILS TKUTILS} {
+        if {[info exists ::env(${lib}_TM)]} { tcl::tm::path add $::env(${lib}_TM) }
+    }
+    set root [file dirname [file normalize [info script]]]
+    foreach base [list $root [file dirname $root]] {
+        foreach lib {tclutils tkutils} {
+            set tm [file join $base $lib lib tm]
+            if {[file isdirectory $tm]} { tcl::tm::path add $tm }
+        }
+    }
+}}
+set ::root [file dirname [file normalize [info script]]]
+set ::argv {}
+source [file join $::root sqledit-core.tcl]
+source [file join $::root be-sqlite.tcl]
+
+package require Tk
+::sqledit::buildApp .
+update idletasks
+
+# Index of a menu entry by its label, or -1.
+proc labelIndex {menu label} {
+    for {set i 0} {$i <= [$menu index end]} {incr i} {
+        if {[catch {$menu entrycget $i -label} l]} continue
+        if {$l eq $label} { return $i }
+    }
+    return -1
+}
+
+test queries-gui-empty {a fresh store shows the disabled placeholder} -body {
+    expr {[dict size $::sqledit::S(queries)] == 0
+       && [labelIndex $::sqledit::S(qmenu) "(no saved queries)"] >= 0}
+} -result 1
+
+test queries-gui-rebuild {a saved query appears in the Queries menu and its Delete submenu} -body {
+    dict set ::sqledit::S(queries) demo "SELECT 1"
+    ::sqledit::_rebuildQueriesMenu
+    expr {[labelIndex $::sqledit::S(qmenu) demo] >= 0
+       && [labelIndex $::sqledit::S(qdelmenu) demo] >= 0}
+} -result 1
+
+test queries-gui-load {loading a query puts its SQL into the editor} -body {
+    dict set ::sqledit::S(queries) demo "SELECT 42 AS answer"
+    ::sqledit::cmdLoadQuery demo
+    string trim [$::sqledit::S(sql) get 1.0 end]
+} -result {SELECT 42 AS answer}
+
+test queries-gui-persist {the store written on disk reloads to the same content} -body {
+    dict set ::sqledit::S(queries) a "SELECT 1"
+    dict set ::sqledit::S(queries) b "SELECT 2"
+    ::sqledit::_saveQueries $::sqledit::S(qfile) $::sqledit::S(queries)
+    set back [::sqledit::_loadQueries $::sqledit::S(qfile)]
+    list [dict get $back a] [dict get $back b]
+} -result {{SELECT 1} {SELECT 2}}
+
+file delete -force $::env(SQLEDIT_QUERIES)
+cleanupTests
