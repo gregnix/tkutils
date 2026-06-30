@@ -1,0 +1,33 @@
+.TH tkumdview n 0.1 tkutils
+.SH tkutils::tkumdview
+.PP
+Markdown viewer widget: a two\-pane frame with a headings outline on the left and a rendered preview on the right. The document is parsed and rendered through \fBtclutils::tumd\fR (a CommonMark subset), so the viewer needs no browser. Pure Tk/ttk; namespace \fB::tkutils::tkumdview\fR.
+.SS API
+.CS
+set w [::tkutils::tkumdview::widget .w ?-width N? ?-height N?]   ;# -> frame path
+::tkutils::tkumdview::loadFile    $w path     ;# read utf-8 file, render -> char count
+::tkutils::tkumdview::setMarkdown $w md       ;# set text, rebuild outline, render -> char count
+::tkutils::tkumdview::getMarkdown $w          ;# current document source
+::tkutils::tkumdview::headings    $w          ;# outline of the current document
+::tkutils::tkumdview::toHtml      $w          ;# HTML of the current document
+::tkutils::tkumdview::tocWidget   $w          ;# path of the outline list
+::tkutils::tkumdview::textWidget  $w          ;# path of the preview text widget
+.CE
+.SS "Widget options"
+.PP
+\fBwidget\fR returns the frame \fB$path\fR it creates (a \fBttk::frame\fR holding a horizontal \fBttk::panedwindow\fR: outline on the left, preview on the right). \fB\-width\fR and \fB\-height\fR (default \fB72\fR x \fB26\fR) size the preview text widget in characters and lines.
+.SS "Outline and navigation"
+.PP
+The left pane lists the document's headings. Selecting an entry scrolls the matching heading into view in the preview, so the outline acts as a clickable table of contents. \fBtocWidget\fR and \fBtextWidget\fR return the two underlying widget paths if you need to restyle or bind them directly.
+.SS "Loading and rendering"
+.PP
+\fBsetMarkdown\fR replaces the document, rebuilds the outline and re\-renders the preview, returning the character count. \fBloadFile\fR reads the file as utf\-8 and hands it to \fBsetMarkdown\fR, so a document renders identically under Tcl 8.6 and Tcl 9. \fBgetMarkdown\fR returns the current source.
+.PP
+Parsing and HTML generation are delegated to \fBtclutils::tumd\fR: \fBheadings\fR and \fBtoHtml\fR are convenience pass\-throughs that run the engine over the current document, so the viewer and any export stay consistent.
+.CS
+package require tkutils::tkumdview
+set w [::tkutils::tkumdview::widget .v]
+pack $w -fill both -expand 1
+::tkutils::tkumdview::loadFile $w README.md
+set html [::tkutils::tkumdview::toHtml $w]   ;# same render, as HTML
+.CE
