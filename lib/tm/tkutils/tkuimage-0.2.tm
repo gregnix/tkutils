@@ -1,4 +1,6 @@
 # tkutils::tkuimage -- image helpers and a scrollable/zoomable viewer widget for
+# Description: image helpers and a scrollable/zoomable viewer widget for Tk
+# Category: Tk · widgets
 # Tk. Scaling uses the imgtools extension when present and falls back to Tk's
 # built-in photo subsample/zoom otherwise (imgtools is optional). Tk 8.6+/9.x.
 #

@@ -1,4 +1,6 @@
 # tkutils::tkutoolbar -- toolbar widget (v0.2)
+# Description: toolbar widget (v0.2)
+# Category: Tk · widgets
 #
 # A toolbar holding buttons, toggles, dropdowns, separators and arbitrary
 # embedded widgets, addressed by caller-chosen ids. Pure Tk, theme-native

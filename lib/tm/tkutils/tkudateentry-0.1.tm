@@ -1,4 +1,6 @@
 # tkutils::tkudateentry -- date entry with a drop-down calendar picker.
+# Description: date entry with a drop-down calendar picker.
+# Category: Tk · widgets
 #
 # An entry showing a date plus a button that drops down a month grid of day
 # buttons (Monday-first) with previous/next navigation, Today and Clear. The

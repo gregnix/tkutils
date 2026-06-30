@@ -1,4 +1,6 @@
 # tkutils::tkunumentry -- numeric entry with input validation, fixed decimals
+# Description: numeric entry with validation, fixed decimals and optional min/max clamping
+# Category: Tk · widgets
 # and optional min/max clamping (applied on commit: Return / focus-out).
 # Tcl/Tk 8.6+ and 9.x.
 

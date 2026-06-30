@@ -1,4 +1,6 @@
 # tkutils::tkutltree -- convert between nested data and a tablelist tree, with
+# Description: convert between nested data and a tablelist tree, with free column mapping.
+# Category: Tk · tablelist
 # free column mapping. A node is a dict of named fields plus an optional list of
 # child nodes under -childrenkey; -fields maps field names to columns in order.
 # Library-neutral.

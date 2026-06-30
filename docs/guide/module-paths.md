@@ -24,16 +24,27 @@ export TKUTILS_TM=/path/to/tkutils/lib/tm
 ```
 
 ## What the bundled apps do
-The apps under `apps/` source `apps/_lib/paths.tcl`. `::tkupaths::add` tries,
-for each package, the locations below and adds only the ones that **exist**.
-Order is priority (env wins — `tm::path add` prepends, so candidates are added
-in reverse):
+The resolver lives in `tools/setup.tcl` — the **single source of truth**, also
+usable on its own (`source .../tools/setup.tcl` from any application). The apps
+under `apps/` reach it through the thin wrapper `apps/_lib/paths.tcl`, so the
+familiar one-liner
+
+```tcl
+source [file join [file dirname [info script]] .. _lib paths.tcl]
+```
+
+still works. `::tkupaths::add` tries, for each package, the locations below and
+adds only the ones that **exist**. Order is priority (override wins —
+`tm::path add` prepends, so candidates are added in reverse):
 
 1. `TCLUTILS_TM` / `TKUTILS_TM` (override)
-2. `[file dirname [info library]]/<pkg>/lib/tm` — next to the Tcl install (Linux **and** Windows)
-3. `/usr/local/share/tcltk/<pkg>/lib/tm` — system-wide (Unix)
-4. `$XDG_DATA_HOME`/`~/.local/share/tcltk/<pkg>/lib/tm` — per user (XDG)
-5. `<repo-parent>/<pkg>/lib/tm` — side-by-side source checkout
+2. `<this-repo>/lib/tm` — the package the file ships in
+3. `[file dirname [info library]]/<pkg>/lib/tm` — next to the Tcl install (Linux **and** Windows)
+4. `/usr/local/share/tcltk/<pkg>/lib/tm` — system-wide (Unix)
+5. `$XDG_DATA_HOME`/`~/.local/share/tcltk/<pkg>/lib/tm` — per user (XDG)
+6. `<holder>/<pkg>/lib/tm` — side-by-side checkout, unversioned folder
+7. `<holder>/<pkg>-*/lib/tm` — side-by-side, **versioned** folder (highest version)
 
 A genuinely missing package then surfaces **loudly** via `package require` —
-that is the intended signal, not the resolver.
+that is the intended signal, not the resolver. See `tools/setup.md` for the
+full placement details.

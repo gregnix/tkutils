@@ -1,7 +1,7 @@
 .TH tkurender n 0.1 tkutils
 .SH tkutils::tkurender
 .PP
-Shared render core for the tkudesigner GUI designer and the tkuload spec loader: a widget catalogue, an in-memory design model, \fBdeserialize\fR, and a live ttk render engine. Pure Tk/ttk; namespace \fB::tkurender\fR. This is not a widget \(em it is the engine both frontends build on.
+Shared render core for the tkudesigner GUI designer and the tkuload spec loader: a widget catalogue, an in\-memory design model, \fBdeserialize\fR, and a live ttk render engine. Pure Tk/ttk; namespace \fB::tkurender\fR. This is not a widget \-\- it is the engine both frontends build on.
 .SS Model
 .PP
 \fBnewModel\fR starts a fresh design (a single \fBroot\fR frame). Nodes are added under a parent and addressed by an opaque id.
@@ -40,7 +40,7 @@ Leaf types whose widget lives in another package (e.g. \fBtkunumentry\fR, \fBtab
 ::tkurender::renderChildren $::tkurender::D(root) $parentW $pv
 .CE
 .PP
-Builds the live widget tree for the model under \fB$parentW\fR. Afterwards \fBD(wpath,<id>)\fR maps each node id to its widget path. Selection is decoupled: the engine binds \fB<Button-1>\fR only when \fB::tkurender::selectCmd\fR is set \(em the designer sets it, the loader leaves it empty, so loaded UIs carry no editor bindings.
+Builds the live widget tree for the model under \fB$parentW\fR. Afterwards \fBD(wpath,<id>)\fR maps each node id to its widget path. Selection is decoupled: the engine binds \fB<Button\-1>\fR only when \fB::tkurender::selectCmd\fR is set \-\- the designer sets it, the loader leaves it empty, so loaded UIs carry no editor bindings.
 .SS Persistence
 .CS
 set spec [::tkurender::serialize]          ;# a plain Tcl dict (a .tkd file)

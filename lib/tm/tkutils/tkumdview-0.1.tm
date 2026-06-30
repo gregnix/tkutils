@@ -1,4 +1,6 @@
 # tkutils::tkumdview -- Markdown viewer (headings outline + rendered preview)
+# Description: Markdown viewer (headings outline + rendered preview)
+# Category: Tk · widgets
 #
 # A Tk front-end on top of the tclutils Markdown engine (tumd). The left pane is
 # a heading outline (from tumd::headings); the right pane renders a readable

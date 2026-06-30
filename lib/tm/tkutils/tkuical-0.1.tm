@@ -1,4 +1,6 @@
 # tkutils::tkuical -- iCalendar event viewer/editor
+# Description: iCalendar event viewer/editor
+# Category: Tk · widgets
 #
 # Shows the VEVENTs of an iCalendar document in a table (Summary, Start, End,
 # Location). With -editable 1 (default) an edit bar allows changing those four

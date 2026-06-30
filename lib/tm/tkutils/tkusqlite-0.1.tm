@@ -1,4 +1,6 @@
 # tkutils::tkusqlite -- SQLite table browser
+# Description: SQLite table browser
+# Category: Tk · widgets
 #
 # Tk front-end that lists the tables of a SQLite database and shows the rows of
 # the selected table. Uses the EXTERNAL sqlite3 package (not part of tclutils);

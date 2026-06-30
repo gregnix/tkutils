@@ -1,4 +1,6 @@
 # tkutils::tkudavaccount -- a DAV account form (URL / user / password / type)
+# Description: a DAV account form (URL / user / password / type) with a Test-connection button
+# Category: Tk · widgets
 # with a "Test connection" button that runs a PROPFIND through tclutils::tudav
 # and reports success or failure. Tcl/Tk 8.6+ and 9.x.
 #

@@ -1,4 +1,6 @@
 # tkutils::tkucanvaspng -- export a live Tk canvas widget to a PNG image, after
+# Description: export a live Tk canvas widget to a PNG image, after pdf4tcl's `$pdf canvas` model
+# Category: Tk · widgets
 # the model of pdf4tcl's "$pdf canvas": walk the canvas items and translate each
 # to drawing calls on a tclutils::tupngdraw image. Unlike the tclutils PNG
 # modules this one REQUIRES Tk (it queries a real, rendered canvas widget); the

@@ -1,4 +1,6 @@
 # tkutils::tkukeynav -- keyboard focus navigation helpers
+# Description: keyboard focus navigation helpers
+# Category: Tk · widgets
 #
 # Consistent Tab / Shift-Tab traversal plus Return-to-next-field form ergonomics,
 # the way data-entry users expect. Pure Tk; works with both classic and ttk

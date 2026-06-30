@@ -1,4 +1,6 @@
 # tkutils::tkuaction -- action abstraction (one action, many widgets)
+# Description: action abstraction (one action, many widgets)
+# Category: Tk · widgets
 #
 # Define a UI action once (label, command, icon, accelerator, enabled/checked
 # state) and register any number of widgets against it. A single setEnabled /

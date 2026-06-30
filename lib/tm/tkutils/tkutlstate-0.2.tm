@@ -1,4 +1,6 @@
 # tkutils::tkutlstate -- save and restore a tablelist's column layout: widths,
+# Description: save and restore a tablelist's column layout: widths, hidden state, display order and the active sort.
+# Category: Tk · tablelist
 # hidden state, display order and the active sort. Lets an application persist
 # how the user arranged a table between sessions. Library-neutral.
 #

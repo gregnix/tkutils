@@ -1,4 +1,6 @@
 # tkutils::tkutags -- tag editor: tags shown as removable chips plus an input.
+# Description: tag editor: tags shown as removable chips plus an input.
+# Category: Tk · widgets
 #
 # Tags render as chips (label + "x" remove button). An input row (a combobox
 # when -suggestions are given, otherwise an entry) adds new tags on Return or

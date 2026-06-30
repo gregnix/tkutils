@@ -1,4 +1,4 @@
-.TH tkutlstate n 0.1 tkutils
+.TH tkutlstate n 0.2 tkutils
 .SH tkutils::tkutlstate
 .PP
 Save and restore a \fBtablelist\fR's column layout — widths, hidden state, display order and the active sort — so an application can persist how the user arranged a table between sessions. Library\-neutral.
@@ -14,7 +14,15 @@ Requires \fBTk\fR and \fBtablelist\fR.
 ::tkutils::tkutlstate::restore         tbl state
 ::tkutils::tkutlstate::saveToFile      tbl path
 ::tkutils::tkutlstate::restoreFromFile tbl path      ;# -> 1 applied, 0 missing
+::tkutils::tkutlstate::saveVia         tbl key setPrefix   ;# {*}$setPrefix key dict
+::tkutils::tkutlstate::restoreVia      tbl key getPrefix   ;# -> 1 applied, 0 missing
+::tkutils::tkutlstate::autosave        tbl key setPrefix ?-delay ms?
+::tkutils::tkutlstate::cancelAutosave  tbl
 .CE
+.PP
+\fBtbl\fR is a raw tablelist. For a \fBtkutils::tkutablelist\fR wrapper, pass \fB[tkutils::tkutablelist::tableWidget $w]\fR.
+.PP
+\fBsaveVia\fR/\fBrestoreVia\fR are \fBstorage\-neutral\fR: you inject a setter/getter command \fIprefix\fR and the module appends the key (and, for the setter, the state dict). They work against a file, an array, or a database settings table without the module knowing the backend. \fBautosave\fR persists automatically \-\- debounced \-\- whenever the user resizes or reorders a column.
 .PP
 The state is a plain Tcl dict, e.g.
 .CS
@@ -35,8 +43,21 @@ package require tkutils::tkutlstate
 # on start (after the table is built)
 ::tkutils::tkutlstate::restoreFromFile .t [file join $cfgdir table.state]
 .CE
+.SS "Persist to a database settings table (autosave)"
 .PP
-In\-memory:
+Given a settings store with \fBsettingSet db key value\fR / \fBsettingGet db key\fR:
+.CS
+set raw [::tkutils::tkutablelist::tableWidget $w]
+
+# on open, after the table is built and filled:
+::tkutils::tkutlstate::restoreVia $raw overview \
+    [list ::app::store::settingGet $db]
+::tkutils::tkutlstate::autosave   $raw overview \
+    [list ::app::store::settingSet $db]
+.CE
+.PP
+Column widths and order are then written back (debounced) as the user adjusts them, and reapplied next time the table opens. \fBcancelAutosave $raw\fR stops it.
+.SS In\-memory
 .CS
 set st [::tkutils::tkutlstate::save .t]
 # ... later ...

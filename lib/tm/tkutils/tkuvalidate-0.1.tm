@@ -1,4 +1,6 @@
 # tkutils::tkuvalidate -- inline validation feedback for input widgets
+# Description: inline validation feedback for input widgets
+# Category: Tk · widgets
 #
 # Attach a validator to an entry/combo/spinbox: on focus-out (or on every key)
 # the value is checked; invalid input gets a red foreground, the ttk `invalid`

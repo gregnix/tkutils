@@ -1,4 +1,6 @@
 # tkutils::tkurender -- shared render core for tkudesigner / tkuload.
+# Description: shared render core for tkudesigner / tkuload.
+# Category: Tk · widgets
 #
 # Catalogue (type -> palette spec), the in-memory design model, deserialize,
 # and the live render engine (renderNode/renderChildren + helpers). The editor

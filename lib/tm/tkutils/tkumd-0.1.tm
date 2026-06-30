@@ -1,4 +1,6 @@
 # tkutils::tkumd -- Markdown outline viewer
+# Description: Markdown outline viewer
+# Category: Tk · widgets
 #
 # Tk front-end on top of the tclutils Markdown engine (tumd). Shows the document
 # headings as a nested outline in a ttk::treeview. Tcl/Tk 8.6+ and 9.x compatible.

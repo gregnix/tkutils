@@ -1,4 +1,6 @@
 # tkutils::tkutablelist -- multi-column table (OPTIONAL: requires Tablelist)
+# Description: multi-column table (OPTIONAL: requires Tablelist)
+# Category: Tk · tablelist
 #
 # A wrapper around the Tablelist megawidget (from tklib): a rows/columns API,
 # click-to-sort headers, optional frozen title columns, editable cells, row

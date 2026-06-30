@@ -1,4 +1,6 @@
 # tkutils::tkutlclip -- copy tablelist rows to the clipboard as TSV or CSV.
+# Description: copy tablelist rows to the clipboard as TSV or CSV.
+# Category: Tk · tablelist
 # tablelist has no clipboard export; this provides the common "Ctrl+C copies the
 # selection as spreadsheet-pasteable text" behaviour. Library-neutral.
 #

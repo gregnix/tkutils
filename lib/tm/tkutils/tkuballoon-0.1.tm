@@ -1,4 +1,6 @@
 # tkutils::tkuballoon -- balloon help / tooltips for any widget
+# Description: balloon help / tooltips for any widget
+# Category: Tk · widgets
 #
 # Attach a short help text to a widget; it pops up in a small, theme-native
 # balloon after a hover delay and disappears on leave, click or motion away.

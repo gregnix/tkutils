@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>check-modules</title>
+<style>
+/* glossary-html-styles/sticky-top.css
+ *
+ * TOC bleibt oben kleben beim Scrollen. Body laeuft drunter durch.
+ * Nutzung:
+ *   tclsh /pfad/zu/mdhelp ... -css sticky-top.css
+ *   bzw. bei direkten Aufrufen: mdstack::html::export ... -css ".../sticky-top.css"
+ */
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "DejaVu Sans", "Symbola", "Segoe UI Symbol", sans-serif;
+    max-width: 50em;
+    margin: 0 auto;
+    padding: 0 1em 4em 1em;
+    line-height: 1.5;
+    color: #222;
+}
+
+/* TOC oben fixiert */
+nav.toc {
+    position: sticky;
+    top: 0;
+    background: #f9f9f9;
+    border-bottom: 2px solid #888;
+    margin: 0 -1em;
+    padding: 0.5em 1em;
+    max-height: 40vh;
+    overflow-y: auto;
+    z-index: 100;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+nav.toc ul { margin: 0; padding-left: 1.2em; }
+nav.toc li { margin: 0.1em 0; font-size: 0.9em; }
+nav.toc a { color: #0055aa; text-decoration: none; }
+nav.toc a:hover { text-decoration: underline; }
+
+/* Headings/Body wie default */
+h1 { font-size: 1.6em; border-bottom: 2px solid #888; padding-bottom: 0.2em; }
+h2 { font-size: 1.3em; border-bottom: 1px solid #ccc; padding-bottom: 0.15em; }
+h3 { font-size: 1.1em; }
+a { color: #0055aa; }
+a:hover { text-decoration: underline; }
+code { background: #f5f5f5; padding: 0.1em 0.3em; border-radius: 3px; font-size: 0.9em; }
+pre { background: #f5f5f5; padding: 1em; border-radius: 4px; overflow-x: auto; }
+
+/* Emoji- und Symbol-Hoehe begrenzen, damit Color-Emoji-Fonts (falls
+ * vorhanden) den Zeilenabstand nicht aufblasen.
+ * line-height: 1.5 bleibt fix unabhaengig vom Inhalt.
+ */
+p, li, dd, dt {
+    line-height: 1.5 !important;
+}
+
+
+</style>
+<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true});</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex/dist/katex.min.css"/>
+<script defer src="https://cdn.jsdelivr.net/npm/katex/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex/dist/contrib/auto-render.min.js"
+    onload="renderMathInElement(document.body, {delimiters:[
+        {left:'$$',right:'$$',display:true},
+        {left:'$',right:'$',display:false}
+    ]});"></script>
+</head>
+<body>
+<nav class="toc">
+<ul>
+  <li class="toc-level-1"><a href="#check-modules-tcl">check-modules.tcl</a></li>
+  <li class="toc-level-2"><a href="#synopsis">Synopsis</a></li>
+  <li class="toc-level-2"><a href="#what-it-checks">What it checks</a></li>
+  <li class="toc-level-2"><a href="#human-readable-report-default">Human-readable report (default)</a></li>
+  <li class="toc-level-2"><a href="#manifest-mode">Manifest mode</a></li>
+  <li class="toc-level-3"><a href="#columns">Columns</a></li>
+  <li class="toc-level-3"><a href="#formats">Formats</a></li>
+  <li class="toc-level-3"><a href="#the-description-convention">The # Description: convention</a></li>
+  <li class="toc-level-2"><a href="#examples">Examples</a></li>
+  <li class="toc-level-2"><a href="#exit-code">Exit code</a></li>
+</ul>
+</nav>
+<h1 id="check-modules-tcl">check-modules.tcl</h1>
+<p>Module hygiene check and manifest generator for the <code>tclutils</code> / <code>tkutils</code>
+module collections.</p>
+<p>It scans one repository's module tree (<code>lib/tm/&lt;repo&gt;/&lt;mod&gt;-X.Y.tm</code>) and reports,
+per module, which companion artifacts exist (tests, docs, man pages, …). It can
+also emit a machine-readable manifest (TSV or Markdown) listing every module with
+its version, description and dependencies.</p>
+<h2 id="synopsis">Synopsis</h2>
+<pre><code>tclsh tools/check-modules.tcl [repo-root] [-require test,doc,man,...] [-manifest tsv|md]</code></pre>
+<ul class="docir-list-ul">
+  <li><code>repo-root</code> — repository root to scan. Defaults to the parent of the script's directory. The module directory is <code>lib/tm/&lt;repo&gt;</code> where <code>&lt;repo&gt;</code> is the tail of the root (e.g. <code>tkutils</code>). If that directory does not exist but <code>lib/tm</code> contains exactly one subdirectory, that one is used.</li>
+  <li><code>-require &lt;list&gt;</code> — comma- (or space-) separated subset of <code>{test doc man bin demo umbr}</code>. Default <code>test,doc,man</code>. Drives the REQUIRED gap list and the exit code.</li>
+  <li><code>-manifest &lt;fmt&gt;</code> — emit a manifest instead of the human-readable report. <code>&lt;fmt&gt;</code> is <code>tsv</code> or <code>md</code>.</li>
+  <li><code>-h</code>, <code>-help</code> — print usage and exit.</li>
+</ul>
+<h2 id="what-it-checks">What it checks</h2>
+<p>For each module <code>&lt;mod&gt;</code> the following artifacts are looked up relative to the
+repo root:</p>
+<table class="docir-table">
+  <colgroup>
+    <col style="text-align:left"/>
+    <col style="text-align:left"/>
+    <col style="text-align:left"/>
+  </colgroup>
+  <tr>
+    <th style="text-align:left">Flag</th>
+    <th style="text-align:left">Artifact</th>
+    <th style="text-align:left">Path</th>
+  </tr>
+  <tr>
+    <td style="text-align:left"><code>VER</code></td>
+    <td style="text-align:left">version uniqueness</td>
+    <td style="text-align:left">a single <code>&lt;mod&gt;-X.Y.tm</code> (more than one is an error)</td>
+  </tr>
+  <tr>
+    <td style="text-align:left"><code>TEST</code></td>
+    <td style="text-align:left">unit tests</td>
+    <td style="text-align:left"><code>tests/&lt;mod&gt;.test</code></td>
+  </tr>
+  <tr>
+    <td style="text-align:left"><code>DOC</code></td>
+    <td style="text-align:left">documentation</td>
+    <td style="text-align:left"><code>docs/&lt;mod&gt;.md</code></td>
+  </tr>
+  <tr>
+    <td style="text-align:left"><code>MAN</code></td>
+    <td style="text-align:left">man page</td>
+    <td style="text-align:left"><code>man/mann/&lt;mod&gt;.n</code> or <code>man/man1/&lt;mod&gt;.1</code></td>
+  </tr>
+  <tr>
+    <td style="text-align:left"><code>BIN</code></td>
+    <td style="text-align:left">CLI launcher</td>
+    <td style="text-align:left"><code>bin/&lt;mod&gt;.tcl</code></td>
+  </tr>
+  <tr>
+    <td style="text-align:left"><code>DEMO</code></td>
+    <td style="text-align:left">example</td>
+    <td style="text-align:left"><code>examples/demo-&lt;mod&gt;.tcl</code></td>
+  </tr>
+  <tr>
+    <td style="text-align:left"><code>UMBR</code></td>
+    <td style="text-align:left">listed in umbrella</td>
+    <td style="text-align:left"><code>package require &lt;repo&gt;::&lt;mod&gt;</code> in <code>lib/tm/&lt;repo&gt;-*.tm</code></td>
+  </tr>
+</table>
+<h2 id="human-readable-report-default">Human-readable report (default)</h2>
+<p>Prints a matrix (one row per module, Y / <code>.</code> flags), a totals line, and three
+sections:</p>
+<ul class="docir-list-ul">
+  <li><strong>Duplicate-version modules</strong> — modules with more than one <code>.tm</code> version (must be unique).</li>
+  <li><strong>Missing REQUIRED artifacts</strong> — gaps among the <code>-require</code> set; these are actionable.</li>
+  <li><strong>Other gaps</strong> — <code>bin</code> / <code>demo</code> / <code>umbr</code> absences not in the required set; these are often intentional (pure-library modules have no CLI or GUI; optional modules are deliberately kept out of the umbrella).</li>
+</ul>
+<p>Example:</p>
+<pre><code>$ tclsh tools/check-modules.tcl ../tkutils -require test,doc,man
+Module hygiene check: tkutils
+Root:     /home/greg/lib/tcltk/tkutils
+Umbrella: tkutils-0.42.tm (37 modules listed)
+Required: test doc man
+
+NAME                 VERSION    TEST DOC  MAN  BIN  DEMO UMBR
+------------------------------------------------------------
+tkurender            0.1        Y    Y    Y    .    .    Y
+...</code></pre>
+<h2 id="manifest-mode">Manifest mode</h2>
+<p>With <code>-manifest</code>, the human report is suppressed and a manifest is written to
+stdout. All diagnostics (warnings, errors) go to <strong>stderr</strong>, so stdout stays a
+clean, pipeable manifest.</p>
+<h3 id="columns">Columns</h3>
+<pre><code>package  version  description  test  doc  man  repo  path  deps</code></pre>
+<ul class="docir-list-ul">
+  <li><code>package</code> — full package name, <code>&lt;repo&gt;::&lt;mod&gt;</code>.</li>
+  <li><code>version</code> — every version found, comma-joined (normally one).</li>
+  <li><code>description</code> — read from a <code># Description: ...</code> header line in the module's <code>.tm</code> file (case-insensitive, flexible whitespace; empty if absent).</li>
+  <li><code>test</code> / <code>doc</code> / <code>man</code> — <code>Y</code> / <code>N</code>.</li>
+  <li><code>repo</code> — <code>tclutils</code> or <code>tkutils</code>.</li>
+  <li><code>path</code> — path to the highest-version <code>.tm</code>, relative to the repo root.</li>
+  <li><code>deps</code> — the module's <code>package require</code> targets (comma-joined): internal collection modules (e.g. <code>tclutils::tulayout</code>) and external packages (e.g. <code>pdf4tcl</code>, <code>sqlite3</code>) alike. <code>Tcl</code>, <code>Tk</code> and the module's own package are excluded. Comment lines are ignored; <code>-exact</code> and requires nested in <code>catch</code> / <code>if</code> are recognized. Dependencies are derived by static text analysis, so dynamically assembled package names are not detected.</li>
+</ul>
+<h3 id="formats">Formats</h3>
+<ul class="docir-list-ul">
+  <li><code>tsv</code> — tab-separated, one header row plus one row per module.</li>
+  <li><code>md</code> — a Markdown table (header + separator + rows). <code>package</code> and <code>path</code> are rendered as inline code; <code>|</code> characters inside a description are escaped.</li>
+</ul>
+<h3 id="the-description-convention">The <code># Description:</code> convention</h3>
+<p>To populate the <code>description</code> column, add a single header line near the top of
+each module:</p>
+<pre><code class="language-tcl"># tkurender.tm
+# Description: Shared render core -- widget catalogue, in-memory model, serialize
+package provide tkutils::tkurender 0.1</code></pre>
+<p>Keep it to one concise line.</p>
+<h2 id="examples">Examples</h2>
+<p>Generate a TSV manifest for one repository:</p>
+<pre><code class="language-sh">tclsh tools/check-modules.tcl ../tkutils -manifest tsv &gt; tkutils-modules.tsv</code></pre>
+<p>Generate a Markdown table:</p>
+<pre><code class="language-sh">tclsh tools/check-modules.tcl ../tkutils -manifest md &gt; tkutils-modules.md</code></pre>
+<p>Combine two repositories into one manifest (drop the second header — TSV has a
+1-line header, MD has a 2-line header):</p>
+<pre><code class="language-sh">tclsh tools/check-modules.tcl ../tclutils -manifest tsv            &gt; modules.tsv
+tclsh tools/check-modules.tcl ../tkutils  -manifest tsv | tail -n +2 &gt;&gt; modules.tsv
+
+tclsh tools/check-modules.tcl ../tclutils -manifest md            &gt; modules.md
+tclsh tools/check-modules.tcl ../tkutils  -manifest md | tail -n +3 &gt;&gt; modules.md</code></pre>
+<h2 id="exit-code">Exit code</h2>
+<ul class="docir-list-ul">
+  <li><code>0</code> — all modules unique and no REQUIRED artifact missing.</li>
+  <li><code>1</code> — at least one module has multiple versions, or lacks a required artifact.</li>
+  <li><code>2</code> — usage error (unknown option, unknown manifest format, module dir not found).</li>
+</ul>
+<p>The exit code is the same in manifest mode, so a manifest run still signals
+hygiene problems (the manifest itself goes to a redirected file, unaffected by
+the exit status).</p>
+
+</body>
+</html>

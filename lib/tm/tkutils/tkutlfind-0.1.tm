@@ -1,4 +1,6 @@
 # tkutils::tkutlfind -- incremental find with match highlighting for a tablelist
+# Description: incremental find with match highlighting for a tablelist widget.
+# Category: Tk · tablelist
 # widget. Unlike a filter (which hides non-matching rows), this highlights the
 # matching cells and lets you step through them. Library-neutral.
 #

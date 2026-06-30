@@ -1,4 +1,6 @@
 # tkutils::tkutltools -- umbrella for the tablelist extension family. Loading
+# Description: umbrella for the tablelist extension family.
+# Category: Tk · tablelist
 # this pulls in tablelist (external) plus all tkutl* helpers and their shared
 # tclutils::tunum number backend. It is kept separate from the main tkutils
 # umbrella, which by design loads only modules with pure-Tk/tclutils deps;

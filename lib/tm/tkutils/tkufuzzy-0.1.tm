@@ -1,4 +1,6 @@
 # tkutils::tkufuzzy -- incremental fuzzy filter
+# Description: incremental fuzzy filter
+# Category: Tk · widgets
 #
 # Tk front-end on top of the tclutils fuzzy engine (tufuzzy). An entry field
 # filters a list of items as you type: items are kept when the pattern is a

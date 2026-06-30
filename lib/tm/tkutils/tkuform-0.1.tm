@@ -1,4 +1,6 @@
 # tkutils::tkuform -- declarative form widget
+# Description: declarative form widget
+# Category: Tk · widgets
 #
 # Builds a labelled form from a field specification and collects the values as
 # a dict. Field types: entry, password, check, combo, spin, text. Pure Tk.

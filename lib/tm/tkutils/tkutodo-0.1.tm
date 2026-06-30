@@ -1,4 +1,6 @@
 # tkutils::tkutodo -- a task-list widget for iCalendar VTODO components, built on
+# Description: a task-list widget for iCalendar VTODO components, built on tclutils::tuical (todos / todoInfo / setProperty).
+# Category: Tk · widgets
 # tclutils::tuical (todos / todoInfo / setProperty). Shows summary, due date,
 # priority and percent-complete in a ttk::treeview; in editable mode a task's
 # done state can be toggled (Space, double-click, or the Toggle button), which

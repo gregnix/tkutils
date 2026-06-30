@@ -1,4 +1,6 @@
 # tkutils::tkuscrolledframe -- scrollable frame container (thin scrollutil wrapper)
+# Description: scrollable frame container (thin scrollutil wrapper)
+# Category: Tk · widgets
 #
 # A scrollable area you pack arbitrary widgets into -- the one container ttk
 # does not provide natively. This is a thin, proc-style wrapper over Csaba

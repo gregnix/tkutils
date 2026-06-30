@@ -1,4 +1,6 @@
 # tkuload 0.1 -- instantiate a tkudesigner ".tkd" layout as a live Tk widget
+# Description: instantiate a tkudesigner `.tkd` layout as a live Tk widget tree (no code export)
+# Category: Tk · widgets
 # tree inside a host application (e.g. lieferschein), without code export.
 #
 # It does NOT reimplement rendering: it evaluates tkudesigner.tcl's body

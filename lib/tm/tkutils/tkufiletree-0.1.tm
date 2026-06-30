@@ -1,4 +1,6 @@
 # tkutils::tkufiletree -- a lazy file-system tree built on tkutils::tkutree.
+# Description: a lazy file-system tree built on tkutils::tkutree.
+# Category: Tk · widgets
 #
 # Shows a directory hierarchy under a root. Subdirectories are populated on
 # demand when expanded (no full filesystem walk). Files can be filtered by glob

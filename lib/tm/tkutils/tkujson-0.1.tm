@@ -1,4 +1,6 @@
 # tkutils::tkujson -- JSON tree viewer
+# Description: JSON tree viewer
+# Category: Tk · widgets
 #
 # Tk front-end on top of the tclutils JSON engine. Uses tujson::parseTyped so
 # objects, arrays and scalars can be told apart and shown as a nested tree.

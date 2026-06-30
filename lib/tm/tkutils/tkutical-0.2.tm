@@ -1,4 +1,6 @@
 # tkutils::tkutical -- month/week calendar widget (OPTIONAL: requires tical)
+# Description: month/week calendar widget (OPTIONAL: requires tical)
+# Category: Tk · widgets
 #
 # A thin Tk front-end around the `tical` calendar library: it draws a month or
 # week grid on a canvas via tical::render::canvas (engines: tical::view::month /

@@ -1,4 +1,6 @@
 # tkutils::tkustatus -- status bar widget
+# Description: status bar widget
+# Category: Tk · widgets
 #
 # A status bar with an expanding main message, optional named fields, and an
 # optional progress bar. Pure Tk. Tcl/Tk 8.6+ and 9.x compatible.

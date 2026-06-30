@@ -1,4 +1,6 @@
 # tkutils::tkumonthcanvas -- canvas calendar widget (month/quarter/year)
+# Description: canvas calendar widget (month/quarter/year) OPTIONAL: requires tical (engine).
+# Category: Tk · widgets
 # OPTIONAL: requires tical (engine). Re-homed from the standalone
 # 'monthcanvas' toolkit; same procedural API, tical-native, Tk 8.6+/9.x.
 # 2025-12-29

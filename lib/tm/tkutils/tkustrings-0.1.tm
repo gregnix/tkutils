@@ -1,4 +1,6 @@
 # tkutils::tkustrings -- printable strings viewer
+# Description: printable strings viewer
+# Category: Tk · widgets
 #
 # Tk front-end on top of the tclutils strings engine (tustrings). Extracts the
 # printable ASCII strings from binary data (like the Unix `strings` tool) and

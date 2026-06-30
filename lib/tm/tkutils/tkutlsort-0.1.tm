@@ -1,4 +1,6 @@
 # tkutils::tkutlsort -- type-aware column sorting for a tablelist widget.
+# Description: type-aware column sorting for a tablelist widget.
+# Category: Tk · tablelist
 # tablelist sorts dictionary/ascii by default, which mis-orders numeric and
 # currency columns ("1.234,56 €", "9,90 €", "10,00 €"). This module sets the
 # right -sortmode per column, including a "num" mode that parses human-formatted

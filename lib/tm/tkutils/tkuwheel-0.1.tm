@@ -1,4 +1,6 @@
 # tkutils::tkuwheel -- forward mouse-wheel events to a scrollable target
+# Description: forward mouse-wheel events to a scrollable target
+# Category: Tk · widgets
 #
 # Solves a common Tk problem: embedded windows (e.g. a frame inside a text
 # widget) and ordinary child widgets receive the mouse-wheel event themselves,

@@ -1,4 +1,6 @@
 # tkutils::tkueditor -- text editor widget (v0.2 PROTOTYPE)
+# Description: text editor widget (v0.2 PROTOTYPE)
+# Category: Tk · widgets
 #
 # Editable text widget with file load/save, search, modified tracking, an
 # optional toolbar and an optional status bar. File I/O goes through the

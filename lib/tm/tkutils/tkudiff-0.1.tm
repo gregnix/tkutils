@@ -1,4 +1,6 @@
 # tkutils::tkudiff -- line diff viewer
+# Description: line diff viewer
+# Category: Tk · widgets
 #
 # Tk front-end on top of the tclutils diff engine (tudiff). Shows the structured
 # diff with per-line highlighting. Tcl/Tk 8.6+ and 9.x compatible.

@@ -1,4 +1,6 @@
 # tkutils::tkusearchbar -- a search bar: entry with debounced change callback,
+# Description: a search bar: entry with debounced change callback, a clear button, and an optional filter drop-down.
+# Category: Tk · widgets
 # a clear button, and an optional filter drop-down.
 #
 # Typing fires -command after -delay ms of inactivity (debounced), as

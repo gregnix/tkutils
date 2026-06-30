@@ -1,4 +1,6 @@
 # tkutils::tkuxml -- XML tree viewer
+# Description: XML tree viewer
+# Category: Tk · widgets
 #
 # Tk front-end that shows an XML document as a nested tree. Parsing is done by
 # tDOM. tDOM is an EXTERNAL dependency (not part of tclutils); this widget is

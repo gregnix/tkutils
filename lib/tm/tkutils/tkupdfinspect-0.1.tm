@@ -1,4 +1,6 @@
 # tkutils::tkupdfinspect -- PDF structure inspector (read-only)
+# Description: PDF structure inspector (read-only)
+# Category: Tk · widgets
 #
 # A Tk front-end on top of the tclutils PDF engine (tupdf). Shows a tree of the
 # document summary, Info metadata, trailer, ZUGFeRD detection and the indirect

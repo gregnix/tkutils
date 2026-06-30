@@ -1,4 +1,6 @@
 # tkutils::tkubase64 -- Base64 encode/decode panel
+# Description: Base64 encode/decode panel
+# Category: Tk · widgets
 #
 # Tk front-end on top of the tclutils Base64 engine (tubase64). An input area, an
 # output area, and Encode/Decode buttons. Tcl/Tk 8.6+ and 9.x compatible.

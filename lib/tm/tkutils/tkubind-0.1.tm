@@ -1,4 +1,6 @@
 # tkutils::tkubind -- platform key/context bindings (from uitoolkit uibindings)
+# Description: platform key/context bindings (from uitoolkit uibindings)
+# Category: Tk · widgets
 #
 # A thin layer over `bind` that abstracts the platform modifier (Control on
 # X11/Win, Command on macOS) and stays out of the way while the user is typing:

@@ -1,4 +1,6 @@
 # tkutils::tkulayoutcanvas -- visual block layout designer on a Tk canvas
+# Description: visual block layout designer on a Tk canvas
+# Category: Tk · widgets
 #
 # Megawidget for coarse document layout: place named blocks on a paper-sized
 # canvas in millimetres, snap to a grid, edit visibility and geometry in a side

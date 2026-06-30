@@ -1,4 +1,6 @@
 # tkutils::tkuldif -- LDIF entry viewer/editor
+# Description: LDIF entry viewer/editor
+# Category: Tk · widgets
 #
 # Shows LDIF entries in a tree: each entry is a node labelled with its dn, with
 # one child row per attribute value (dn included, so it can be edited). With

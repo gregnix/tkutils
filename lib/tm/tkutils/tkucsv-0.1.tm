@@ -1,4 +1,6 @@
 # tkutils::tkucsv -- CSV table viewer
+# Description: CSV table viewer
+# Category: Tk · widgets
 #
 # Tk front-end on top of the tclutils CSV engine (tucsv). Renders parsed rows
 # into a ttk::treeview. Tcl/Tk 8.6+ and 9.x compatible.

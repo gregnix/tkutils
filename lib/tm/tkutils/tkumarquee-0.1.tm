@@ -1,4 +1,6 @@
 # tkutils::tkumarquee -- rubber-band (marquee) rectangle selection on a canvas
+# Description: rubber-band (marquee) rectangle selection on a canvas
+# Category: Tk · widgets
 #
 # Drag on a canvas to draw a live selection rectangle; on release the selected
 # region is reported in canvas coordinates (scroll-safe via canvasx/canvasy).

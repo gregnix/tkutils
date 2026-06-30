@@ -1,4 +1,6 @@
 # tkutils::tkuhexedit -- small Tk hex viewer/editor
+# Description: small Tk hex viewer/editor
+# Category: Tk · widgets
 #
 # Tk front-end built on top of the tclutils byte/hex engine
 # (tubin, tuhexdump, common). tclutils is pure Tcl and pulls in no Tk, so

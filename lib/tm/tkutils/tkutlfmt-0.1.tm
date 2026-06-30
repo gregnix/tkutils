@@ -1,4 +1,6 @@
 # tkutils::tkutlfmt -- per-column display formatting for a tablelist widget via
+# Description: per-column display formatting for a tablelist widget via tablelist's -formatcommand.
+# Category: Tk · tablelist
 # tablelist's -formatcommand. The underlying cell value stays unchanged (so
 # sorting/filtering still see the raw number); only the displayed text is
 # formatted. Pairs with tkutils::tkutlsort. Library-neutral.

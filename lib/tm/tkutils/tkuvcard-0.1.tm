@@ -1,4 +1,6 @@
 # tkutils::tkuvcard -- vCard contact viewer
+# Description: vCard contact viewer
+# Category: Tk · widgets
 #
 # Shows vCard contacts in a tree: each card is a node labelled with its FN, with
 # one child row per property (Value + a Type hint from any TYPE parameter).

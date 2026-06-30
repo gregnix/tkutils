@@ -1,46 +1,35 @@
 .TH tkutical n 0.2 tkutils
-.SH tkutils::tkutical
+.SH "tkutils::tkutical  (optional widget)"
 .PP
-Calendar \fBwidget\fR backed by the \fBtical\fR engine. Renders a month or week view on a canvas with optional week numbers and holidays and none|single|multiple day selection. Optional widget (requires tical; not in the tkutils umbrella).
+Month calendar widget that wraps the \fBtical\fR library. OPTIONAL: not in the tkutils umbrella; require it directly once \fBtical\fR is on the module path (\fBtical::view::month\fR + \fBtical::render::canvas\fR).
 .SS API
 .CS
-package require tkutils::tkutical
-
-set w [::tkutils::tkutical::widget .w \
-    ?-view month|week? ?-date YYYY-MM-DD? ?-year Y -month M? \
-    ?-weeknumbers 0|1? ?-fontsize N? ?-holidays list? \
-    ?-selectmode none|single|multiple? ?-command cmd?]
-
-::tkutils::tkutical::setView  $w month|week    ;# getView
-::tkutils::tkutical::setDate  $w YYYY-MM-DD     ;# getDate  (reference date)
-::tkutils::tkutical::setMonth $w year month     ;# getMonth -> {year month}
-::tkutils::tkutical::next  $w                    ;# prev / today (step by the view's unit)
-::tkutils::tkutical::selectMode    $w mode
-::tkutils::tkutical::getSelection  $w            ;# setSelection / clearSelection
-::tkutils::tkutical::refresh       $w
-::tkutils::tkutical::canvasWidget  $w            ;# the underlying canvas
+set w [::tkutils::tkutical::widget .w ?-year Y? ?-month M? \
+        ?-weeknumbers 0|1? ?-fontsize N? ?-holidays REGION? \
+        ?-selectmode none|single|multiple? ?-command CMD?]
+::tkutils::tkutical::setMonth   $w year month     ;# -> {y m}; throws on bad month
+::tkutils::tkutical::getMonth   $w                ;# -> {y m}
+::tkutils::tkutical::next       $w
+::tkutils::tkutical::prev       $w
+::tkutils::tkutical::today      $w
+::tkutils::tkutical::refresh    $w
+::tkutils::tkutical::selectMode $w none|single|multiple
+::tkutils::tkutical::getSelection   $w            ;# -> sorted ISO dates
+::tkutils::tkutical::setSelection   $w {dates / A..B ranges}
+::tkutils::tkutical::clearSelection $w
+::tkutils::tkutical::canvasWidget   $w            ;# underlying canvas
 .CE
 .PP
-\fB\-command cmd\fR is called with the selection list on selection change.
-.SS Errors
-.PP
-\fB{TKUTILS TKUTICAL <REASON>}\fR (\fBVIEW\fR, \fBDATE\fR, \fBMONTH\fR, \fBSELECTMODE\fR).
-.SS Launcher
-.CS
-wish bin/tkutical.tcl ?YYYY-MM-DD?
-.CE
-.SS "See also"
-.PP
-\fBtical(n)\fR, \fBtkutils::tkumonthcanvas\fR.
-.SS "Additional exported commands"
-.PP
-Documented for completeness (same module, also covered by the test suite):
-.CS
-tkutical::clearSelection path                  ;# clear the current date selection
-tkutical::getDate path                         ;# return the currently selected date
-tkutical::getMonth path                        ;# return the month currently displayed
-tkutical::getView path                         ;# return the active view mode
-tkutical::prev path                            ;# move the calendar one step back (month or view step)
-tkutical::setSelection path dates              ;# set the selected date programmatically
-tkutical::today path                           ;# jump the calendar to today
-.CE
+\fB\-command CMD\fR is called as \fBCMD $w $selection\fR on selection changes (selection modes only). Default \fB\-selectmode single\fR. Errorcodes: \fB{TKUTILS TKUTICAL MONTH}\fR, \fB{TKUTILS TKUTICAL SELECTMODE}\fR.
+.SS "Install / run"
+.IP \(bu
+Drop \fBlib/tm/tkutils/tkutical\-0.1.tm\fR into the tkutils tree (do NOT add it to the umbrella \-\- it is optional, like tkutablelist/tkusqlite).
+.IP \(bu
+Add the optional\-widgets row already prepared in README.md.
+.IP \(bu
+Launcher: \fBbin/tkutical.tcl\fR (set \fBTICAL_DIR=/path/to/tical\fR or keep tical as a sibling repo). e.g.  \fBTICAL_DIR=.../tical wish bin/tkutical.tcl 2025 10\fR
+.SS Verification
+.IP \(bu
+tkutical.test: 8/8 on Tcl/Tk 9.0 (Xvfb).
+.IP \(bu
+With tical (or Tk) absent the suite SKIPS via the \fBtical\fR constraint (8 skipped, 0 failed) \-\- never breaks the tkutils runner, which already runs each test in its own process.

@@ -1,4 +1,6 @@
 # tkutils::tkutimeentry -- time entry with hour/minute (optional second) spinboxes.
+# Description: time entry with hour/minute (optional second) spinboxes.
+# Category: Tk · widgets
 # getTime/setTime use "HH:MM" (or "HH:MM:SS" with -seconds). Tcl/Tk 8.6+ and 9.x.
 
 package require Tcl 8.6-

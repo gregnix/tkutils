@@ -1,4 +1,6 @@
 # tkutils::tkuicon -- SVG icon loader / generator for toolbars (from uitoolkit)
+# Description: SVG icon loader / generator for toolbars (from uitoolkit)
+# Category: Tk · widgets
 #
 # Loads .svg/.png icons as Tk photo images and generates the built-in icon set
 # on the fly from tclutils::tusvg. SVG needs tksvg (Tk 8.6) or native SVG

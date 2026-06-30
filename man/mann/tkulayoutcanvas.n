@@ -1,0 +1,80 @@
+.TH tkulayoutcanvas n 0.1 tkutils
+.SH tkutils::tkulayoutcanvas
+.PP
+Visual block layout designer on a Tk canvas. Place named blocks on a paper\-sized page in millimetres, snap to a grid, toggle visibility, and edit geometry in a built\-in side panel. Backend: \fBtclutils::tulayout\fR.
+.PP
+Designed for a \fBcoarse\fR layout step (block positions and visibility). Fine tuning (columns, fonts, PDF overlay) stays in the host application.
+.SS API
+.CS
+::tkutils::tkulayoutcanvas::widget $path ?options?
+::tkutils::tkulayoutcanvas::configure $path ?-option value ...?
+::tkutils::tkulayoutcanvas::cget $path -option
+::tkutils::tkulayoutcanvas::getBlocks $path
+::tkutils::tkulayoutcanvas::setBlocks $path $blocks
+::tkutils::tkulayoutcanvas::select $path $blockId
+::tkutils::tkulayoutcanvas::getCanvas $path
+::tkutils::tkulayoutcanvas::redraw $path
+::tkutils::tkulayoutcanvas::mergePreset $path $presetDict ?-keys {x y w show}?
+.CE
+.SS "Options (creation and \fBconfigure\fR)"
+.TS
+l l l.
+Option	Default	Meaning
+\fB\-paper\fR	\fBa4\fR	Paper name (\fBa4\fR, \fBa5\fR, \fBletter\fR)
+\fB\-orientation\fR	\fBportrait\fR	\fBportrait\fR or \fBlandscape\fR
+\fB\-margin\fR	\fB20.0\fR	Page margin in mm (drawn as dashed rect)
+\fB\-gridmm\fR	\fB5.0\fR	Snap grid in mm
+\fB\-scale\fR	\fB3.0\fR	Pixels per mm on the canvas
+\fB\-blocks\fR	\fB{}\fR	Block dict (id → block)
+\fB\-definitions\fR	\fB{}\fR	Catalog dict: default label/size for each id
+\fB\-blockorder\fR	\fB{}\fR	Explicit draw/list order (else from definitions)
+\fB\-onchange\fR	\fB{}\fR	Callback: \fBcmd $path $blocks\fR after drag/edit
+\fB\-showgrid\fR	\fB1\fR	Draw mm grid
+\fB\-properties\fR	\fB1\fR	Show list + spinboxes panel
+\fB\-width\fR / \fB\-height\fR	\fB640\fR / \fB480\fR	Initial canvas size
+.TE
+.SS Interaction
+.IP \(bu
+Click a block on the canvas or in the list to select it.
+.IP \(bu
+Drag a block; coordinates snap to \fB\-gridmm\fR.
+.IP \(bu
+Auto\-Y blocks (\fBy==0\fR or \fBlockedY 1\fR) show a grey dashed preview, keep \fBy\fR at \fB0\fR, and only move horizontally when dragged.
+.IP \(bu
+Spinboxes and the \fBVisible\fR checkbutton update the block dict and fire \fB\-onchange\fR.
+.SS "Minimal example"
+.CS
+package require tkutils::tkulayoutcanvas
+
+set defs {
+    title {label Title w 160 h 12}
+    body  {label Body  w 160 h 50}
+}
+set blocks {
+    title {label Title x 25 y 30 w 160 h 12 show 1}
+    body  {label Body  x 25 y 55 w 160 h 50 show 1}
+}
+
+tkutils::tkulayoutcanvas::widget .lc -blocks $blocks -definitions $defs \
+    -onchange {apply {{p b} {
+        puts "layout changed: [dict size $b] blocks"
+    }}}
+pack .lc -fill both -expand 1
+.CE
+.SS Demo
+.CS
+wish examples/demo-tkulayoutcanvas.tcl
+# or
+wish bin/tkulayoutcanvas.tcl
+.CE
+.SS Tests
+.CS
+tclsh tests/tkulayoutcanvas.test
+# headless: xvfb-run -a tclsh tests/tkulayoutcanvas.test
+.CE
+.SS "Integration guide"
+.PP
+See \fBdocs/HANDOFF\-layout\-designer.md\fR for how a host app (e.g. a document editor) wires presets, handoff files, and \fBmergeBlocks\fR.
+.SS "Error codes"
+.PP
+\fB{TKUTILS TKULAYOUTCANVAS NOWIDGET|OPTION|EXISTS|BLOCK}\fR

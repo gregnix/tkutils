@@ -1,4 +1,6 @@
 # tkutils::tkudialog -- dialogs with copyable message text
+# Description: dialogs with copyable message text
+# Category: Tk · widgets
 #
 # Unlike tk_messageBox, the message is shown in a selectable text area and can be
 # copied (Ctrl-C or the Copy button). A generic, extensible builder (show/build)

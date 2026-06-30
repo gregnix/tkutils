@@ -11,18 +11,10 @@
 #   tclsh tkdevtools.tcl --shot out.png ?toolKey?   (e.g. themes, regexp)
 # ===========================================================================
 
-set here  [file dirname [file normalize [info script]]]
-set tmDir [file normalize [file join $here .. lib tm]]
-tcl::tm::path add $tmDir
-if {[info exists ::env(TCLUTILS_TM)]} {
-    tcl::tm::path add $::env(TCLUTILS_TM)
-} else {
-    set _root [file dirname [file dirname $tmDir]]
-    foreach _c [lsort -decreasing [glob -nocomplain \
-            [file join [file dirname $_root] tclutils*/lib/tm]]] {
-        tcl::tm::path add $_c; break
-    }
-}
+# locate tkutils / tclutils via the shared bootstrap (as the other apps do):
+# resolves TCLUTILS_TM/TKUTILS_TM, the install/share/XDG locations and a
+# side-by-side source checkout -- a missing package then fails loudly later.
+source [file join [file dirname [file normalize [info script]]] .. _lib paths.tcl]
 
 package require Tk
 package require tablelist

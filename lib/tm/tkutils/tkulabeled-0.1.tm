@@ -1,4 +1,6 @@
 # tkutils::tkulabeled -- labeled input composites (label + control in one)
+# Description: labeled input composites (label + control in one)
+# Category: Tk · widgets
 #
 # Standalone "label + input" rows you can drop into any layout, when a full
 # tkuform dict is more than you need. The widget is the frame at $path; the

@@ -1,4 +1,6 @@
 # tkutils::tkutree -- a thin ttk::treeview wrapper for hierarchical data.
+# Description: a thin ttk::treeview wrapper for hierarchical data.
+# Category: Tk · widgets
 # Build a tree (with optional data columns and a scrollbar), insert nodes, load
 # a nested structure in one call, and read selection/text/values back.
 # Tcl/Tk 8.6+ and 9.x.

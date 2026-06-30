@@ -1,4 +1,6 @@
 # tkutils::tkucal -- calendar view
+# Description: calendar view
+# Category: Tk · widgets
 #
 # Tk front-end on top of the tclutils calendar engine (tucal). Shows a month in
 # a monospace view with previous/next/today navigation. Tcl/Tk 8.6+ and 9.x.

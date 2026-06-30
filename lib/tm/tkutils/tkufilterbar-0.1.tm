@@ -1,4 +1,6 @@
 # tkutils::tkufilterbar -- a per-column filter bar: one small entry per column,
+# Description: a per-column filter bar: one small entry per column, each typing a substring that the consumer ANDs together.
+# Category: Tk · widgets
 # each typing a substring that the consumer ANDs together. Mirrors the tku*
 # widget style of tkutils and complements tkusearchbar (single free-text box).
 #

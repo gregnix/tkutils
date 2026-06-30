@@ -1,4 +1,6 @@
 # tkutils::tkuzip -- ZIP archive browser
+# Description: ZIP archive browser
+# Category: Tk · widgets
 #
 # Tk front-end on top of the tclutils ZIP engine (tuzip). Lists archive members
 # in a ttk::treeview. Tcl/Tk 8.6+ and 9.x compatible.

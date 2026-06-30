@@ -1,4 +1,6 @@
 # tkutils::tkudavbrowser -- a read-only navigation pane for a CalDAV/CardDAV
+# Description: a read-only navigation pane for a CalDAV/CardDAV server, built on tclutils::tudav.
+# Category: Tk · widgets
 # server, built on tclutils::tudav. It shows the server's collections grouped by
 # kind (Calendars / Address Books / Other) in a ttk::treeview; selecting a
 # collection fires the -oncollection callback so an app can load its contents

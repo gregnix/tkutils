@@ -1,4 +1,6 @@
 # tkutils::tkucontextmenu -- generic right-click context menu (from uitoolkit)
+# Description: generic right-click context menu (from uitoolkit)
+# Category: Tk · widgets
 #
 # Build context menus declaratively, attach them to widgets, and show them on
 # the platform context button. Supports command/check/radio items, cascades,

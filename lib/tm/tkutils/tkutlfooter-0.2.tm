@@ -1,4 +1,6 @@
 # tkutils::tkutlfooter -- a footer row for a tablelist widget, realised as a
+# Description: a footer row for a tablelist widget, realised as a second single-row tablelist ("header at the bottom" look).
+# Category: Tk · tablelist
 # second single-row tablelist ("header at the bottom" look). Mirrors the main
 # table's column widths, order, alignment, -titlecolumns and hidden columns,
 # and keeps horizontal scrolling in sync by *chaining* the main table's

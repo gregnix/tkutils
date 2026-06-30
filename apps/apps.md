@@ -10,6 +10,7 @@ Standalone programs built on tkutils/tclutils. Each app has its own folder
 | `notes-app/`          | notes app (tclutils::tunotes) |
 | `sqlite-editor/`      | SQLite browser/editor (form and sheet views) |
 | `search-replace-tool/`| search/replace across files |
+| `tkdevtools/`| Tcl/Tk developer toolbox: colors, characters, fonts, units, timezones, cursors, relief/anchor, keysym probe, ttk theme & style browser, regexp & format/scan testers, encodings, virtual events, bitmaps, widget explorer, pack/grid playgrounds, clock-format codes |
 
 ## Module paths
 Every app sources `_lib/paths.tcl` (`::tkupaths::add`), which locates the

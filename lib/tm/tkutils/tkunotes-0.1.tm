@@ -1,4 +1,6 @@
 # tkutils::tkunotes -- hierarchical notes widget
+# Description: hierarchical notes widget
+# Category: Tk · widgets
 #
 # A composite widget: a tree of notes on the left, a title/tags/content editor
 # on the right, and a small action bar (New Root, New Child, Delete, Save) with

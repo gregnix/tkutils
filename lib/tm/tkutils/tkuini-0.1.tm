@@ -1,4 +1,6 @@
 # tkutils::tkuini -- INI viewer
+# Description: INI viewer
+# Category: Tk · widgets
 #
 # A two-pane view of an INI document: a list of sections on the left and the
 # key/value pairs of the selected section on the right. The global section ""
