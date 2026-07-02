@@ -13,6 +13,7 @@ if {![namespace exists ::tkupaths]} {
     source [file join [file dirname [file normalize [info script]]] .. _lib paths.tcl]
 }
 package require tkutils::tkurender
+package require tkutils::tkuwheel
 namespace eval ::tkudesigner { namespace path ::tkurender }
 
 proc ::tkudesigner::applyName {id var} {
@@ -187,8 +188,10 @@ proc ::tkudesigner::scrollableArea {parent} {
     set win [$cv create window 0 0 -anchor nw -window $inner]
     bind $inner <Configure> [list ::tkudesigner::palScroll $cv $inner]
     bind $cv    <Configure> [list $cv itemconfigure $win -width %w]
-    palBindWheel $inner $cv
-    palBindWheel $cv $cv
+    # forward the wheel to the canvas; -dynamic 1 keeps buttons/fields added
+    # later (see buildPalette / property editors) covered automatically.
+    ::tkutils::tkuwheel::redirect $cv $inner -dynamic 1
+    ::tkutils::tkuwheel::redirect $cv $cv
     after idle [list ::tkudesigner::palScroll $cv $inner]
     return $inner
 }
@@ -219,21 +222,12 @@ proc ::tkudesigner::buildPalette {parent} {
         grid columnconfigure $row 0 -weight 1
         grid columnconfigure $row 1 -weight 1
     }
-    # re-bind wheel now that buttons exist
-    palBindWheel $inner [winfo parent $inner]
+    # Wheel coverage of the freshly created buttons is handled automatically
+    # by the -dynamic redirect in scrollableArea.
 }
 # update the scroll region to the inner frame's *current* requested size
 proc ::tkudesigner::palScroll {cv inner} {
     $cv configure -scrollregion [list 0 0 [winfo reqwidth $inner] [winfo reqheight $inner]]
-}
-proc ::tkudesigner::palWheel {cv d} { $cv yview scroll [expr {$d > 0 ? -1 : 1}] units }
-# bind the wheel on a widget and all its descendants (events over child
-# buttons would otherwise never reach the canvas)
-proc ::tkudesigner::palBindWheel {w cv} {
-    bind $w <MouseWheel> [list ::tkudesigner::palWheel $cv %D]
-    bind $w <Button-4>   [list $cv yview scroll -1 units]
-    bind $w <Button-5>   [list $cv yview scroll  1 units]
-    foreach c [winfo children $w] { palBindWheel $c $cv }
 }
 proc ::tkudesigner::buildTree {parent} {
     namespace upvar ::tkurender D D
@@ -486,8 +480,8 @@ proc ::tkudesigner::showProps {} {
     if {$type ni {menubar menu menuitem toolbar toolbutton statusbar} && $id ne $D(root)} {
         showGeomEditor $f $id
     }
-    # make the wheel work over the freshly created property fields
-    palBindWheel $f [winfo parent $f]
+    # Wheel coverage of the freshly created property fields is handled
+    # automatically by the -dynamic redirect on the propframe (scrollableArea).
     after idle [list ::tkudesigner::palScroll [winfo parent $f] $f]
 }
 proc ::tkudesigner::showGeomEditor {f id} {

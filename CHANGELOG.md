@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.42.0
+
+Changes since 0.41.0.
+
+- `tkuwheel` 0.2: new `-dynamic 0|1` option for `redirect`. With `-dynamic 1` a
+  `<Configure>` hook on the root re-applies the wheel binding (coalesced via
+  `after idle`) to descendants that are **added after the call** -- e.g. a
+  designer palette whose tool buttons are created at runtime. `unbind` stops the
+  dynamic re-application.
+- `tkuwheel` 0.2: horizontal tilt-wheel support on X11. `-orient x` and
+  `-orient both` now also bind `<Button-6>`/`<Button-7>` (Tk 8.7+; wrapped in
+  `catch`, so Tk 8.6 skips them cleanly). The 0.1 API is unchanged; existing
+  calls behave exactly as before. Tests 17 total (16 + 1 tilt-skip on 8.6).
+
 ## 0.41.0
 
 Changes since 0.40.0.

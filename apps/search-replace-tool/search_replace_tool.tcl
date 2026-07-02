@@ -17,6 +17,8 @@ namespace eval ::srtool {
     array set opt {
         dir {} search {} replace {} pattern {*.tcl *.txt *.md}
         encoding utf-8 case 0 regex 0 recursive 1 multiline 0 allowReplace 0
+        backup 0 filesonly 0
+        datefrom {} dateto {}
         editor {}
     }
     variable results {}      ;# list of {file {hitDict ...}}
@@ -25,6 +27,8 @@ namespace eval ::srtool {
     variable itemInfo        ;# tree item -> {file F line L}
     array set itemInfo {}
     variable tbPath ""       ;# toolbar widget path (for enabling replace buttons)
+    variable searching 0     ;# a search loop is running
+    variable cancel 0        ;# request to abort the running search
 }
 
 # =============================================================================
@@ -168,9 +172,57 @@ proc ::srtool::searchFile {path needle opts} {
 # Search a directory tree. Returns list of {file {hitDict ...}}.
 proc ::srtool::searchDir {dir patterns needle opts} {
     set out {}
+    set bounds [_dateBounds $opts]
     foreach f [collectFiles $dir $patterns [dict get $opts recursive]] {
+        if {![_dateFileOk $f $bounds]} continue
         set hits [searchFile $f $needle $opts]
         if {[llength $hits]} { lappend out [list $f $hits] }
+    }
+    return $out
+}
+
+# Match a file NAME (base name) against the needle. An empty needle matches
+# every file (list all). Honours case/regex from opts; content is never read.
+proc ::srtool::_nameMatch {name needle opts} {
+    if {$needle eq ""} { return 1 }
+    return [_lineMatch $name $needle $opts]
+}
+
+# --- date filter (by file modification time) --------------------------------
+# Parse the optional datefrom/dateto ("YYYY-MM-DD") into epoch bounds
+# {lo hi}; "" = unbounded. "from" starts at 00:00 of that day, "to" is
+# inclusive (upper bound = start of the following day). Raises an error on a
+# non-empty but unparseable date.
+proc ::srtool::_dateBounds {opts} {
+    set lo ""; set hi ""
+    set df [expr {[dict exists $opts datefrom] ? [string trim [dict get $opts datefrom]] : ""}]
+    set dt [expr {[dict exists $opts dateto]   ? [string trim [dict get $opts dateto]]   : ""}]
+    if {$df ne ""} { set lo [clock scan "$df 00:00:00" -format {%Y-%m-%d %H:%M:%S}] }
+    if {$dt ne ""} { set hi [expr {[clock scan "$dt 00:00:00" -format {%Y-%m-%d %H:%M:%S}] + 86400}] }
+    return [list $lo $hi]
+}
+proc ::srtool::_dateOk {mtime bounds} {
+    lassign $bounds lo hi
+    if {$lo ne "" && $mtime <  $lo} { return 0 }
+    if {$hi ne "" && $mtime >= $hi} { return 0 }
+    return 1
+}
+# Combine "read the mtime safely" with the range check.
+proc ::srtool::_dateFileOk {path bounds} {
+    lassign $bounds lo hi
+    if {$lo eq "" && $hi eq ""} { return 1 }
+    if {[catch {file mtime $path} mt]} { return 0 }
+    return [_dateOk $mt $bounds]
+}
+
+# Find files by NAME only (no content search). Returns list of {file {}}
+# so it plugs into the same result/tree structure with no hit children.
+proc ::srtool::searchDirNames {dir patterns needle opts} {
+    set out {}
+    set bounds [_dateBounds $opts]
+    foreach f [collectFiles $dir $patterns [dict get $opts recursive]] {
+        if {![_dateFileOk $f $bounds]} continue
+        if {[_nameMatch [file tail $f] $needle $opts]} { lappend out [list $f {}] }
     }
     return $out
 }
@@ -195,7 +247,12 @@ proc ::srtool::replaceInFile {path needle replacement opts} {
         if {![dict get $opts case]} { lappend flags -nocase }
         set count [regsub {*}$flags -- $pat $content $rep new]
     }
-    if {$count > 0} { writeFileEnc $path $new $enc }
+    if {$count > 0} {
+        if {[dict exists $opts backup] && [dict get $opts backup]} {
+            catch { file copy -force -- $path $path.bak }
+        }
+        writeFileEnc $path $new $enc
+    }
     return $count
 }
 
@@ -204,7 +261,8 @@ proc ::srtool::currentOpts {} {
     variable opt
     return [dict create \
         case $opt(case) regex $opt(regex) recursive $opt(recursive) \
-        multiline $opt(multiline) encoding $opt(encoding)]
+        multiline $opt(multiline) encoding $opt(encoding) backup $opt(backup) \
+        filesonly $opt(filesonly) datefrom $opt(datefrom) dateto $opt(dateto)]
 }
 
 proc ::srtool::countHits {results} {
@@ -232,6 +290,7 @@ proc ::srtool::buildGui {} {
     set tb [::tkutils::tkutoolbar::widget .tb]
     pack $tb -side top -fill x
     ::tkutils::tkutoolbar::addButton $tb search  "Suchen"             ::srtool::doSearch
+    ::tkutils::tkutoolbar::addButton $tb cancel  "Abbrechen"          ::srtool::cancelSearch
     ::tkutils::tkutoolbar::addSeparator $tb
     ::tkutils::tkutoolbar::addButton $tb repall   "Alle ersetzen"      ::srtool::doReplaceAll
     ::tkutils::tkutoolbar::addButton $tb repsel   "Ausgewaehlte ersetzen" ::srtool::doReplaceSelected
@@ -241,6 +300,7 @@ proc ::srtool::buildGui {} {
     # "Ersetzen erlauben" switch is on AND a search produced hits AND the
     # replacement field is non-empty (see updateReplaceButtons).
     set ::srtool::tbPath $tb
+    ::tkutils::tkutoolbar::setEnabled $tb cancel 0
     ::tkutils::tkutoolbar::setEnabled $tb repall 0
     ::tkutils::tkutoolbar::setEnabled $tb repsel 0
 
@@ -271,6 +331,16 @@ proc ::srtool::buildGui {} {
     ttk::entry $p.pat -textvariable ::srtool::opt(pattern)
     grid $p.lpat $p.pat -sticky ew -padx 2 -pady 2
 
+    ttk::label $p.ldate -text "Geaendert:"
+    set df [ttk::frame $p.datef]
+    ttk::label $df.lf -text "von"
+    ttk::entry $df.from -textvariable ::srtool::opt(datefrom) -width 12
+    ttk::label $df.lt -text "bis"
+    ttk::entry $df.to -textvariable ::srtool::opt(dateto) -width 12
+    ttk::label $df.hint -text "(JJJJ-MM-TT, optional)" -foreground gray40
+    pack $df.lf $df.from $df.lt $df.to $df.hint -side left -padx {0 4}
+    grid $p.ldate $df -sticky w -padx 2 -pady 2
+
     ttk::label $p.lenc -text "Encoding:"
     ttk::combobox $p.enc -textvariable ::srtool::opt(encoding) \
         -values [lsort [encoding names]] -width 14
@@ -288,7 +358,10 @@ proc ::srtool::buildGui {} {
         -command ::srtool::toggleMultiline
     ttk::checkbutton $o.allow -text "Ersetzen erlauben" \
         -variable ::srtool::opt(allowReplace) -command ::srtool::updateReplaceButtons
-    pack $o.case $o.regex $o.rec $o.ml $o.allow -side left -padx 6
+    ttk::checkbutton $o.bak -text "Backup (.bak)" -variable ::srtool::opt(backup)
+    ttk::checkbutton $o.files -text "Nur Dateinamen" \
+        -variable ::srtool::opt(filesonly) -command ::srtool::updateReplaceButtons
+    pack $o.case $o.regex $o.rec $o.ml $o.allow $o.bak $o.files -side left -padx 6
     grid $o - - -sticky w -pady 2
 
     grid columnconfigure $p 1 -weight 1
@@ -352,7 +425,7 @@ proc ::srtool::buildGui {} {
     bind $tv <Double-1> ::srtool::openInBuiltinEditor
     bind $tv <Button-3> {tk_popup .ctx %X %Y}
     bind . <Control-f> {focus .params.search ; break}
-    bind . <Escape> {::srtool::clearResults}
+    bind . <Escape> {::srtool::onEscape}
     bind $p.search <Return> ::srtool::doSearch
     bind $p.searchml <Control-Return> ::srtool::doSearch
     bind $p.repl <KeyRelease> ::srtool::updateReplaceButtons
@@ -401,7 +474,7 @@ proc ::srtool::updateReplaceButtons {} {
     variable results
     variable tbPath
     if {$tbPath eq "" || ![winfo exists $tbPath]} return
-    set ok [expr {$opt(allowReplace) && [llength $results] > 0 \
+    set ok [expr {!$opt(filesonly) && $opt(allowReplace) && [llength $results] > 0 \
                   && [string length [getReplace]] > 0}]
     ::tkutils::tkutoolbar::setEnabled $tbPath repall $ok
     ::tkutils::tkutoolbar::setEnabled $tbPath repsel $ok
@@ -434,8 +507,11 @@ proc ::srtool::clearResults {} {
 proc ::srtool::doSearch {} {
     variable opt
     variable results
+    variable searching
+    variable cancel
+    if {$searching} return
     set needle [getSearch]
-    if {$needle eq ""} {
+    if {$needle eq "" && !$opt(filesonly)} {
         ::tkutils::tkudialog::showWarning "Bitte einen Suchtext eingeben."
         return
     }
@@ -444,21 +520,89 @@ proc ::srtool::doSearch {} {
         return
     }
     clearResults
-    ::tkutils::tkustatus::setText .st "Suche laeuft..."
-    update idletasks
-    if {[catch {
-        searchDir $opt(dir) $opt(pattern) $needle [currentOpts]
-    } results err]} {
-        set results {}
+    set opts [currentOpts]
+    set names $opt(filesonly)
+    if {[catch {_dateBounds $opts} bounds]} {
+        ::tkutils::tkudialog::showWarning \
+            "Ungueltiges Datum. Bitte Format JJJJ-MM-TT verwenden (Felder leer = keine Grenze)."
+        return
+    }
+    if {[catch {collectFiles $opt(dir) $opt(pattern) $opt(recursive)} files err]} {
         ::tkutils::tkudialog::showError "Suchfehler:\n[dict get $err -errorinfo]"
         return
     }
+    set total [llength $files]
+    set results {}
+    set searching 1
+    set cancel 0
+    _searchSetBusy 1
+    set i 0
+    set hitsN 0
+    foreach f $files {
+        incr i
+        if {[_dateFileOk $f $bounds]} {
+            if {$names} {
+                if {[_nameMatch [file tail $f] $needle $opts]} {
+                    lappend results [list $f {}]
+                }
+            } else {
+                if {[catch {searchFile $f $needle $opts} hits]} { set hits {} }
+                if {[llength $hits]} {
+                    lappend results [list $f $hits]
+                    incr hitsN [llength $hits]
+                }
+            }
+        }
+        # keep the UI responsive and let the Abbrechen button / Escape through
+        if {$i % 20 == 0} {
+            set prog [expr {$names ? "[llength $results] Datei(en)" \
+                                    : "$hitsN Treffer"}]
+            catch {::tkutils::tkustatus::setText .st "Suche... $i/$total Dateien, $prog"}
+            update
+            if {$cancel} break
+        }
+    }
+    set searching 0
+    _searchSetBusy 0
     populateTree
-    set h [countHits $results]
-    set f [llength $results]
-    ::tkutils::tkustatus::setText .st "$h Treffer in $f Datei(en) gefunden."
-    ::tkutils::tkustatus::setField .st files "$f Datei(en)"
+    set fn [llength $results]
+    set pre [expr {$cancel ? "Abgebrochen -- " : ""}]
+    set suf [expr {$cancel ? " ($i/$total durchsucht)" : ""}]
+    if {$names} {
+        ::tkutils::tkustatus::setText .st "$pre$fn Datei(en) gefunden$suf."
+    } else {
+        ::tkutils::tkustatus::setText .st "$pre$hitsN Treffer in $fn Datei(en)$suf."
+    }
+    ::tkutils::tkustatus::setField .st files "$fn Datei(en)"
     updateReplaceButtons
+}
+
+# Request abort of the running search (Abbrechen button / Escape while busy).
+proc ::srtool::cancelSearch {} {
+    variable searching
+    variable cancel
+    if {$searching} {
+        set cancel 1
+        catch {::tkutils::tkustatus::setText .st "Abbruch..."}
+    }
+}
+
+# Toggle the toolbar between idle and searching state.
+proc ::srtool::_searchSetBusy {busy} {
+    variable tbPath
+    if {$tbPath eq "" || ![winfo exists $tbPath]} return
+    catch {::tkutils::tkutoolbar::setEnabled $tbPath search [expr {!$busy}]}
+    catch {::tkutils::tkutoolbar::setEnabled $tbPath cancel $busy}
+    if {$busy} {
+        catch {::tkutils::tkutoolbar::setEnabled $tbPath repall 0}
+        catch {::tkutils::tkutoolbar::setEnabled $tbPath repsel 0}
+    }
+}
+
+# Escape: abort a running search, otherwise clear the results.
+proc ::srtool::onEscape {} {
+    variable searching
+    if {$searching} { cancelSearch } else { clearResults }
 }
 
 proc ::srtool::populateTree {} {
@@ -477,8 +621,9 @@ proc ::srtool::populateTree {} {
             dict set dirNodes $dir $dn
         }
         set dn [dict get $dirNodes $dir]
+        set lbl [expr {[llength $hits] ? "([llength $hits] Treffer)" : "Datei"}]
         set fn [$tv insert $dn end -text [file tail $file] -open 1 \
-            -values [list "" "([llength $hits] Treffer)"]]
+            -values [list "" $lbl]]
         set itemInfo($fn) [list file $file line ""]
         foreach hit $hits {
             set hn [$tv insert $fn end -text "" -tags hit \

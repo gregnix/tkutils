@@ -83,4 +83,65 @@ test sr-11 {encoding fallback: invalid utf-8 does not throw} -body {
     expr {[catch {::srtool::readFileEnc $f utf-8} d] == 0 && [string length $d] > 0}
 } -result 1
 
+test sr-11 {backup: off by default, on writes .bak with the original} -setup {
+    set bf [file join $root bak.txt]
+    put $bf "alpha beta alpha\n"
+} -body {
+    ::srtool::replaceInFile $bf "alpha" "X" $CI
+    set noBak [file exists $bf.bak]
+    put $bf "alpha beta alpha\n"
+    ::srtool::replaceInFile $bf "alpha" "X" [dict merge $CI {backup 1}]
+    set orig ""
+    if {[file exists $bf.bak]} { set ch [open $bf.bak]; set orig [read $ch]; close $ch }
+    list $noBak [string match "*alpha beta alpha*" $orig] \
+        [string match "*X beta X*" [::srtool::readFileEnc $bf utf-8]]
+} -cleanup { file delete -force $bf $bf.bak } -result {0 1 1}
+
+test sr-12 {filename search: substring on base names, content ignored} -body {
+    lsort [lmap p [::srtool::searchDirNames $root {*.tcl} "a" $CI] \
+        {file tail [lindex $p 0]}]
+} -result a.tcl
+
+test sr-13 {filename search: empty needle lists all matching the pattern} -body {
+    llength [::srtool::searchDirNames $root {*.tcl} "" $CI]
+} -result 2
+
+test sr-14 {filename search: regex on names} -body {
+    lsort [lmap p [::srtool::searchDirNames $root {*.txt} {^b} $RE] \
+        {file tail [lindex $p 0]}]
+} -result b.txt
+
+test sr-15 {filename search matches names only, not content} -body {
+    # b.txt CONTENT has "hello" but no file NAME contains it
+    llength [::srtool::searchDirNames $root {*.txt} "hello" $CI]
+} -result 0
+
+test sr-16 {date filter: _dateOk honours from/to bounds (to inclusive)} -body {
+    set lo [clock scan "2026-01-10 00:00:00" -format {%Y-%m-%d %H:%M:%S}]
+    set hi [expr {[clock scan "2026-01-20 00:00:00" -format {%Y-%m-%d %H:%M:%S}] + 86400}]
+    set b [list $lo $hi]
+    set d09 [clock scan "2026-01-09 12:00" -format {%Y-%m-%d %H:%M}]
+    set d15 [clock scan "2026-01-15 12:00" -format {%Y-%m-%d %H:%M}]
+    set d20 [clock scan "2026-01-20 23:00" -format {%Y-%m-%d %H:%M}]
+    set d21 [clock scan "2026-01-21 00:30" -format {%Y-%m-%d %H:%M}]
+    list [::srtool::_dateOk $d09 $b] [::srtool::_dateOk $d15 $b] \
+         [::srtool::_dateOk $d20 $b] [::srtool::_dateOk $d21 $b]
+} -result {0 1 1 0}
+
+test sr-17 {date filter selects files by mtime} -setup {
+    set dd [makeDirectory srtdate]
+    put [file join $dd old.tcl] "x"
+    put [file join $dd new.tcl] "y"
+    file mtime [file join $dd old.tcl] [clock scan "2020-01-01" -format %Y-%m-%d]
+    file mtime [file join $dd new.tcl] [clock scan "2026-06-01" -format %Y-%m-%d]
+} -body {
+    set o {case 0 regex 0 recursive 1 multiline 0 encoding utf-8 datefrom 2026-01-01 dateto {}}
+    lsort [lmap p [::srtool::searchDirNames $dd {*.tcl} "" $o] {file tail [lindex $p 0]}]
+} -cleanup {file delete -force $dd} -result new.tcl
+
+test sr-18 {invalid date string raises an error} -body {
+    catch {::srtool::_dateBounds {datefrom nope}} e
+    expr {$e ne ""}
+} -result 1
+
 cleanupTests

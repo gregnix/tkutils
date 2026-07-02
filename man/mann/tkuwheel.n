@@ -1,12 +1,13 @@
-.TH tkuwheel n 0.1 tkutils
+.TH tkuwheel n 0.2 tkutils
 .SH tkutils::tkuwheel
 .PP
 Forward mouse\-wheel events to a scrollable target. Solves a common Tk problem: embedded windows (e.g. a frame inside a \fBtext\fR widget) and ordinary child widgets receive the wheel event themselves, so an outer scroller stops scrolling while the pointer is over them. \fBtkuwheel\fR re\-binds the wheel on a widget \-\- and, by default, its whole subtree \-\- so the events are sent to a target widget's \fByview\fR / \fBxview\fR. Pure Tk, Tcl/Tk 8.6+ / 9.x.
 .PP
-Cross\-platform: it binds \fB<MouseWheel>\fR (Windows/macOS) and \fB<Button\-4>\fR / \fB<Button\-5>\fR (X11). Direction comes from the sign of the delta, so one notch scrolls a fixed number of units regardless of the platform's delta magnitude.
+Cross\-platform: it binds \fB<MouseWheel>\fR (Windows/macOS) and \fB<Button\-4>\fR / \fB<Button\-5>\fR (X11 vertical). For horizontal scrolling on X11 the tilt\-wheel buttons \fB<Button\-6>\fR / \fB<Button\-7>\fR are honoured as well (they exist only on Tk 8.7+ and are skipped gracefully on Tk 8.6). Direction comes from the sign of the delta, so one notch scrolls a fixed number of units regardless of the platform's delta magnitude.
 .SS Commands
 .CS
-::tkutils::tkuwheel::redirect target w ?-orient y|x|both? ?-amount N? ?-recursive 0|1?
+::tkutils::tkuwheel::redirect target w ?-orient y|x|both? ?-amount N? \
+                                  ?-recursive 0|1? ?-dynamic 0|1?
 ::tkutils::tkuwheel::unbind   w ?-recursive 0|1?
 .CE
 .SS redirect
@@ -16,16 +17,17 @@ Binds the wheel on \fBw\fR so the events scroll \fBtarget\fR. \fBtarget\fR must 
 l l l.
 Option	Default	Meaning
 \fB\-orient y\fR	\fBy\fR	plain wheel scrolls \fBtarget\fR vertically
-\fB\-orient x\fR		plain wheel scrolls \fBtarget\fR horizontally
-\fB\-orient both\fR		plain wheel = vertical, \fBShift\fR+wheel = horizontal
+\fB\-orient x\fR		plain wheel scrolls \fBtarget\fR horizontally (plus tilt\-wheel)
+\fB\-orient both\fR		plain wheel = vertical, \fBShift\fR+wheel / tilt\-wheel = horizontal
 \fB\-amount N\fR	\fB3\fR	units scrolled per wheel notch (positive integer)
 \fB\-recursive\fR	\fB1\fR	bind every descendant of \fBw\fR too (\fB0\fR = only \fBw\fR)
+\fB\-dynamic\fR	\fB0\fR	also cover descendants added \fIafter\fR the call
 .TE
 .PP
-The subtree is bound as it exists at call time; re\-run \fBredirect\fR after adding child widgets. Bindings are removed automatically when \fBw\fR is destroyed.
+By default the subtree is bound as it exists at call time. For a container that is populated at runtime (e.g. a designer palette whose buttons appear later), pass \fB\-dynamic 1\fR: a \fB<Configure>\fR hook on \fBw\fR re\-applies the binding to any new descendants (coalesced via \fBafter idle\fR), so wheel\-over\-child keeps scrolling \fBtarget\fR. This relies on \fBw\fR being managed and resizing when children are added \-\- the normal case for a growing frame; if you build \fBw\fR fully before showing it, a single \fBredirect\fR is enough. Bindings are removed automatically when \fBw\fR is destroyed.
 .SS unbind
 .PP
-Removes the wheel bindings that \fBredirect\fR set on \fBw\fR (and its subtree unless \fB\-recursive 0\fR).
+Removes the wheel bindings that \fBredirect\fR set on \fBw\fR (and its subtree unless \fB\-recursive 0\fR) and stops any \fB\-dynamic\fR re\-application on that root.
 .SS Example
 .CS
 package require tkutils::tkuwheel
@@ -43,6 +45,14 @@ pack  .t.card.title .t.card.body
 \&.t window create end -window .t.card
 
 ::tkutils::tkuwheel::redirect .t .t.card        ;# wheel over the card scrolls .t
+
+# A scrollable palette (canvas + inner frame) filled with tools at runtime:
+canvas .c -yscrollcommand {.csb set}
+ttk::scrollbar .csb -command {.c yview}
+frame .c.inner
+\&.c create window 0 0 -anchor nw -window .c.inner
+::tkutils::tkuwheel::redirect .c .c.inner -dynamic 1   ;# future buttons covered
+::tkutils::tkuwheel::redirect .c .c
 .CE
 .SS Errors
 .PP
@@ -50,6 +60,6 @@ Error code \fB{TKUTILS TKUWHEEL <REASON>}\fR:
 .TS
 l l.
 REASON	When
-\fBOPTION\fR	unknown option, missing value, bad \fB\-orient\fR / \fB\-amount\fR / \fB\-recursive\fR
+\fBOPTION\fR	unknown option, missing value, bad \fB\-orient\fR / \fB\-amount\fR / \fB\-recursive\fR / \fB\-dynamic\fR
 \fBWINDOW\fR	\fBtarget\fR or \fBw\fR does not exist
 .TE

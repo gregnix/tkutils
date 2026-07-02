@@ -21,10 +21,11 @@ Benötigt Tcl/Tk 8.6+ (inkl. 9.x) sowie die Bibliotheken **tkutils** und
 
 ## Was aus tkutils verwendet wird
 
-- `tktoolbar` – die Aktionsleiste (Suchen, Alle ersetzen, Ausgewaehlte
-  ersetzen, Leeren).
-- `tkstatus` – die Statusleiste mit Trefferanzahl-Feld und `flash`-Meldung
-  nach dem Ersetzen.
+- `tktoolbar` – die Aktionsleiste (Suchen, Abbrechen, Alle ersetzen,
+  Ausgewaehlte ersetzen, Leeren). Waehrend einer laufenden Suche ist nur
+  **Abbrechen** aktiv.
+- `tkstatus` – die Statusleiste mit Trefferanzahl-Feld, laufendem Fortschritt
+  (`i/N Dateien, K Treffer`) und `flash`-Meldung nach dem Ersetzen.
 - `tkdialog` – Bestaetigungs- und Warn-/Fehlerdialoge (`confirm`,
   `showWarning`, `showError`).
 
@@ -54,12 +55,49 @@ Headless (ohne Tk), baut einen eigenen Fixture-Baum:
 tclsh tests/search_replace.test
 ```
 
+## Nach Datum filtern
+
+Die Felder **Geaendert: von / bis** (Format `JJJJ-MM-TT`, beide optional)
+grenzen die Suche auf Dateien mit passendem **Aenderungsdatum** (mtime) ein.
+`von` ist ab 00:00 des Tages, `bis` ist **tagesinklusive** (bis 23:59 des Tages).
+Der Filter gilt fuer beide Modi – Inhalts- und Dateinamen-Suche – und laesst
+sich mit ihnen kombinieren (z. B. *Nur Dateinamen* + Zeitraum = „welche Dateien
+wurden im Zeitraum geaendert"). Ein ungueltiges Datum meldet einen Hinweis;
+leere Felder bedeuten „keine Grenze".
+
+## Nur Dateinamen suchen
+
+Mit der Option **Nur Dateinamen** sucht das Tool ausschliesslich nach
+**Dateinamen** – der Inhalt wird nicht gelesen. Der Suchtext wird gegen den
+Dateinamen (ohne Pfad) geprueft (Teilstring bzw. Regex, je nach Optionen); ein
+**leerer Suchtext listet alle** Dateien, die auf das Dateimuster passen. Die
+Ergebnisse erscheinen als Dateiliste ohne Treffer-Zeilen; das Ersetzen ist in
+diesem Modus deaktiviert (es gibt keinen Inhalt zu ersetzen).
+
+Beispiel: Dateimuster `*.tcl`, Suchtext `test`, Option *Nur Dateinamen* an →
+alle `*.tcl`-Dateien, deren Name `test` enthaelt.
+
+## Responsive Suche & Abbruch
+
+Die Suche laeuft **inkrementell**: Dateien werden nacheinander durchsucht, die
+Statuszeile zeigt den Fortschritt (`i/N Dateien, K Treffer`), und die
+Oberflaeche bleibt bedienbar. Ueber **Abbrechen** (oder `Esc`) laesst sich ein
+laufender Durchlauf jederzeit stoppen; die bis dahin gefundenen Treffer bleiben
+erhalten und werden angezeigt.
+
+## Backup beim Ersetzen
+
+Die Option **Backup (.bak)** legt vor dem Ueberschreiben einer Datei eine
+unveraenderte Kopie `<datei>.bak` an (exakte Kopie des Originals). Damit laesst
+sich eine Ersetzung von Hand rueckgaengig machen.
+
 ## Bewusste Vereinfachung
 
 "Ausgewaehlte ersetzen" arbeitet auf **Datei-Granularitaet**: ersetzt werden
 alle Treffer in den Dateien, von denen ein Knoten (Datei oder Treffer) markiert
 ist. Eine Ersetzung einzelner Vorkommen innerhalb einer Datei ist nicht
-implementiert. Ersetzungen sind nicht rueckgaengig zu machen – vorher Backup.
+implementiert. Ersetzungen selbst sind nicht per Undo rueckgaengig zu machen –
+dafuer die Option **Backup (.bak)** aktivieren (siehe oben).
 
 ## Verifiziert
 

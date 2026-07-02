@@ -107,4 +107,55 @@ test tkuwheel-4.4 {bad -amount -> OPTION} -constraints haveTk -body {
     lrange [dict get $o -errorcode] 0 2
 } -result {TKUTILS TKUWHEEL OPTION}
 
+# --- 0.2: horizontal tilt-wheel (Button-6/7 exist only on Tk 8.7+) ---------
+testConstraint tilt [expr {$haveTk && [package vsatisfies [package provide Tk] 8.7-]}]
+
+test tkuwheel-5.1 {orient both binds Shift-wheel for the x axis} -constraints haveTk -body {
+    catch {destroy .t}; text .t; mkTree
+    $ns\::redirect .t .f -orient both
+    expr {[bind .f <Shift-MouseWheel>] ne ""}
+} -result 1
+
+test tkuwheel-5.2 {orient both binds tilt buttons on Tk 8.7+} -constraints tilt -body {
+    catch {destroy .t}; text .t; mkTree
+    $ns\::redirect .t .f -orient both
+    expr {[bind .f <Button-6>] ne "" && [bind .f <Button-7>] ne ""}
+} -result 1
+
+test tkuwheel-5.3 {orient x binds without error on any Tk} -constraints haveTk -body {
+    catch {destroy .t}; text .t; mkTree
+    $ns\::redirect .t .f -orient x
+    expr {[bind .f <MouseWheel>] ne ""}
+} -result 1
+
+# --- 0.2: dynamic coverage of descendants added after redirect -------------
+test tkuwheel-6.1 {dynamic binds descendants added later} -constraints haveTk -setup {
+    catch {destroy .t}; text .t
+    catch {destroy .df}; frame .df; pack .df -fill both -expand 1
+    update
+} -body {
+    $ns\::redirect .t .df -dynamic 1
+    button .df.late -text x; pack .df.late
+    for {set i 0} {$i < 6} {incr i} { update }
+    expr {[bind .df.late <MouseWheel>] ne ""}
+} -cleanup {$ns\::unbind .df; destroy .df} -result 1
+
+test tkuwheel-6.2 {unbind stops dynamic re-application} -constraints haveTk -setup {
+    catch {destroy .t}; text .t
+    catch {destroy .df}; frame .df; pack .df -fill both -expand 1
+    update
+} -body {
+    $ns\::redirect .t .df -dynamic 1
+    $ns\::unbind .df
+    button .df.after -text y; pack .df.after
+    for {set i 0} {$i < 6} {incr i} { update }
+    expr {[bind .df.after <MouseWheel>] eq ""}
+} -cleanup {destroy .df} -result 1
+
+test tkuwheel-6.3 {bad -dynamic value -> OPTION} -constraints haveTk -body {
+    catch {destroy .t}; text .t; mkTree
+    catch {$ns\::redirect .t .f -dynamic maybe} e o
+    lrange [dict get $o -errorcode] 0 2
+} -result {TKUTILS TKUWHEEL OPTION}
+
 cleanupTests
