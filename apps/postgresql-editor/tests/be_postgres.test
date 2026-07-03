@@ -1,0 +1,161 @@
+# Tests for be-postgres.tcl -- the PostgreSQL backend of the sqledit family.
+#
+# These need a reachable PostgreSQL. Connection comes from env vars, with
+# defaults for a local trust-auth cluster:
+#   PGEDIT_HOST (127.0.0.1)  PGEDIT_PORT (5432)  PGEDIT_DB (postgres)
+#   PGEDIT_USER (postgres)   PGEDIT_PASSWORD ("")
+# If no connection can be made, every test is skipped (constraint `pgdb`), so
+# the suite is safe to run anywhere.
+#
+# The tests create an isolated schema `sqledit_test`, exercise the contract and
+# drop the schema again -- no other objects are touched.
+
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+
+set here [file dirname [file normalize [info script]]]
+namespace eval ::sqledit {}
+source [file join $here be-postgres.tcl]
+set be ::sqledit::be
+
+# --- try to connect; set the pgdb constraint accordingly --------------------
+proc envd {name def} { return [expr {[info exists ::env($name)] ? $::env($name) : $def}] }
+set ::CONN [dict create \
+    host     [envd PGEDIT_HOST 127.0.0.1] \
+    port     [envd PGEDIT_PORT 5432] \
+    db       [envd PGEDIT_DB postgres] \
+    user     [envd PGEDIT_USER postgres] \
+    password [envd PGEDIT_PASSWORD ""]]
+
+set ::DB ""
+testConstraint pgdb 0
+if {![catch {package require tdbc::postgres}]} {
+    if {![catch {${::be}::open $::CONN} db]} {
+        set ::DB $db
+        testConstraint pgdb 1
+    }
+}
+
+# --- fixture: an isolated schema with representative objects -----------------
+proc setupSchema {} {
+    set db $::DB
+    ${::be}::run $db {DROP SCHEMA IF EXISTS sqledit_test CASCADE}
+    ${::be}::run $db {CREATE SCHEMA sqledit_test}
+    ${::be}::run $db {CREATE TABLE sqledit_test.parent (
+        id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+        label text NOT NULL, note text DEFAULT '')}
+    ${::be}::run $db {CREATE TABLE sqledit_test.child (
+        id bigserial PRIMARY KEY,
+        parent_id bigint REFERENCES sqledit_test.parent(id),
+        qty integer)}
+    ${::be}::run $db {INSERT INTO sqledit_test.parent (label) VALUES ('a'),('b')}
+    ${::be}::run $db {CREATE VIEW sqledit_test.v_parent AS
+        SELECT id, label FROM sqledit_test.parent}
+    ${::be}::run $db {CREATE INDEX ix_child_parent ON sqledit_test.child(parent_id)}
+}
+proc dropSchema {} { ${::be}::run $::DB {DROP SCHEMA IF EXISTS sqledit_test CASCADE} }
+
+if {[testConstraint pgdb]} { setupSchema }
+
+# --- tests ------------------------------------------------------------------
+test pgbe-1 {run SELECT returns columns and rows} -constraints pgdb -body {
+    set r [${::be}::run $::DB {SELECT id, label FROM sqledit_test.parent ORDER BY id}]
+    list [dict get $r columns] [llength [dict get $r rows]]
+} -result {{id label} 2}
+
+test pgbe-2 {run DML reports affected rows, no columns} -constraints pgdb -body {
+    set r [${::be}::run $::DB {UPDATE sqledit_test.parent SET note='x' WHERE label='a'}]
+    list [dict get $r columns] [dict get $r changes]
+} -result {{} 1}
+
+test pgbe-3 {execParams binds :name safely} -constraints pgdb -body {
+    ${::be}::execParams $::DB \
+        {UPDATE sqledit_test.parent SET note=:n WHERE label=:l} \
+        [dict create n hello l b]
+} -result 1
+
+test pgbe-4 {objects lists the test tables (schema-qualified)} -constraints pgdb -body {
+    set t [${::be}::objects $::DB table]
+    list [expr {"sqledit_test.parent" in $t}] [expr {"sqledit_test.child" in $t}]
+} -result {1 1}
+
+test pgbe-5 {objects finds the view and index} -constraints pgdb -body {
+    list [expr {"sqledit_test.v_parent" in [${::be}::objects $::DB view]}] \
+         [expr {"sqledit_test.ix_child_parent" in [${::be}::objects $::DB index]}]
+} -result {1 1}
+
+test pgbe-6 {columns returns name/type/notnull/pk/dflt} -constraints pgdb -body {
+    set cols [${::be}::columns $::DB sqledit_test.parent]
+    set id [lindex $cols 0]
+    list [dict get $id name] [dict get $id pk] \
+         [dict get [lindex $cols 1] name] [dict get [lindex $cols 1] notnull]
+} -result {id 1 label 1}
+
+test pgbe-7 {foreignKeys resolves the child->parent reference} -constraints pgdb -body {
+    set fk [lindex [${::be}::foreignKeys $::DB sqledit_test.child] 0]
+    list [dict get $fk column] [dict get $fk refTable] [dict get $fk refColumn]
+} -result {parent_id parent id}
+
+test pgbe-8 {schemaOf table reconstructs CREATE TABLE with PK and FK} -constraints pgdb -body {
+    set ddl [${::be}::schemaOf $::DB sqledit_test.child]
+    list [string match "*CREATE TABLE*child*" $ddl] \
+         [string match "*PRIMARY KEY*" $ddl] \
+         [string match "*FOREIGN KEY*REFERENCES*parent*" $ddl]
+} -result {1 1 1}
+
+test pgbe-9 {schemaOf view uses CREATE VIEW ... AS} -constraints pgdb -body {
+    string match "*CREATE VIEW*v_parent*AS*" [${::be}::schemaOf $::DB sqledit_test.v_parent]
+} -result 1
+
+test pgbe-10 {previewSql quotes schema-qualified names and adds LIMIT} -constraints pgdb -body {
+    ${::be}::previewSql sqledit_test.parent 25
+} -result {SELECT * FROM "sqledit_test"."parent" LIMIT 25;}
+
+test pgbe-11 {summary reports database and counts} -constraints pgdb -body {
+    set d [${::be}::summary $::DB]
+    list [expr {[dict get $d db] ne ""}] \
+         [expr {[dict get $d count_table] >= 2}]
+} -result {1 1}
+
+test pgbe-12 {previewSql bare name for public schema} -constraints pgdb -body {
+    ${::be}::previewSql widgets 10
+} -result {SELECT * FROM "widgets" LIMIT 10;}
+
+# --- semicolon handling -----------------------------------------------------
+testConstraint psql [expr {[auto_execok psql] ne ""}]
+
+test pgbe-13 {splitStatements is pure and respects strings/dollar-quotes/comments} -body {
+    list \
+        [llength [::sqledit::be::_splitStatements {SELECT 1;}]] \
+        [llength [::sqledit::be::_splitStatements {SELECT 1; SELECT 2;}]] \
+        [llength [::sqledit::be::_splitStatements {SELECT 'a;b;c';}]] \
+        [llength [::sqledit::be::_splitStatements "SELECT 1; -- c;c\nSELECT 2;"]] \
+        [llength [::sqledit::be::_splitStatements {CREATE FUNCTION f() RETURNS int LANGUAGE sql AS $$ SELECT 1; $$; SELECT 2;}]]
+} -result {1 2 1 2 2}
+
+test pgbe-14 {run tolerates a trailing semicolon and returns the rows} -constraints pgdb -body {
+    set r [${::be}::run $::DB {SELECT id FROM sqledit_test.parent ORDER BY id;}]
+    list [dict get $r columns] [llength [dict get $r rows]]
+} -result {id 2}
+
+test pgbe-15 {run executes several statements; the last result set wins} -constraints pgdb -body {
+    set r [${::be}::run $::DB {
+        UPDATE sqledit_test.parent SET note='m' WHERE label='a';
+        SELECT count(*) AS c FROM sqledit_test.parent;}]
+    list [dict get $r columns] [lindex [lindex [dict get $r rows] 0] 0]
+} -result {c 2}
+
+test pgbe-16 {function with ';' in its dollar-quoted body via the psql fallback} \
+        -constraints {pgdb psql} -body {
+    ${::be}::run $::DB {
+        CREATE OR REPLACE FUNCTION sqledit_test.answer() RETURNS int
+        LANGUAGE plpgsql AS $$ DECLARE n int; BEGIN n := 41; RETURN n + 1; END $$;}
+    set r [${::be}::run $::DB {SELECT sqledit_test.answer() AS v}]
+    lindex [lindex [dict get $r rows] 0] 0
+} -result 42
+
+# --- teardown ---------------------------------------------------------------
+if {[testConstraint pgdb]} { dropSchema; catch {${::be}::close $::DB} }
+
+cleanupTests
