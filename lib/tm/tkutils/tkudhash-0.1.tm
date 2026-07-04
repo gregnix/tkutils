@@ -1,5 +1,6 @@
 # tkudhash-0.1.tm -- image-file front end for the perceptual dHash.
-#
+# Description: image-file front end for the perceptual dHash
+# Category: Tk · widgets
 # Decodes an image with Tk's photo image (plus the `Img` package for
 # JPEG/TIFF/... when available) and hands the pixels to the Tk-free core
 # tclutils::tudhash. This is the "loader" that tudhash deliberately leaves out.

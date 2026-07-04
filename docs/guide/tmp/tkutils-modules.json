@@ -164,8 +164,8 @@
         "license": "MIT"
       }
     ],
-    "tags": ["tkutils"],
-    "description": ""
+    "tags": ["tkutils", "tk", "widgets"],
+    "description": "image-file front end for the perceptual dHash"
   },
   {
     "name": "tkutils::tkudialog",
