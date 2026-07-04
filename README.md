@@ -1,4 +1,4 @@
-# tkutils 0.41.0
+# tkutils 0.42.0
 
 `tkutils` is a collection of Tcl/Tk GUI widgets that sit on top of the pure-Tcl
 engines in [`tclutils`](https://github.com/gregnix/tclutils). It is intentionally separate from
@@ -6,7 +6,7 @@ engines in [`tclutils`](https://github.com/gregnix/tclutils). It is intentionall
 
 - **Rule:** the engine lives in `tclutils`, the GUI in `tkutils`. Each widget is
   a package `tkutils::tk<name>` (file `lib/tm/tkutils/tk<name>-0.1.tm`).
-- **Tcl/Tk:** 8.6+ and 9.x. The umbrella package loads the **39 core widgets**;
+- **Tcl/Tk:** 8.6+ and 9.x. The umbrella package loads the **41 core widgets**;
   optional widgets that need external packages are not in the umbrella.
 
 ## Install / path setup
@@ -15,11 +15,11 @@ engines in [`tclutils`](https://github.com/gregnix/tclutils). It is intentionall
 
 ```bash
 # explicit (recommended for tests/CI)
-export TCLUTILS_TM=/path/to/tclutils-0.53.0/lib/tm
-export TKUTILS_TM=/path/to/tkutils-0.41.0/lib/tm
+export TCLUTILS_TM=/path/to/tclutils-0.59.0/lib/tm
+export TKUTILS_TM=/path/to/tkutils-0.42.0/lib/tm
 
 # or source the bootstrap (adds both libs, finds the highest version)
-tclsh -e 'source /path/to/tkutils-0.41.0/tools/setup.tcl'
+tclsh -e 'source /path/to/tkutils-0.42.0/tools/setup.tcl'
 ```
 
 Then:
@@ -113,7 +113,7 @@ Each `tests/*.test` runs in its own interpreter; `tests/all.tcl` runs the suite.
 several widgets against their engines.
 
 ```bash
-export TCLUTILS_TM=/path/to/tclutils-0.53.0/lib/tm
+export TCLUTILS_TM=/path/to/tclutils-0.59.0/lib/tm
 xvfb-run -a tclsh tests/all.tcl       # GUI tests need a display (Xvfb)
 ```
 
@@ -122,10 +122,10 @@ skip cleanly when those packages are absent.
 
 ## Dependency summary
 
-`tkutils 0.41.0` pairs with `tclutils 0.53.0`. The editing helpers
+`tkutils 0.42.0` pairs with `tclutils 0.59.0`. The editing helpers
 (`tkuini`/`tkuvcard`/`tkuical`/`tkuldif`) and `tkunotes` subtree/tags build on the
 `tclutils` engines, so a current `tclutils` is required alongside. The recommended
-pairing is **tclutils 0.53.0 + tkutils 0.41.0**.
+pairing is **tclutils 0.59.0 + tkutils 0.42.0**.
 
 ## License
 

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.42.1
+
+- README updated to 0.42.0 / 41 core widgets; recommended pairing is now
+  tclutils 0.59.0 + tkutils 0.42.0.
+- Restored `tests/stack.test` (loads tclutils + tkutils in one interpreter and
+  exercises a widget against its engine); referenced in the README but the file
+  had been missing.
+- `tkudhash` added to the umbrella and given a man page.
+
 ## 0.42.0
 
 Changes since 0.41.0.

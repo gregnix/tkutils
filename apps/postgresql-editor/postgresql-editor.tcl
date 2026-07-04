@@ -19,6 +19,7 @@ set ::pgedit_dir  [file dirname [file normalize [info script]]]
 set ::sqledit_dir [file normalize [file join $::pgedit_dir .. sqlite-editor]]
 
 source [file join $::sqledit_dir sqledit-core.tcl]
+source [file join $::sqledit_dir sqledit-conn.tcl]
 source [file join $::pgedit_dir  be-postgres.tcl]
 source [file join $::sqledit_dir sqledit-form.tcl]
 source [file join $::sqledit_dir sqledit-sheet.tcl]

@@ -1,0 +1,185 @@
+# Tests for be-oracle.tcl -- the Oracle backend of the sqledit family.
+#
+# Two groups:
+#   * unconditional pure-Tcl tests (no database): statement splitting incl.
+#     PL/SQL blocks, PL/SQL detection, previewSql, identifier quoting.
+#   * integration tests against a REAL Oracle, guarded by the `oradb`
+#     constraint. Connection comes from env vars:
+#       ORAEDIT_CONNECT   (e.g. oralx:1521/XEPDB1  or a full DESCRIPTION)
+#       ORAEDIT_USER      (e.g. scott)
+#       ORAEDIT_PASSWORD  (e.g. tiger)
+#     If Oratcl is missing or no connection can be made, those tests skip, so
+#     the suite is safe to run anywhere.
+#
+# The integration tests create objects named SQLEDIT_TEST_* in the connected
+# user's schema and drop them again -- nothing else is touched.
+
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+
+set here [file dirname [file normalize [info script]]]
+namespace eval ::sqledit {}
+source [file join $here be-oracle.tcl]
+set be ::sqledit::be
+
+# ===========================================================================
+# Pure-Tcl tests (no database)
+# ===========================================================================
+
+test orabe-split-1 {two simple statements} -body {
+    ${be}::_splitStatements "SELECT 1 FROM dual; UPDATE emp SET sal=0"
+} -result {{SELECT 1 FROM dual} {UPDATE emp SET sal=0}}
+
+test orabe-split-2 {semicolon inside a string is not a separator} -body {
+    ${be}::_splitStatements "INSERT INTO t VALUES ('a;b'); SELECT 1 FROM dual"
+} -result {{INSERT INTO t VALUES ('a;b')} {SELECT 1 FROM dual}}
+
+test orabe-split-3 {semicolon inside a quoted identifier} -body {
+    ${be}::_splitStatements {SELECT "a;b" FROM t; SELECT 2 FROM dual}
+} -result {{SELECT "a;b" FROM t} {SELECT 2 FROM dual}}
+
+test orabe-split-4 {line and block comments keep their semicolons} -body {
+    llength [${be}::_splitStatements "SELECT 1 FROM dual; -- x;y\n/* a;b */ SELECT 2 FROM dual"]
+} -result 2
+
+test orabe-split-5 {PL/SQL block keeps inner ; and ends at a lone /} -body {
+    set sql "CREATE OR REPLACE TRIGGER trg\nBEFORE INSERT ON emp FOR EACH ROW\nBEGIN\n  :new.id := seq.NEXTVAL;\n  IF :new.x IS NULL THEN :new.x := 0; END IF;\nEND;\n/\nSELECT 1 FROM dual"
+    set st [${be}::_splitStatements $sql]
+    list [llength $st] [string match "*NEXTVAL;*END IF;*END;*" [lindex $st 0]] [lindex $st 1]
+} -result {2 1 {SELECT 1 FROM dual}}
+
+test orabe-split-6 {anonymous BEGIN block} -body {
+    set sql "BEGIN\n  do_it(1);\n  do_it(2);\nEND;\n/"
+    set st [${be}::_splitStatements $sql]
+    list [llength $st] [string match "*do_it(1);*do_it(2);*END;" [lindex $st 0]]
+} -result {1 1}
+
+test orabe-plsql-1 {DECLARE starts a PL/SQL block} -body {
+    ${be}::_isPlsqlStart "DECLARE n NUMBER"
+} -result 1
+test orabe-plsql-2 {CREATE FUNCTION starts a PL/SQL block} -body {
+    ${be}::_isPlsqlStart "CREATE OR REPLACE FUNCTION f RETURN NUMBER"
+} -result 1
+test orabe-plsql-3 {a plain SELECT is not a PL/SQL block} -body {
+    ${be}::_isPlsqlStart "SELECT 1 FROM dual"
+} -result 0
+test orabe-plsql-4 {leading comment before BEGIN is skipped} -body {
+    ${be}::_isPlsqlStart "-- run this\nBEGIN null; END"
+} -result 1
+
+test orabe-preview {previewSql uses a ROWNUM subquery, not LIMIT} -body {
+    ${be}::previewSql EMP 25
+} -result {SELECT * FROM (SELECT * FROM EMP) WHERE ROWNUM <= 25}
+
+test orabe-qi-1 {simple uppercase name is not quoted} -body {
+    ${be}::_qi EMP
+} -result EMP
+test orabe-qi-2 {mixed-case / odd name is quoted} -body {
+    ${be}::_qi "My Table"
+} -result {"My Table"}
+
+test orabe-categories {categories lists the six object kinds} -body {
+    dict keys [${be}::categories]
+} -result {table view index sequence trigger function}
+
+# ===========================================================================
+# Integration tests against a real Oracle (constraint: oradb)
+# ===========================================================================
+proc envd {name def} { return [expr {[info exists ::env($name)] ? $::env($name) : $def}] }
+set ::CONN [dict create \
+    connect  [envd ORAEDIT_CONNECT ""] \
+    user     [envd ORAEDIT_USER ""] \
+    password [envd ORAEDIT_PASSWORD ""]]
+
+set ::DB ""
+testConstraint oradb 0
+if {[dict get $::CONN connect] ne "" && ![catch {package require Oratcl}]} {
+    if {![catch {${be}::open $::CONN} db]} {
+        set ::DB $db
+        testConstraint oradb 1
+    }
+}
+
+proc dropAll {} {
+    foreach s {
+        {DROP VIEW SQLEDIT_TEST_VPARENT}
+        {DROP TABLE SQLEDIT_TEST_CHILD CASCADE CONSTRAINTS}
+        {DROP TABLE SQLEDIT_TEST_PARENT CASCADE CONSTRAINTS}
+        {DROP SEQUENCE SQLEDIT_TEST_SEQ}
+    } { catch { ${::be}::run $::DB $s } }
+}
+proc setupSchema {} {
+    dropAll
+    ${::be}::run $::DB {CREATE TABLE SQLEDIT_TEST_PARENT (
+        id    NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+        label VARCHAR2(100) NOT NULL,
+        note  VARCHAR2(200))}
+    ${::be}::run $::DB {CREATE TABLE SQLEDIT_TEST_CHILD (
+        id        NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+        parent_id NUMBER REFERENCES SQLEDIT_TEST_PARENT(id),
+        qty       NUMBER)}
+    ${::be}::run $::DB {INSERT INTO SQLEDIT_TEST_PARENT (label) VALUES ('a')}
+    ${::be}::run $::DB {INSERT INTO SQLEDIT_TEST_PARENT (label) VALUES ('b')}
+    ${::be}::run $::DB {CREATE VIEW SQLEDIT_TEST_VPARENT AS
+        SELECT id, label FROM SQLEDIT_TEST_PARENT}
+    ${::be}::run $::DB {CREATE SEQUENCE SQLEDIT_TEST_SEQ}
+}
+if {[testConstraint oradb]} { setupSchema }
+
+test orabe-run-select {run SELECT returns columns and rows} -constraints oradb -body {
+    set r [${::be}::run $::DB {SELECT id, label FROM SQLEDIT_TEST_PARENT ORDER BY id}]
+    list [dict get $r columns] [llength [dict get $r rows]]
+} -result {{ID LABEL} 2}
+
+test orabe-objects {objects table includes the test tables} -constraints oradb -body {
+    set t [${::be}::objects $::DB table]
+    expr {"SQLEDIT_TEST_PARENT" in $t && "SQLEDIT_TEST_CHILD" in $t}
+} -result 1
+
+test orabe-columns {columns of PARENT: id is PK+notnull, label notnull} -constraints oradb -body {
+    set cols [${::be}::columns $::DB SQLEDIT_TEST_PARENT]
+    set byname [dict create]
+    foreach c $cols { dict set byname [dict get $c name] $c }
+    list [dict get [dict get $byname ID] pk] \
+         [dict get [dict get $byname ID] notnull] \
+         [dict get [dict get $byname LABEL] notnull]
+} -result {1 1 1}
+
+test orabe-fk {foreignKeys of CHILD point at PARENT.ID} -constraints oradb -body {
+    set fks [${::be}::foreignKeys $::DB SQLEDIT_TEST_CHILD]
+    set f [lindex $fks 0]
+    list [dict get $f column] [dict get $f refTable] [dict get $f refColumn]
+} -result {PARENT_ID SQLEDIT_TEST_PARENT ID}
+
+test orabe-schemaof-table {schemaOf reconstructs CREATE TABLE with PK+FK} -constraints oradb -body {
+    set ddl [${::be}::schemaOf $::DB SQLEDIT_TEST_CHILD]
+    list [string match "*CREATE TABLE SQLEDIT_TEST_CHILD*" $ddl] \
+         [string match "*PRIMARY KEY*" $ddl] \
+         [string match "*FOREIGN KEY*REFERENCES SQLEDIT_TEST_PARENT*" $ddl]
+} -result {1 1 1}
+
+test orabe-schemaof-sequence {schemaOf of a sequence} -constraints oradb -body {
+    string match "*CREATE SEQUENCE SQLEDIT_TEST_SEQ*" \
+        [${::be}::schemaOf $::DB SQLEDIT_TEST_SEQ]
+} -result 1
+
+test orabe-run-dml {run INSERT reports changes} -constraints oradb -body {
+    set r [${::be}::run $::DB {INSERT INTO SQLEDIT_TEST_PARENT (label) VALUES ('c')}]
+    dict get $r changes
+} -result 1
+
+test orabe-execparams {execParams binds :name and returns affected rows} -constraints oradb -body {
+    ${::be}::execParams $::DB \
+        {UPDATE SQLEDIT_TEST_PARENT SET note = :n WHERE label = :l} \
+        [list :n hello :l a]
+} -result 1
+
+test orabe-summary {summary reports a version and object counts} -constraints oradb -body {
+    set d [${::be}::summary $::DB]
+    expr {[dict get $d version] ne "" && [dict get $d count_table] >= 2}
+} -result 1
+
+if {[testConstraint oradb]} { dropAll ; ${::be}::close $::DB }
+
+cleanupTests

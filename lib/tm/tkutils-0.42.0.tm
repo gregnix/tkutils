@@ -36,6 +36,7 @@ package require tkutils::tkutree 0.1
 package require tkutils::tkufiletree 0.1
 package require tkutils::tkudavaccount 0.1
 package require tkutils::tkuimage 0.2
+package require tkutils::tkudhash 0.1
 package require tkutils::tkutodo 0.1
 package require tkutils::tkudavbrowser 0.1
 package require tkutils::tkuaction 0.1

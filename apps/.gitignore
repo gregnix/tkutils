@@ -1,0 +1,8 @@
+# Local, machine-specific connection profiles must never be committed.
+# The sqledit editors store them in the user config dir
+# (~/.config/sqledit/ or %APPDATA%\sqledit\), NOT here -- these patterns
+# only guard against accidentally placing a credentials file in the repo.
+*.conf
+connections.*
+*.age
+notiz.txt

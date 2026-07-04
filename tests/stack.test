@@ -1,0 +1,50 @@
+# stack.test -- integration smoke test: load tclutils AND tkutils in ONE
+# interpreter and exercise a widget against its engine. Verifies that the two
+# umbrellas coexist (no namespace/command clashes) and that a GUI widget and its
+# tclutils engine work together in the combined stack.
+#
+# Run (needs a display for the widget test):
+#   TCLUTILS_TM=<tclutils>/lib/tm TKUTILS_TM=<tkutils>/lib/tm xvfb-run tclsh tests/stack.test
+package require tcltest
+namespace import ::tcltest::*
+
+if {[info exists ::env(TCLUTILS_TM)]} { ::tcl::tm::path add $::env(TCLUTILS_TM) }
+if {[info exists ::env(TKUTILS_TM)]}  { ::tcl::tm::path add $::env(TKUTILS_TM) }
+# repo-relative fallback so the test also runs from a checkout
+set here [file dirname [file normalize [info script]]]
+catch { ::tcl::tm::path add [file join $here .. lib tm] }
+catch { ::tcl::tm::path add [file normalize [file join $here .. .. tclutils lib tm]] }
+
+testConstraint tk [expr {![catch {package require Tk}]}]
+if {[testConstraint tk]} { catch {wm withdraw .} }
+
+package require tclutils
+package require tkutils
+
+test stack-1 {both umbrellas load in one interpreter} -body {
+    list [expr {[package provide tclutils] ne ""}] \
+         [expr {[package provide tkutils] ne ""}]
+} -result {1 1}
+
+test stack-2 {a tclutils engine works in the combined interp} -body {
+    ::tclutils::tucsv::parse "a,b\n1,2\n"
+} -result {{a b} {1 2}}
+
+test stack-3 {a tkutils widget builds against the stack} -constraints tk -body {
+    package require tkutils::tkustatus
+    set w [::tkutils::tkustatus::widget .stk]
+    set ok [winfo exists $w]
+    catch {destroy $w}
+    set ok
+} -result 1
+
+test stack-4 {widget + engine together: CSV parsed, shown in a status bar} -constraints tk -body {
+    set rows [::tclutils::tucsv::parse "name,qty\nbolt,12\n"]
+    set w [::tkutils::tkustatus::widget .stk2]
+    ::tkutils::tkustatus::setText $w "rows: [llength $rows]"
+    set txt [::tkutils::tkustatus::getText $w]
+    catch {destroy $w}
+    set txt
+} -result {rows: 2}
+
+cleanupTests

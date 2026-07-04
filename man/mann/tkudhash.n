@@ -1,0 +1,43 @@
+.TH tkudhash n 0.1 tkutils
+.SH tkutils::tkudhash
+.PP
+The image\-file front end for the perceptual dHash. It decodes an image with Tk's photo image (plus the \fBImg\fR package for JPEG/TIFF/… when available) and hands the pixels to the Tk\-free core \fBtclutils::tudhash\fR. In other words: \fBtudhash\fR does the maths, \fBtkudhash\fR does the loading.
+.PP
+Needs Tk (8.6+/9.x). \fBImg\fR is optional — PNG/GIF/PPM work with plain Tk, and \fBImg\fR adds JPEG, TIFF and more.
+.SS Commands
+.CS
+tkudhash::fromFile      path ?-sample N?      ;# -> 16 hex chars
+tkudhash::similarFiles  pathA pathB ?maxDist? ;# -> bool (default 10)
+tkudhash::distance      a b                   ;# -> 0..64  (from tudhash)
+tkudhash::similar       a b ?maxDist?         ;# -> bool    (from tudhash)
+.CE
+.PP
+\fBfromFile\fR returns the 64\-bit dHash of an image file as 16 hex chars. \fBdistance\fR/\fBsimilar\fR are re\-exported from \fBtudhash\fR so a caller needs only this one package.
+.SS Example
+.CS
+package require tkutils::tkudhash
+namespace import ::tkutils::tkudhash::*
+
+set h1 [fromFile /share/scans/rechnung-042.png]
+set h2 [fromFile /share/scans/rechnung-042-kopie.jpg]
+if {[similar $h1 $h2]} { puts "same document (distance [distance $h1 $h2])" }
+
+# or in one step:
+similarFiles a.png b.png        ;# -> 1 / 0
+.CE
+.SS "Speed on large scans"
+.PP
+\fB\-sample N\fR (default 48) caps the work: the image is first subsampled so its long side is at most ~\fB2*N\fR pixels, and only that small copy is read; the core then box\-averages it to 9×8. The hash is deterministic and, because dHash is scale\-invariant, a 60×45 and a 1200×900 version of the same picture produce the same hash. Raise \fBN\fR for a little more fidelity, lower it for speed.
+.SS Errors
+.PP
+Error code \fB{TKUTILS TKUDHASH <REASON>}\fR:
+.TS
+l l.
+REASON	When
+\fBLOAD\fR	the file could not be decoded (unknown format → install \fBImg\fR)
+\fBEMPTY\fR	the image has zero width or height
+\fBOPTION\fR	unknown option to \fBfromFile\fR
+.TE
+.SS Testing
+.PP
+\fBtkudhash.test\fR builds gradient PNGs and checks the hash format, that near\-duplicate images are \fBsimilar\fR, that different images are not, scale invariance, and the load error. It needs a Tk display; run under \fBXvfb\fR (passes on 8.6 and 9.0). The maths itself is covered by \fBtudhash\fR's tests.

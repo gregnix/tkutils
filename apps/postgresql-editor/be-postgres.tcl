@@ -495,10 +495,13 @@ proc ::sqledit::be::summaryText {db} {
     return $t
 }
 
+# backend key for the shared profile store
+proc ::sqledit::be::_backendKey {} { return "postgres" }
+
 # --- connection dialog ------------------------------------------------------
 proc ::sqledit::be::_connectDialog {parent} {
     variable _dlg
-    array set _dlg {host 127.0.0.1 port 5432 db {} user postgres password {} ok 0}
+    array set _dlg {host 127.0.0.1 port 5432 db {} user postgres password {} savepw 0 pname {} ok 0}
     set w $parent.pgconnect
     catch {destroy $w}
     toplevel $w
@@ -506,6 +509,18 @@ proc ::sqledit::be::_connectDialog {parent} {
     wm transient $w $parent
     set f [ttk::frame $w.f -padding 12]
     pack $f -fill both -expand 1
+    set haveStore [expr {[llength [info commands ::sqledit::conn::names]] > 0}]
+
+    if {$haveStore} {
+        ttk::label $f.lprof -text "Profile:"
+        ttk::combobox $f.prof -textvariable ::sqledit::be::_dlg(pname) -width 20 \
+            -values [::sqledit::conn::names [_backendKey]]
+        ttk::button $f.del -text "Delete" -width 7 \
+            -command [list ::sqledit::be::_profDelete $f]
+        grid $f.lprof $f.prof $f.del -sticky w -padx 4 -pady {0 6}
+        bind $f.prof <<ComboboxSelected>> [list ::sqledit::be::_profLoad $f]
+    }
+
     set row 0
     foreach {key label show} {host Host: {} port Port: {} db Database: {} user User: {} password Password: *} {
         ttk::label $f.l$key -text $label
@@ -514,11 +529,20 @@ proc ::sqledit::be::_connectDialog {parent} {
         } else {
             ttk::entry $f.e$key -textvariable ::sqledit::be::_dlg($key) -width 28
         }
-        grid $f.l$key $f.e$key -sticky w -padx 4 -pady 3
+        grid $f.l$key $f.e$key - -sticky w -padx 4 -pady 3
         incr row
     }
+
+    if {$haveStore} {
+        ttk::checkbutton $f.savepw -text "Save password" \
+            -variable ::sqledit::be::_dlg(savepw)
+        ttk::button $f.save -text "Save profile" -width 12 \
+            -command [list ::sqledit::be::_profSave $f]
+        grid $f.savepw $f.save -sticky w -padx 4 -pady {4 0}
+    }
+
     set bf [ttk::frame $f.b]
-    grid $bf - -pady {10 0}
+    grid $bf - - -pady {10 0}
     ttk::button $bf.ok -text "Connect" -command [list set ::sqledit::be::_dlg(ok) 1]
     ttk::button $bf.cancel -text "Cancel" -command [list set ::sqledit::be::_dlg(ok) 0]
     pack $bf.ok $bf.cancel -side left -padx 4
@@ -532,4 +556,39 @@ proc ::sqledit::be::_connectDialog {parent} {
     if {!$_dlg(ok)} { return "" }
     return [dict create host $_dlg(host) port $_dlg(port) db $_dlg(db) \
         user $_dlg(user) password $_dlg(password)]
+}
+
+# fill the fields from the selected saved profile
+proc ::sqledit::be::_profLoad {f} {
+    variable _dlg
+    set t [::sqledit::conn::get [_backendKey] $_dlg(pname)]
+    if {$t eq ""} return
+    foreach k {host port db user password} {
+        set _dlg($k) [expr {[dict exists $t $k] ? [dict get $t $k] : ""}]
+    }
+}
+
+# save the current fields under the profile name (password only if ticked)
+proc ::sqledit::be::_profSave {f} {
+    variable _dlg
+    set name [string trim $_dlg(pname)]
+    if {$name eq ""} {
+        tk_messageBox -parent $f -icon warning -title "Save profile" \
+            -message "Enter a profile name first."
+        return
+    }
+    set t [dict create host $_dlg(host) port $_dlg(port) db $_dlg(db) \
+        user $_dlg(user) password $_dlg(password)]
+    if {!$_dlg(savepw)} { set t [::sqledit::conn::stripSecret $t] }
+    ::sqledit::conn::save [_backendKey] $name $t
+    $f.prof configure -values [::sqledit::conn::names [_backendKey]]
+}
+
+proc ::sqledit::be::_profDelete {f} {
+    variable _dlg
+    set name [string trim $_dlg(pname)]
+    if {$name eq ""} return
+    ::sqledit::conn::delete [_backendKey] $name
+    $f.prof configure -values [::sqledit::conn::names [_backendKey]]
+    set _dlg(pname) ""
 }
