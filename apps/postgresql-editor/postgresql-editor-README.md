@@ -60,11 +60,35 @@ work.
 | columns / PK | `PRAGMA table_info` | `information_schema.columns` + PK join |
 | foreign keys | `PRAGMA foreign_key_list` | `information_schema` constraint views |
 | CREATE text | `sqlite_master.sql` | `pg_get_viewdef` / `pg_get_indexdef` / `pg_get_triggerdef` / `pg_get_functiondef`; tables reconstructed from the catalog |
+| RLS policies | (n/a) | `pg_class.relrowsecurity` + `pg_policies` → `ENABLE/FORCE ROW LEVEL SECURITY` + `CREATE POLICY` appended to the table DDL |
 | summary | `PRAGMA`s | `version()`, `pg_database_size`, `pg_encoding_to_char` |
 
 One PostgreSQL-specific subtlety handled here: **`tdbc` represents a SQL `NULL`
 by omitting the column from the row dict** — the backend reads nullable columns
 defensively so a `NULL` default or length never crashes a lookup.
+
+## Row-Level Security
+
+`pg_get_*def()` does not cover **RLS policies**, so an editor that shows only the
+plain `CREATE TABLE` would hide a table's real access rules. When you inspect a
+table, the reconstructed DDL therefore appends its RLS state and policies from
+the catalog (`pg_class.relrowsecurity` / `pg_policies`):
+
+```sql
+CREATE TABLE "api"."documents" ( ... );
+
+ALTER TABLE "api"."documents" ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "documents_select" ON "api"."documents"
+    FOR SELECT
+    USING ((classification <= api.dept_level()));
+```
+
+Each policy is rebuilt with its command (`FOR ALL/SELECT/…`), `AS RESTRICTIVE`
+where applicable, the `TO role` list (omitted for `PUBLIC`), and the `USING` /
+`WITH CHECK` expressions. Tables without RLS are unaffected — they show just the
+`CREATE TABLE`. This makes the editor usable as an admin front end for an
+RLS-based design such as the DMS.
 
 ## Semicolons and functions
 
@@ -115,8 +139,6 @@ PGEDIT_PORT=5433 PGEDIT_DB=dmsdemo tclsh be_postgres.test
 
 ## Layout note
 
-The shared UI currently lives in `apps/sqlite-editor/`, and this launcher
-sources it from there. If you add the Oracle edition too, moving
-`sqledit-core/form/sheet` into a shared `apps/_lib/sqledit/` (and pointing all
-three launchers at it) removes the cross-app reference — the backends
-(`be-sqlite` / `be-postgres` / `be-oracle`) then stay the only per-editor files.
+The shared UI (`sqledit-core` / `sqledit-form` / `sqledit-sheet`) lives in
+`apps/sqlite-editor/`; this launcher sources it from there. The backend
+(`be-postgres.tcl`) is the only file specific to this editor.

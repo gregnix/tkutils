@@ -53,6 +53,12 @@ proc setupSchema {} {
     ${::be}::run $db {CREATE VIEW sqledit_test.v_parent AS
         SELECT id, label FROM sqledit_test.parent}
     ${::be}::run $db {CREATE INDEX ix_child_parent ON sqledit_test.child(parent_id)}
+    ${::be}::run $db {CREATE TABLE sqledit_test.secured (
+        id bigint PRIMARY KEY,
+        visible boolean NOT NULL DEFAULT true)}
+    ${::be}::run $db {ALTER TABLE sqledit_test.secured ENABLE ROW LEVEL SECURITY}
+    ${::be}::run $db {CREATE POLICY secured_read ON sqledit_test.secured
+        FOR SELECT USING (visible)}
 }
 proc dropSchema {} { ${::be}::run $::DB {DROP SCHEMA IF EXISTS sqledit_test CASCADE} }
 
@@ -154,6 +160,13 @@ test pgbe-16 {function with ';' in its dollar-quoted body via the psql fallback}
     set r [${::be}::run $::DB {SELECT sqledit_test.answer() AS v}]
     lindex [lindex [dict get $r rows] 0] 0
 } -result 42
+
+test pgbe-17 {schemaOf includes RLS enable and the CREATE POLICY} \
+        -constraints pgdb -body {
+    set ddl [${::be}::schemaOf $::DB sqledit_test.secured]
+    list [string match {*ENABLE ROW LEVEL SECURITY*} $ddl] \
+         [string match {*CREATE POLICY "secured_read"*FOR SELECT*USING*} $ddl]
+} -result {1 1}
 
 # --- teardown ---------------------------------------------------------------
 if {[testConstraint pgdb]} { dropSchema; catch {${::be}::close $::DB} }

@@ -392,7 +392,49 @@ proc ::sqledit::be::_tableDdl {db schema name} {
         lappend lines "    FOREIGN KEY (\"[dict get $fk column]\")\
  REFERENCES \"[dict get $fk refTable]\" (\"[dict get $fk refColumn]\")"
     }
-    return "CREATE TABLE [_qi $schema $name] (\n[join $lines ",\n"]\n);"
+    set ddl "CREATE TABLE [_qi $schema $name] (\n[join $lines ",\n"]\n);"
+    set rls [_tableRls $db $schema $name]
+    if {$rls ne ""} { append ddl "\n\n$rls" }
+    return $ddl
+}
+
+# Row-Level Security: reconstruct ENABLE/FORCE + CREATE POLICY from the catalog.
+# pg_get_*def() does not cover policies, so an editor that hides them would give
+# a misleading picture of a table's real access rules (important for e.g. a DMS).
+proc ::sqledit::be::_tableRls {db schema name} {
+    set p [dict create schema $schema name $name]
+    set out {}
+    set flags [$db allrows {
+        SELECT c.relrowsecurity AS en, c.relforcerowsecurity AS fr
+        FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = :schema AND c.relname = :name} $p]
+    if {[llength $flags]} {
+        set f [lindex $flags 0]
+        if {[_dg $f en 0] in {1 t true}} {
+            lappend out "ALTER TABLE [_qi $schema $name] ENABLE ROW LEVEL SECURITY;"
+        }
+        if {[_dg $f fr 0] in {1 t true}} {
+            lappend out "ALTER TABLE [_qi $schema $name] FORCE ROW LEVEL SECURITY;"
+        }
+    }
+    $db foreach r {
+        SELECT policyname AS pn, permissive AS pm, cmd AS cmd,
+               roles::text AS rl, qual AS qual, with_check AS wc
+        FROM pg_policies
+        WHERE schemaname = :schema AND tablename = :name
+        ORDER BY policyname} {
+        set ddl "CREATE POLICY \"[_dg $r pn]\" ON [_qi $schema $name]"
+        if {[string match -nocase R* [_dg $r pm]]} { append ddl "\n    AS RESTRICTIVE" }
+        set cmd [_dg $r cmd]
+        if {$cmd ne ""} { append ddl "\n    FOR [string toupper $cmd]" }
+        set roles [string trim [_dg $r rl] "{}"]
+        if {$roles ne "" && $roles ne "public"} { append ddl "\n    TO $roles" }
+        if {[_dg $r qual] ne ""} { append ddl "\n    USING ([_dg $r qual])" }
+        if {[_dg $r wc]   ne ""} { append ddl "\n    WITH CHECK ([_dg $r wc])" }
+        append ddl ";"
+        lappend out $ddl
+    }
+    return [join $out "\n\n"]
 }
 
 proc ::sqledit::be::_sequenceDdl {db schema name} {
