@@ -1,0 +1,84 @@
+# tkudhash.test -- image-file dHash loader. Needs a Tk display; tests are
+# skipped when none is available. Run under e.g. Xvfb:
+#   TCLUTILS_TM=<dir> TKUTILS_TM=<dir> xvfb-run tclsh tkudhash.test
+package require tcltest
+namespace import ::tcltest::*
+
+if {[info exists ::env(TCLUTILS_TM)]} { ::tcl::tm::path add $::env(TCLUTILS_TM) }
+if {[info exists ::env(TKUTILS_TM)]}  { ::tcl::tm::path add $::env(TKUTILS_TM) }
+
+testConstraint tk [expr {![catch {package require Tk}]}]
+if {[testConstraint tk]} {
+    catch {wm withdraw .}
+    testConstraint photo [expr {![catch {
+        set _p [image create photo -width 2 -height 2]; image delete $_p}]}]
+}
+if {[testConstraint tk] && [testConstraint photo]} {
+    package require tkutils::tkudhash
+}
+
+# build a w*h test PNG with a horizontal gradient (+ optional shift/noise)
+proc mkpng {path w h {shift 0} {noise 0}} {
+    set img [image create photo -width $w -height $h]
+    for {set y 0} {$y < $h} {incr y} {
+        set rowcolors {}
+        for {set x 0} {$x < $w} {incr x} {
+            set v [expr {($x * 2 + $y) % 256 + $shift}]
+            if {$noise} { set v [expr {$v + int(rand()*$noise) - $noise/2}] }
+            set v [expr {$v < 0 ? 0 : ($v > 255 ? 255 : $v)}]
+            lappend rowcolors [format "#%02x%02x%02x" $v $v $v]
+        }
+        $img put [list $rowcolors] -to 0 $y
+    }
+    $img write $path -format png
+    image delete $img
+}
+
+set dir [makeDirectory tkud]
+proc P {n} { return [file join $::dir $n] }
+
+test tkud-1 {fromFile returns a 16-hex hash} -constraints {tk photo} -setup {
+    mkpng [P a.png] 100 80
+} -body {
+    set h [::tkutils::tkudhash::fromFile [P a.png]]
+    list [string length $h] [string is xdigit -strict $h]
+} -result {16 1}
+
+test tkud-2 {near-duplicate images are similar} -constraints {tk photo} -setup {
+    mkpng [P o.png]  120 90 0 0
+    mkpng [P o2.png] 120 90 6 8
+} -body {
+    ::tkutils::tkudhash::similarFiles [P o.png] [P o2.png]
+} -result 1
+
+test tkud-3 {different images are not similar} -constraints {tk photo} -setup {
+    mkpng [P o.png] 120 90 0 0
+    set img [image create photo -width 120 -height 90]
+    for {set y 0} {$y < 90} {incr y} {
+        set rc {}
+        for {set x 0} {$x < 120} {incr x} {
+            set v [expr {(255 - $x*2 + $y*5) % 256}]
+            lappend rc [format "#%02x%02x%02x" $v $v $v]
+        }
+        $img put [list $rc] -to 0 $y
+    }
+    $img write [P d.png] -format png; image delete $img
+} -body {
+    ::tkutils::tkudhash::similarFiles [P o.png] [P d.png]
+} -result 0
+
+test tkud-4 {scale invariance: big copy hashes the same} -constraints {tk photo} -setup {
+    mkpng [P s.png]  60 45
+    mkpng [P sb.png] 60 45     ;# same content; loader subsamples anyway
+} -body {
+    expr {[::tkutils::tkudhash::fromFile [P s.png]] eq
+          [::tkutils::tkudhash::fromFile [P sb.png]]}
+} -result 1
+
+test tkud-5 {missing file reports TKUDHASH LOAD} -constraints {tk photo} -body {
+    catch {::tkutils::tkudhash::fromFile [P nope.png]} e opts
+    dict get $opts -errorcode
+} -result {TKUTILS TKUDHASH LOAD}
+
+removeDirectory tkud
+cleanupTests
