@@ -1,0 +1,139 @@
+# be_tdbc.test -- backend contract tests for be-tdbc.tcl (SQLite over TDBC).
+#
+# Tk-free: exercises the ::sqledit::be::* procs directly against a real
+# tdbc::sqlite3 in-memory database. Focus is the two TDBC pitfalls -- NULL
+# columns must survive in result rows (Macke 1) and a missing bind key must
+# become SQL NULL (Macke 2). Runs headless on tclsh 8.6 and 9.0.
+
+package require tcltest
+namespace import ::tcltest::*
+
+set ::here [file dirname [file normalize [info script]]]
+# be-tdbc.tcl lives beside this test, or one level up if it sits in a tests/ dir
+set ::edir $::here
+if {![file exists [file join $::edir be-tdbc.tcl]]} { set ::edir [file dirname $::here] }
+source [file join $::edir be-tdbc.tcl]
+
+# The whole suite needs the driver; skip cleanly if it is absent.
+set haveTdbc [expr {![catch {package require tdbc::sqlite3}]}]
+tcltest::testConstraint tdbc $haveTdbc
+
+# --- fixture ---------------------------------------------------------------
+proc setupDb {} {
+    set db [::sqledit::be::open :memory:]
+    $db allrows {CREATE TABLE dept (
+        deptno INTEGER PRIMARY KEY, dname TEXT NOT NULL, loc TEXT)}
+    $db allrows {CREATE TABLE emp (
+        empno INTEGER PRIMARY KEY, ename TEXT NOT NULL,
+        mgr INTEGER, comm REAL, deptno INTEGER,
+        FOREIGN KEY(deptno) REFERENCES dept(deptno))}
+    $db allrows {CREATE VIEW emp_named AS SELECT empno, ename FROM emp}
+    $db allrows {CREATE INDEX emp_deptno ON emp(deptno)}
+    # KING: mgr + comm both NULL; TURNER: comm = 0 (a real zero, not NULL)
+    $db allrows {INSERT INTO dept VALUES (10,'ACCOUNTING','NEW YORK')}
+    $db allrows {INSERT INTO emp  VALUES (7839,'KING',NULL,NULL,10)}
+    $db allrows {INSERT INTO emp  VALUES (7844,'TURNER',7839,0,10)}
+    return $db
+}
+
+# --- run: NULL survives, headers present, cap works ------------------------
+test run-null-columns {NULL cells come back as "" and all columns stay aligned} \
+-constraints tdbc -setup {set db [setupDb]} -cleanup {::sqledit::be::close $db} -body {
+    set r [::sqledit::be::run $db {SELECT empno, ename, mgr, comm FROM emp ORDER BY empno}]
+    list [dict get $r columns] [dict get $r rows]
+} -result {{empno ename mgr comm} {{7839 KING {} {}} {7844 TURNER 7839 0.0}}}
+
+# tdbc::sqlite3 does not expose column names for a zero-row result set (unlike
+# the bare sqlite3 A(*) fallback in be-sqlite.tcl). Documented limitation: an
+# empty SELECT yields no headers. Rows are correctly empty.
+test run-empty-no-headers {empty SELECT: no rows and (tdbc limitation) no headers} \
+-constraints tdbc -setup {set db [setupDb]} -cleanup {::sqledit::be::close $db} -body {
+    set r [::sqledit::be::run $db {SELECT empno, ename FROM emp WHERE 1=0}]
+    list [dict get $r columns] [llength [dict get $r rows]]
+} -result {{} 0}
+
+test run-cap {max limits the row count and sets capped} \
+-constraints tdbc -setup {set db [setupDb]} -cleanup {::sqledit::be::close $db} -body {
+    set r [::sqledit::be::run $db {SELECT empno FROM emp ORDER BY empno} 1]
+    list [llength [dict get $r rows]] [dict get $r capped]
+} -result {1 1}
+
+test run-ddl {DDL runs with empty result and no crash} \
+-constraints tdbc -setup {set db [setupDb]} -cleanup {::sqledit::be::close $db} -body {
+    set r [::sqledit::be::run $db {CREATE TABLE t2 (x INTEGER)}]
+    list [dict get $r columns] [llength [dict get $r rows]]
+} -result {{} 0}
+
+# --- execParams: missing key -> NULL (Macke 2), affected count -------------
+test execparams-missing-key-null {a bind dict missing a key inserts SQL NULL} \
+-constraints tdbc -setup {set db [setupDb]} -cleanup {::sqledit::be::close $db} -body {
+    # comm + mgr omitted on purpose -> should become NULL, not "" or 0
+    ::sqledit::be::execParams $db \
+        {INSERT INTO emp (empno, ename, deptno) VALUES (:empno, :ename, :deptno)} \
+        [dict create empno 7900 ename JAMES deptno 10]
+    dict get [::sqledit::be::run $db \
+        {SELECT comm IS NULL, mgr IS NULL FROM emp WHERE empno=7900}] rows
+} -result {{1 1}}
+
+test execparams-affected {execParams returns the affected-row count} \
+-constraints tdbc -setup {set db [setupDb]} -cleanup {::sqledit::be::close $db} -body {
+    ::sqledit::be::execParams $db {UPDATE emp SET comm=:c WHERE deptno=:d} \
+        [dict create c 500 d 10]
+} -result 2
+
+test execparams-zero-not-null {a real 0 value is stored, not treated as NULL} \
+-constraints tdbc -setup {set db [setupDb]} -cleanup {::sqledit::be::close $db} -body {
+    # TURNER already has comm=0; confirm it round-trips as 0, distinct from NULL
+    dict get [::sqledit::be::run $db \
+        {SELECT comm, comm IS NULL FROM emp WHERE empno=7844}] rows
+} -result {{0.0 0}}
+
+# --- introspection ----------------------------------------------------------
+test objects-tables {table list excludes sqlite_* internals} \
+-constraints tdbc -setup {set db [setupDb]} -cleanup {::sqledit::be::close $db} -body {
+    ::sqledit::be::objects $db table
+} -result {dept emp}
+
+test objects-view {views are listed} \
+-constraints tdbc -setup {set db [setupDb]} -cleanup {::sqledit::be::close $db} -body {
+    ::sqledit::be::objects $db view
+} -result emp_named
+
+test columns-meta {column metadata incl. a NULL default is handled} \
+-constraints tdbc -setup {set db [setupDb]} -cleanup {::sqledit::be::close $db} -body {
+    set cols [::sqledit::be::columns $db emp]
+    set names {}; foreach c $cols { lappend names [dict get $c name] }
+    set commDflt [dict get [lindex $cols 3] dflt]
+    list $names $commDflt
+} -result {{empno ename mgr comm deptno} {}}
+
+test foreignkeys {foreign key of emp -> dept is reported} \
+-constraints tdbc -setup {set db [setupDb]} -cleanup {::sqledit::be::close $db} -body {
+    ::sqledit::be::foreignKeys $db emp
+} -result {{column deptno refTable dept refColumn deptno}}
+
+test schemaof {schemaOf returns the CREATE text} \
+-constraints tdbc -setup {set db [setupDb]} -cleanup {::sqledit::be::close $db} -body {
+    string match {CREATE TABLE dept*} [::sqledit::be::schemaOf $db dept]
+} -result 1
+
+test schemadump {schemaDump lists every non-null schema object} \
+-constraints tdbc -setup {set db [setupDb]} -cleanup {::sqledit::be::close $db} -body {
+    set dump [::sqledit::be::schemaDump $db]
+    list [string match *CREATE\ TABLE\ dept* $dump] \
+         [string match *CREATE\ VIEW\ emp_named* $dump] \
+         [string match *CREATE\ INDEX\ emp_deptno* $dump]
+} -result {1 1 1}
+
+test summary-counts {summary counts objects by category} \
+-constraints tdbc -setup {set db [setupDb]} -cleanup {::sqledit::be::close $db} -body {
+    set d [::sqledit::be::summary $db]
+    list [dict get $d count_table] [dict get $d count_view] [dict get $d count_index]
+} -result {2 1 1}
+
+test label-memory {label reports :memory: for an empty/memory target} \
+-constraints tdbc -body {
+    list [::sqledit::be::label ""] [::sqledit::be::label :memory:]
+} -result {:memory: :memory:}
+
+cleanupTests

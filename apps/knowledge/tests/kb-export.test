@@ -1,0 +1,80 @@
+# kb-export.test -- tests for the markdown exporter and the import round-trip.
+
+package require tcltest
+namespace import ::tcltest::*
+
+set here [file dirname [file normalize [info script]]]
+set edir [file dirname $here]
+if {[info exists ::env(TCLUTILS_TM)]} { catch {tcl::tm::path add $::env(TCLUTILS_TM)} }
+source [file join $edir kb-store.tcl]
+source [file join $edir kb-import.tcl]
+source [file join $edir kb-export.tcl]
+
+testConstraint fts5 [expr {![catch {
+    package require tdbc::sqlite3
+    set t [tdbc::sqlite3::connection new :memory:]
+    $t allrows {CREATE VIRTUAL TABLE x USING fts5(a)}; $t close
+}]}]
+
+proc mkstore {} { return [::kb::store::openSqlite :memory:] }
+
+proc seed {s} {
+    set tcl [::kb::store::categoryAdd $s Tcl]
+    set ns  [::kb::store::categoryAdd $s Namespaces $tcl]
+    set tk  [::kb::store::categoryAdd $s Tk]
+    set e1 [::kb::store::entryAdd $s "Namespaces und Scope" "variable und ::" $ns]
+    set e2 [::kb::store::entryAdd $s "grid Geometrie" "grid mit sticky" $tk]
+    ::kb::store::entryTag $s $e1 namespace
+    ::kb::store::entryTag $s $e1 scope
+    ::kb::store::entryTag $s $e2 grid
+    return [list $tcl $ns $tk $e1 $e2]
+}
+
+test export-has-prefix-and-tags {export emits [Path] prefixes and Tags: lines} \
+-constraints fts5 -setup {set s [mkstore]} -cleanup {::kb::store::close $s} -body {
+    seed $s
+    set md [::kb::export::markdown $s]
+    list [string match {*## \[Tcl / Namespaces\] Namespaces und Scope*} $md] \
+         [string match {*## \[Tk\] grid Geometrie*} $md] \
+         [string match {*Tags: namespace, scope*} $md]
+} -result {1 1 1}
+
+test export-roundtrip {export then import into a fresh store reproduces everything} \
+-constraints fts5 -setup {set s [mkstore]} -cleanup {::kb::store::close $s} -body {
+    seed $s
+    set md [::kb::export::markdown $s]
+    set s2 [mkstore]
+    ::kb::import::markdown $s2 $md
+    # same entry count, same category paths, same tags
+    set n [llength [::kb::store::entriesAll $s2]]
+    set paths {}
+    foreach e [::kb::store::entriesAll $s2] {
+        set full [::kb::store::entryGet $s2 [dict get $e id]]
+        lappend paths [::kb::store::categoryPath $s2 [dict get $full category_id]]
+    }
+    set tags [lsort [::kb::store::tagsAll $s2]]
+    ::kb::store::close $s2
+    list $n [lsort $paths] $tags
+} -result {2 {{Tcl / Namespaces} Tk} {grid namespace scope}}
+
+test export-roundtrip-search {round-tripped entries are full-text searchable} \
+-constraints fts5 -setup {set s [mkstore]} -cleanup {::kb::store::close $s} -body {
+    seed $s
+    set s2 [mkstore]
+    ::kb::import::markdown $s2 [::kb::export::markdown $s]
+    set hits [lmap r [::kb::store::search $s2 sticky] { dict get $r title }]
+    ::kb::store::close $s2
+    set hits
+} -result {{grid Geometrie}}
+
+test export-file {export to a file writes non-empty utf-8 content} \
+-constraints fts5 -setup {set s [mkstore]} -cleanup {::kb::store::close $s} -body {
+    seed $s
+    set f [makeFile {} kb-export.md]
+    set size [::kb::export::file $s $f]
+    set ch [open $f r]; fconfigure $ch -encoding utf-8; set back [read $ch]; close $ch
+    file delete $f
+    list [expr {$size > 0}] [string match {*# Wissensbasis*} $back]
+} -result {1 1}
+
+cleanupTests

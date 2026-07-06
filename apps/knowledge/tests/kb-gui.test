@@ -1,0 +1,462 @@
+# kb-gui.test -- GUI smoke test for the knowledge-base app.
+#
+# Drives the assembled Tk UI (tkusearchbar/tkutltree/tkutablelist/tkumdview/
+# tkuform) against an in-memory store: build, list, category filter, full-text
+# search, preview, add-via-form, delete. Needs Tk + tkutils; runs under xvfb-run.
+
+package require tcltest
+namespace import ::tcltest::*
+
+apply {{} {
+    foreach v {TCLUTILS_TM TKUTILS_TM} {
+        if {[info exists ::env($v)]} { catch {tcl::tm::path add $::env($v)} }
+    }
+}}
+
+set ::kbdir [file dirname [file dirname [file normalize [info script]]]]
+
+set haveGui [expr {![catch {
+    package require Tk
+    package require tablelist
+    package require tdbc::sqlite3
+    package require tkutils::tkusearchbar
+    package require tkutils::tkutltree
+    package require tkutils::tkutablelist
+    package require tkutils::tkumdview
+    package require tkutils::tkueditor
+    set t [tdbc::sqlite3::connection new :memory:]
+    $t allrows {CREATE VIRTUAL TABLE x USING fts5(a)}; $t close
+}]}]
+testConstraint gui $haveGui
+
+if {$haveGui} {
+    source [file join $::kbdir knowledge-base.tcl]
+    proc freshGui {} {
+        catch {destroy {*}[winfo children .]}
+        array unset ::kbgui::G
+        array set ::kbgui::G {store {} ids {} catmap {} curCat {} curEntry {} \
+            search {} allTagsLabel {(alle Tags)}}
+        set store [::kb::store::openSqlite :memory:]
+        ::kbgui::build . $store
+        return $store
+    }
+    proc seedGui {store} {
+        set c1 [::kb::store::categoryAdd $store "Tcl Core"]
+        set c2 [::kb::store::categoryAdd $store "Tk"]
+        set e1 [::kb::store::entryAdd $store "String model" "everything is a string" $c1]
+        set e2 [::kb::store::entryAdd $store "Font trap" "resolves proportional not monospace" $c2]
+        ::kb::store::entryTag $store $e1 string
+        ::kb::store::entryTag $store $e1 eias
+        ::kb::store::entryTag $store $e2 font
+        ::kb::store::entryTag $store $e2 tk
+        ::kbgui::refreshCategories
+        ::kbgui::showAll
+        return [list $c1 $c2 $e1 $e2]
+    }
+    # select the given tag names in the filter listbox
+    proc selTags {names} {
+        set lb $::kbgui::G(taglb)
+        $lb selection clear 0 end
+        set all [$lb get 0 end]
+        foreach n $names {
+            set i [lsearch -exact $all $n]
+            if {$i >= 0} { $lb selection set $i }
+        }
+    }
+    # display row of a category id in the tree, or -1
+    proc rowOf {id} {
+        set tree $::kbgui::G(tree)
+        for {set i 0} {$i < [$tree size]} {incr i} {
+            if {[lindex [$tree get $i] 1] == $id} { return $i }
+        }
+        return -1
+    }
+}
+
+test gui-build-empty {an empty store builds with an empty list} \
+-constraints gui -body {
+    freshGui
+    ::tkutils::tkutablelist::size $::kbgui::G(list)
+} -result 0
+
+test gui-categories {categories populate the tree} \
+-constraints gui -body {
+    set s [freshGui]; seedGui $s
+    $::kbgui::G(tree) size
+} -result 2
+
+test gui-showall {showAll lists every entry} \
+-constraints gui -body {
+    set s [freshGui]; seedGui $s
+    ::kbgui::showAll
+    ::tkutils::tkutablelist::size $::kbgui::G(list)
+} -result 2
+
+test gui-category-filter {selecting a category filters the list} \
+-constraints gui -body {
+    set s [freshGui]; lassign [seedGui $s] c1
+    ::kbgui::onCategoryId $c1
+    set ::kbgui::G(curCat) $c1
+    ::tkutils::tkutablelist::size $::kbgui::G(list)
+} -result 1
+
+test gui-search-global {a global search finds the matching entry} \
+-constraints gui -body {
+    set s [freshGui]; seedGui $s
+    ::kbgui::showAll
+    ::kbgui::onSearch monospace {}
+    ::tkutils::tkutablelist::size $::kbgui::G(list)
+} -result 1
+
+test gui-preview {selecting an entry renders its markdown + tags} \
+-constraints gui -body {
+    set s [freshGui]; seedGui $s
+    ::kbgui::showAll
+    ::kbgui::onSearch monospace {}
+    ::kbgui::onEntry $::kbgui::G(list) 0
+    list [expr {[string length [::tkutils::tkumdview::getMarkdown $::kbgui::G(md)]] > 0}] \
+         [string match {Tags:*font*} [$::kbgui::G(tags) cget -text]]
+} -result {1 1}
+
+test gui-add-entry {saving a new entry inserts a searchable, tagged entry} \
+-constraints gui -body {
+    set s [freshGui]
+    ::kbgui::_saveEntryDo new "" "New note" "contains the word xylophone" "Misc" "alpha, beta"
+    ::kbgui::showAll
+    ::kbgui::onSearch xylophone {}
+    list [::tkutils::tkutablelist::size $::kbgui::G(list)] \
+         [lsort [::kb::store::tagsAll $s]]
+} -result {1 {alpha beta}}
+
+test gui-delete {deleting removes the entry} \
+-constraints gui -body {
+    set s [freshGui]; lassign [seedGui $s] c1 c2 e1 e2
+    set ::kbgui::G(curEntry) $e1
+    ::kb::store::entryDelete $s $e1
+    ::kbgui::showAll
+    ::tkutils::tkutablelist::size $::kbgui::G(list)
+} -result 1
+
+test gui-import-file {importFile loads a wissen-md and refreshes the UI} \
+-constraints gui -body {
+    set s [freshGui]
+    set md "## 1. Tcl Core note\n\nbody with word kumquat and `errorCode`.\n\n## 2. Tk note\n\nsecond body.\n"
+    set f [makeFile $md wissen-sample.md]
+    set n [::kbgui::importFile $f]
+    ::kbgui::showAll
+    ::kbgui::onSearch kumquat {}
+    list $n [$::kbgui::G(tree) size] [::tkutils::tkutablelist::size $::kbgui::G(list)]
+} -result {2 2 1}
+
+test gui-hierarchy {nested categories nest in the tree; a parent lists descendants} \
+-constraints gui -body {
+    set s [freshGui]
+    set ns  [::kbgui::_catIdFor "Tcl / Namespaces"]
+    set ens [::kbgui::_catIdFor "Tcl / Namespaces / Ensembles"]
+    set oo  [::kbgui::_catIdFor "Tcl / TclOO"]
+    ::kb::store::entryAdd $s E-ns  x $ns
+    ::kb::store::entryAdd $s E-ens x $ens
+    ::kb::store::entryAdd $s E-oo  x $oo
+    ::kbgui::refreshCategories
+    set tcl [::kbgui::_findChild "" Tcl]
+    ::kbgui::onCategoryId $tcl
+    set nTcl [::tkutils::tkutablelist::size $::kbgui::G(list)]
+    ::kbgui::onCategoryId $ns
+    set nNs [::tkutils::tkutablelist::size $::kbgui::G(list)]
+    list [$::kbgui::G(tree) size] [dict get $::kbgui::G(catpath) $ens] $nTcl $nNs
+} -result {4 {Tcl / Namespaces / Ensembles} 3 2}
+
+test gui-move-category {re-parenting a category via the GUI moves its entries} \
+-constraints gui -body {
+    set s [freshGui]
+    set a  [::kb::store::categoryAdd $s A]
+    set b  [::kb::store::categoryAdd $s B]
+    set a1 [::kb::store::categoryAdd $s A1 $a]
+    ::kb::store::entryAdd $s inA1 x $a1
+    ::kbgui::refreshCategories
+    # before: B has 0 (recursive), A has 1
+    set before [::tkutils::tkutablelist::size [set _ [::kbgui::onCategoryId $b; set ::kbgui::G(list)]]]
+    ::kbgui::moveCategoryTo $a1 $b
+    ::kbgui::onCategoryId $b
+    set afterB [::tkutils::tkutablelist::size $::kbgui::G(list)]
+    ::kbgui::onCategoryId $a
+    set afterA [::tkutils::tkutablelist::size $::kbgui::G(list)]
+    list $before $afterB $afterA [$::kbgui::G(tree) size]
+} -result {0 1 0 3}
+
+test gui-dnd-drop-onto {dropping a category onto another re-parents it} \
+-constraints gui -body {
+    set s [freshGui]
+    set a  [::kb::store::categoryAdd $s A]
+    set b  [::kb::store::categoryAdd $s B]
+    set a1 [::kb::store::categoryAdd $s A1 $a]
+    ::kb::store::entryAdd $s inA1 x $a1
+    ::kbgui::refreshCategories
+    ::kbgui::_applyDrop [rowOf $a1] [rowOf $b]
+    ::kbgui::onCategoryId $b
+    set nb [::tkutils::tkutablelist::size $::kbgui::G(list)]
+    ::kbgui::onCategoryId $a
+    set na [::tkutils::tkutablelist::size $::kbgui::G(list)]
+    list $nb $na
+} -result {1 0}
+
+test gui-dnd-drop-toplevel {dropping on empty space moves a category to top level} \
+-constraints gui -body {
+    set s [freshGui]
+    set a  [::kb::store::categoryAdd $s A]
+    set a1 [::kb::store::categoryAdd $s A1 $a]
+    ::kbgui::refreshCategories
+    ::kbgui::_applyDrop [rowOf $a1] -1
+    set row [lindex [::tclutils::tutdbc::rows [dict get $s conn] \
+        {SELECT parent_id FROM category WHERE id=:id} [dict create id $a1]] 0]
+    dict get $row parent_id
+} -result {}
+
+test gui-dnd-drop-cycle-rejected {dropping a parent onto its own descendant is rejected} \
+-constraints gui -body {
+    set s [freshGui]
+    set a  [::kb::store::categoryAdd $s A]
+    set a1 [::kb::store::categoryAdd $s A1 $a]
+    ::kb::store::entryAdd $s inA x $a
+    ::kbgui::refreshCategories
+    ::kbgui::_applyDrop [rowOf $a] [rowOf $a1]   ;# A onto its child A1 -> rejected
+    # A stays where it was: its entry still reachable, hierarchy intact
+    set row [lindex [::tclutils::tutdbc::rows [dict get $s conn] \
+        {SELECT parent_id FROM category WHERE id=:id} [dict create id $a]] 0]
+    dict get $row parent_id
+} -result {}
+
+test gui-toc-hidden {the preview shows no TOC pane (only rendered text)} \
+-constraints gui -body {
+    freshGui
+    llength [$::kbgui::G(md).pw panes]
+} -result 1
+
+test gui-tag-filter {selecting a tag in the filter list shows entries with it} \
+-constraints gui -body {
+    set s [freshGui]; seedGui $s
+    selTags font
+    ::kbgui::_applyFilters
+    ::tkutils::tkutablelist::size $::kbgui::G(list)
+} -result 1
+
+test gui-search-with-tag {text search combined with a selected tag} \
+-constraints gui -body {
+    set s [freshGui]; seedGui $s
+    selTags font;   ::kbgui::_applyFilters monospace
+    set withFont [::tkutils::tkutablelist::size $::kbgui::G(list)]
+    selTags string; ::kbgui::_applyFilters monospace
+    set withString [::tkutils::tkutablelist::size $::kbgui::G(list)]
+    list $withFont $withString
+} -result {1 0}
+
+test gui-multi-tag-and {multiple tags in AND mode need every tag} \
+-constraints gui -body {
+    set s [freshGui]; seedGui $s
+    set ::kbgui::_tagMode all
+    selTags {string eias}; ::kbgui::_applyFilters
+    set both [::tkutils::tkutablelist::size $::kbgui::G(list)]
+    selTags {string tk};   ::kbgui::_applyFilters
+    set none [::tkutils::tkutablelist::size $::kbgui::G(list)]
+    list $both $none
+} -result {1 0}
+
+test gui-multi-tag-or {multiple tags in OR mode need at least one} \
+-constraints gui -body {
+    set s [freshGui]; seedGui $s
+    set ::kbgui::_tagMode any
+    selTags {string tk}; ::kbgui::_applyFilters
+    ::tkutils::tkutablelist::size $::kbgui::G(list)
+} -result 2
+
+test gui-move-noop {re-parenting to the current parent is a no-op, reported as such} \
+-constraints gui -body {
+    set s [freshGui]
+    set a  [::kb::store::categoryAdd $s A]
+    set a1 [::kb::store::categoryAdd $s A1 $a]
+    ::kbgui::refreshCategories
+    set r [::kbgui::moveCategoryTo $a1 $a]   ;# A1 already under A
+    set row [lindex [::tclutils::tutdbc::rows [dict get $s conn] \
+        {SELECT parent_id FROM category WHERE id=:id} [dict create id $a1]] 0]
+    list $r [dict get $row parent_id]
+} -result [list 0 1]
+
+test gui-ctx-new-child {context action: add a subcategory under a category} \
+-constraints gui -body {
+    set s [freshGui]
+    set a [::kb::store::categoryAdd $s A]
+    ::kbgui::refreshCategories
+    ::kbgui::_newChildDo $a "Unter"
+    lsort [lmap c [::kb::store::categories $s] { dict get $c name }]
+} -result {A Unter}
+
+test gui-ctx-rename {context action: rename a category} \
+-constraints gui -body {
+    set s [freshGui]
+    set a [::kb::store::categoryAdd $s Alt]
+    ::kbgui::refreshCategories
+    ::kbgui::_renameDo $a Neu
+    lmap c [::kb::store::categories $s] { dict get $c name }
+} -result Neu
+
+test gui-ctx-delete {context action: delete a category, re-parenting its content} \
+-constraints gui -body {
+    set s [freshGui]
+    set a  [::kb::store::categoryAdd $s A]
+    set a1 [::kb::store::categoryAdd $s A1 $a]
+    ::kb::store::entryAdd $s inA1 x $a1
+    ::kbgui::refreshCategories
+    ::kbgui::_deleteCatDo $a1
+    ::kbgui::onCategoryId $a
+    list [lsort [lmap c [::kb::store::categories $s] { dict get $c name }]] \
+         [::tkutils::tkutablelist::size $::kbgui::G(list)]
+} -result {A 1}
+
+test gui-ctx-menu-exists {the tree has a context menu configured} \
+-constraints gui -body {
+    freshGui
+    list [winfo exists $::kbgui::G(ctxmenu)] [$::kbgui::G(ctxmenu) index end]
+} -result {1 4}
+
+test gui-list-menu-exists {the entry list has a context menu configured} \
+-constraints gui -body {
+    freshGui
+    list [winfo exists $::kbgui::G(listmenu)] [$::kbgui::G(listmenu) index end]
+} -result {1 3}
+
+test gui-md-editor-builds {the edit dialog builds a markdown editor + preview} \
+-constraints gui -cleanup {catch {destroy .kbedit}} -body {
+    freshGui
+    ::kbgui::edit new
+    list [winfo exists $::kbgui::G(edEd)] [winfo exists $::kbgui::G(edMd)]
+} -result {1 1}
+
+test gui-md-wrap {the bold button wraps the selection in **...**} \
+-constraints gui -cleanup {catch {destroy .kbedit}} -body {
+    freshGui
+    ::kbgui::edit new
+    set ed $::kbgui::G(edEd)
+    ::tkutils::tkueditor::setText $ed "hello"
+    $ed.t tag add sel 1.0 1.5
+    ::kbgui::_mdWrap "**" "**"
+    ::tkutils::tkueditor::getText $ed
+} -result {**hello**}
+
+test gui-md-prefix {the H1 button prefixes the current line with "# "} \
+-constraints gui -cleanup {catch {destroy .kbedit}} -body {
+    freshGui
+    ::kbgui::edit new
+    set ed $::kbgui::G(edEd)
+    ::tkutils::tkueditor::setText $ed "title"
+    $ed.t mark set insert 1.0
+    ::kbgui::_mdPrefix "# "
+    ::tkutils::tkueditor::getText $ed
+} -result {# title}
+
+test gui-md-preview {refreshing the preview renders the editor's markdown} \
+-constraints gui -cleanup {catch {destroy .kbedit}} -body {
+    freshGui
+    ::kbgui::edit new
+    ::tkutils::tkueditor::setText $::kbgui::G(edEd) "# Heading\n\nsome body text"
+    ::kbgui::_edRefreshPreview
+    expr {[string length [::tkutils::tkumdview::getMarkdown $::kbgui::G(edMd)]] > 0}
+} -result 1
+
+test gui-md-edit-save {editing an existing entry via the editor persists the body} \
+-constraints gui -cleanup {catch {destroy .kbedit}} -body {
+    set s [freshGui]
+    set c [::kb::store::categoryAdd $s C]
+    set id [::kb::store::entryAdd $s "T" "old body" $c]
+    set ::kbgui::G(curEntry) $id
+    ::kbgui::_saveEntryDo cur $id "T" "new **body** with kiwi" "C" "x"
+    ::kbgui::showAll
+    ::kbgui::onSearch kiwi {}
+    ::tkutils::tkutablelist::size $::kbgui::G(list)
+} -result 1
+
+test gui-export-file {exportFile writes the store to a markdown file} \
+-constraints gui -body {
+    set s [freshGui]; seedGui $s
+    set f [makeFile {} kb-gui-exp.md]
+    set n [::kbgui::exportFile $f]
+    set ch [open $f r]; fconfigure $ch -encoding utf-8; set md [read $ch]; close $ch
+    file delete $f
+    list [expr {$n > 0}] [string match {*## *} $md]
+} -result {1 1}
+
+test gui-export-then-import {export to a file, then import it into a fresh store} \
+-constraints gui -body {
+    set s [freshGui]; seedGui $s
+    set f [makeFile {} kb-gui-roundtrip.md]
+    ::kbgui::exportFile $f
+    freshGui
+    ::kbgui::importFile $f
+    ::kbgui::showAll
+    set n [::tkutils::tkutablelist::size $::kbgui::G(list)]
+    file delete $f
+    set n
+} -result 2
+
+test gui-selected-entry-ids {selecting several list rows yields their entry ids} \
+-constraints gui -body {
+    set s [freshGui]
+    set c [::kb::store::categoryAdd $s C]
+    set e1 [::kb::store::entryAdd $s A a $c]
+    set e2 [::kb::store::entryAdd $s B b $c]
+    set e3 [::kb::store::entryAdd $s D d $c]
+    ::kbgui::refreshCategories
+    ::kbgui::showAll
+    $::kbgui::G(list).tbl selection clear 0 end
+    $::kbgui::G(list).tbl selection set 0
+    $::kbgui::G(list).tbl selection set 2
+    lsort [::kbgui::_selectedEntryIds]
+} -result [lsort {1 3}]
+
+test gui-delete-multiple {deleting several selected entries removes them all} \
+-constraints gui -body {
+    set s [freshGui]
+    set c [::kb::store::categoryAdd $s C]
+    set e1 [::kb::store::entryAdd $s A a $c]
+    set e2 [::kb::store::entryAdd $s B b $c]
+    set e3 [::kb::store::entryAdd $s D d $c]
+    ::kbgui::refreshCategories
+    set removed [::kbgui::_deleteEntries [list $e1 $e3]]
+    ::kbgui::showAll
+    list $removed [::tkutils::tkutablelist::size $::kbgui::G(list)] \
+         [lmap e [::kb::store::entriesAll $s] { dict get $e title }]
+} -result {2 1 B}
+
+test gui-selected-cat-ids {selecting several tree rows yields their category ids} \
+-constraints gui -body {
+    set s [freshGui]
+    set a [::kb::store::categoryAdd $s A]
+    set b [::kb::store::categoryAdd $s B]
+    set c [::kb::store::categoryAdd $s C]
+    ::kbgui::refreshCategories
+    $::kbgui::G(tree) selection clear 0 end
+    $::kbgui::G(tree) selection set 0
+    $::kbgui::G(tree) selection set 2
+    lsort [::kbgui::_selectedCatIds]
+} -result [lsort {1 3}]
+
+test gui-delete-multiple-categories {deleting several selected categories removes them all} \
+-constraints gui -body {
+    set s [freshGui]
+    set a [::kb::store::categoryAdd $s A]
+    set b [::kb::store::categoryAdd $s B]
+    set c [::kb::store::categoryAdd $s C]
+    ::kbgui::refreshCategories
+    set removed [::kbgui::_deleteCatsDo [list $a $c]]
+    list $removed [lmap x [::kb::store::categories $s] { dict get $x name }]
+} -result {2 B}
+
+test gui-delete-refreshes-tags {deleting an entry drops its now-unused tags from the panel} \
+-constraints gui -body {
+    set s [freshGui]; lassign [seedGui $s] c1 c2 e1 e2
+    # seedGui: e1 -> string,eias ; e2 -> font,tk
+    ::kbgui::_deleteEntries [list $e2]
+    set items [$::kbgui::G(taglb) get 0 end]
+    list [expr {"font" in $items}] [expr {"tk" in $items}] [expr {"string" in $items}]
+} -result {0 0 1}
+
+cleanupTests

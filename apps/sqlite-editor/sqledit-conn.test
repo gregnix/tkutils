@@ -1,0 +1,106 @@
+# sqledit-conn.test -- tests for the shared connection-profile store.
+# Tk-free. Uses an isolated temporary config dir so it never touches the real
+# ~/.config/sqledit. Runs on tclsh 8.6 and 9.0.
+
+package require tcltest
+namespace import ::tcltest::*
+
+set ::here [file dirname [file normalize [info script]]]
+set ::edir $::here
+if {![file exists [file join $::edir sqledit-conn.tcl]]} { set ::edir [file dirname $::here] }
+source [file join $::edir sqledit-conn.tcl]
+
+# Isolate the store in a scratch dir for the whole suite.
+set ::sandbox [makeDirectory sqledit-conn-test]
+set ::env(XDG_CONFIG_HOME) $::sandbox
+# neutralise HOME/APPDATA so _dir cannot fall through to a real location
+catch {unset ::env(APPDATA)}
+
+proc wipe {} {
+    set d [::sqledit::conn::_dir]
+    catch {file delete -force $d}
+}
+
+test save-get-roundtrip {a saved profile comes back field-for-field} -setup wipe -body {
+    ::sqledit::conn::save oracle prod \
+        [dict create connect db:1521/orcl user scott password tiger]
+    ::sqledit::conn::get oracle prod
+} -result {connect db:1521/orcl user scott password tiger}
+
+test get-absent {an unknown profile returns empty string} -setup wipe -body {
+    ::sqledit::conn::get oracle nope
+} -result {}
+
+test names-sorted {names lists every profile, dictionary-sorted} -setup wipe -body {
+    ::sqledit::conn::save oracle beta  {user b}
+    ::sqledit::conn::save oracle alpha {user a}
+    ::sqledit::conn::save oracle gamma {user g}
+    ::sqledit::conn::names oracle
+} -result {alpha beta gamma}
+
+test overwrite {saving under an existing name overwrites it} -setup wipe -body {
+    ::sqledit::conn::save oracle p {user old}
+    ::sqledit::conn::save oracle p {user new}
+    list [::sqledit::conn::names oracle] [dict get [::sqledit::conn::get oracle p] user]
+} -result {p new}
+
+test delete {delete removes just that profile} -setup wipe -body {
+    ::sqledit::conn::save oracle a {user a}
+    ::sqledit::conn::save oracle b {user b}
+    ::sqledit::conn::delete oracle a
+    ::sqledit::conn::names oracle
+} -result b
+
+test delete-missing {deleting a non-existent profile is a no-op} -setup wipe -body {
+    ::sqledit::conn::save oracle a {user a}
+    ::sqledit::conn::delete oracle nope
+    ::sqledit::conn::names oracle
+} -result a
+
+test strip-secret {stripSecret drops the password but keeps the rest} -body {
+    ::sqledit::conn::stripSecret \
+        [dict create connect c user scott password tiger]
+} -result {connect c user scott}
+
+test strip-secret-aliases {stripSecret also drops passwd/pwd/secret} -body {
+    ::sqledit::conn::stripSecret \
+        [dict create user u passwd x pwd y secret z keep 1]
+} -result {user u keep 1}
+
+test save-without-password {opt-out: a stripped profile persists no secret} -setup wipe -body {
+    set p [dict create connect c user scott password tiger]
+    ::sqledit::conn::save oracle nopw [::sqledit::conn::stripSecret $p]
+    set back [::sqledit::conn::get oracle nopw]
+    list [dict exists $back password] [dict get $back user]
+} -result {0 scott}
+
+test backend-isolation {profiles of different backends live in separate files} -setup wipe -body {
+    ::sqledit::conn::save oracle   x {user o}
+    ::sqledit::conn::save postgres x {user p}
+    list [dict get [::sqledit::conn::get oracle x] user] \
+         [dict get [::sqledit::conn::get postgres x] user] \
+         [::sqledit::conn::names oracle] [::sqledit::conn::names postgres]
+} -result {o p x x}
+
+test file-permissions-0600 {the profile file is written 0600 (unix only)} \
+-constraints unix -setup wipe -body {
+    ::sqledit::conn::save oracle p {user u}
+    set f [::sqledit::conn::_file oracle]
+    format %o [expr {[file attributes $f -permissions] & 0o777}]
+} -result 600
+
+test corruption-resilient {a garbage file yields an empty store, not an error} -setup wipe -body {
+    set f [::sqledit::conn::_file oracle]
+    file mkdir [file dirname $f]
+    set ch [open $f w]; puts $ch "this is not a valid dict \{ oops"; close $ch
+    list [::sqledit::conn::names oracle] [::sqledit::conn::get oracle p]
+} -result {{} {}}
+
+test values-with-spaces {values containing spaces/braces round-trip intact} -setup wipe -body {
+    set desc {(DESCRIPTION=(ADDRESS=(HOST=a b)))}
+    ::sqledit::conn::save oracle d [dict create connect $desc user {john doe}]
+    set back [::sqledit::conn::get oracle d]
+    list [dict get $back connect] [dict get $back user]
+} -result [list {(DESCRIPTION=(ADDRESS=(HOST=a b)))} {john doe}]
+
+cleanupTests

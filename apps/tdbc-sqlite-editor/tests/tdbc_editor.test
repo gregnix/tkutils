@@ -1,0 +1,75 @@
+# tdbc_editor.test -- GUI smoke test for the SQLite-over-TDBC editor.
+#
+# Drives the shared sqledit GUI with the be-tdbc backend end-to-end: build the
+# app, open an in-memory database, seed rows (incl. a NULL), run a SELECT
+# through the core and confirm the result grid + object browser are populated.
+# Needs Tk + tkutils; runs under xvfb-run.
+
+package require tcltest
+namespace import ::tcltest::*
+
+apply {{} {
+    foreach lib {TCLUTILS TKUTILS} {
+        if {[info exists ::env(${lib}_TM)]} { tcl::tm::path add $::env(${lib}_TM) }
+    }
+    set root [file dirname [file normalize [info script]]]
+    foreach base [list $root [file dirname $root] [file dirname [file dirname $root]]] {
+        foreach lib {tclutils tkutils} {
+            set tm [file join $base $lib lib tm]
+            if {[file isdirectory $tm]} { tcl::tm::path add $tm }
+        }
+    }
+}}
+
+set ::here [file dirname [file normalize [info script]]]
+# be-tdbc.tcl beside this test, or one level up (tests/ subdir)
+set ::td $::here
+if {![file exists [file join $::td be-tdbc.tcl]]} { set ::td [file dirname $::here] }
+set ::sq [file normalize [file join $::td .. sqlite-editor]]
+set ::argv {}
+
+set haveGui [expr {![catch {package require Tk}]
+                 && ![catch {package require tdbc::sqlite3}]}]
+tcltest::testConstraint gui $haveGui
+
+if {$haveGui} {
+    source [file join $::sq sqledit-core.tcl]
+    source [file join $::td be-tdbc.tcl]
+    source [file join $::sq sqledit-form.tcl]
+    source [file join $::sq sqledit-sheet.tcl]
+    ::sqledit::buildApp .
+    update idletasks
+
+    set ::sqledit::S(db)   [::sqledit::be::open :memory:]
+    set ::sqledit::S(file) :memory:
+    set ::db $::sqledit::S(db)
+    $::db allrows {CREATE TABLE emp (empno INTEGER, ename TEXT NOT NULL, comm REAL)}
+    $::db allrows {INSERT INTO emp VALUES (1,'KING',NULL)}
+    $::db allrows {INSERT INTO emp VALUES (2,'TURNER',0)}
+    set ::res [::sqledit::_run {SELECT empno, ename, comm FROM emp ORDER BY empno}]
+    ::sqledit::_showResult [dict get $::res columns] [dict get $::res rows]
+    update idletasks
+    set ::W $::sqledit::S(w)
+}
+
+test gui-grid-rows {result grid holds the rows produced via the TDBC backend} \
+-constraints gui -body {
+    ::tkutils::tkutablelist::size $::W
+} -result 2
+
+test gui-null-cell {the NULL comm cell round-trips through the grid as ""} \
+-constraints gui -body {
+    lindex [dict get $::res rows] 0
+} -result {1 KING {}}
+
+test gui-objects {the object browser sees the seeded table} \
+-constraints gui -body {
+    ::sqledit::_objects table
+} -result emp
+
+test gui-columns {column introspection drives the form/browser} \
+-constraints gui -body {
+    lmap c [::sqledit::_columns emp] { dict get $c name }
+} -result {empno ename comm}
+
+cleanupTests

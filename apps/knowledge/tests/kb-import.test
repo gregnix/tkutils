@@ -1,0 +1,116 @@
+# kb-import.test -- tests for the wissen-md importer.
+
+package require tcltest
+namespace import ::tcltest::*
+
+set here [file dirname [file normalize [info script]]]
+set edir [file dirname $here]
+if {[info exists ::env(TCLUTILS_TM)]} { catch {tcl::tm::path add $::env(TCLUTILS_TM)} }
+source [file join $edir kb-store.tcl]
+source [file join $edir kb-import.tcl]
+
+testConstraint fts5 [expr {![catch {
+    package require tdbc::sqlite3
+    set t [tdbc::sqlite3::connection new :memory:]
+    $t allrows {CREATE VIRTUAL TABLE x USING fts5(a)}
+    $t close
+}]}]
+
+set ::SAMPLE {# Wissen — Test
+
+Intro paragraph that should be skipped.
+
+---
+
+## 1. Tcl Core — evaluation traps
+
+`string map` with `{| \|}` is a no-op. Use `regsub` instead.
+A real keyword like `errorCode` matters here.
+
+---
+
+## 2. Tk Widgets — the font actual trap
+
+`font actual` with a size resolves proportional, not `monospace`.
+Symbols like `''` and `00` must not become tags.
+}
+
+proc mkstore {} { return [::kb::store::openSqlite :memory:] }
+
+test import-count {every ## section becomes one entry} \
+-constraints fts5 -setup {set s [mkstore]} -cleanup {::kb::store::close $s} -body {
+    ::kb::import::markdown $s $::SAMPLE testsrc
+} -result 2
+
+test import-titles {section headings become entry titles} \
+-constraints fts5 -setup {set s [mkstore]} -cleanup {::kb::store::close $s} -body {
+    ::kb::import::markdown $s $::SAMPLE
+    lsort [lmap e [::kb::store::entriesAll $s] { dict get $e title }]
+} -result {{1. Tcl Core — evaluation traps} {2. Tk Widgets — the font actual trap}}
+
+test import-intro-skipped {the leading title/intro is not imported} \
+-constraints fts5 -setup {set s [mkstore]} -cleanup {::kb::store::close $s} -body {
+    ::kb::import::markdown $s $::SAMPLE
+    expr {[llength [::kb::store::entriesAll $s]] == 2}
+} -result 1
+
+test import-category {a coarse category is derived from the heading} \
+-constraints fts5 -setup {set s [mkstore]} -cleanup {::kb::store::close $s} -body {
+    ::kb::import::markdown $s $::SAMPLE
+    lsort [lmap c [::kb::store::categories $s] { dict get $c name }]
+} -result {{Tcl Core} Tk}
+
+test import-tags-keywords {inline-code terms become tags} \
+-constraints fts5 -setup {set s [mkstore]} -cleanup {::kb::store::close $s} -body {
+    ::kb::import::markdown $s $::SAMPLE
+    set e [lindex [::kb::store::entriesAll $s] 0]
+    expr {"errorCode" in [::kb::store::tagsAll $s]}
+} -result 1
+
+test import-tags-no-junk {pure symbol/number spans do not become tags} \
+-constraints fts5 -setup {set s [mkstore]} -cleanup {::kb::store::close $s} -body {
+    ::kb::import::markdown $s $::SAMPLE
+    set all [::kb::store::tagsAll $s]
+    list [expr {"''" in $all}] [expr {"00" in $all}]
+} -result {0 0}
+
+test import-body-searchable {imported bodies are full-text searchable} \
+-constraints fts5 -setup {set s [mkstore]} -cleanup {::kb::store::close $s} -body {
+    ::kb::import::markdown $s $::SAMPLE
+    lmap r [::kb::store::search $s proportional] { dict get $r title }
+} -result {{2. Tk Widgets — the font actual trap}}
+
+test import-body-no-rule {a trailing horizontal rule is trimmed from the body} \
+-constraints fts5 -setup {set s [mkstore]} -cleanup {::kb::store::close $s} -body {
+    ::kb::import::markdown $s $::SAMPLE
+    set e [::kb::store::entryGet $s [dict get [lindex [::kb::store::entriesAll $s] 0] id]]
+    string match {*---*} [dict get $e body]
+} -result 0
+
+test import-category-prefix {a [Path] heading prefix creates a hierarchical category} \
+-constraints fts5 -setup {set s [mkstore]} -cleanup {::kb::store::close $s} -body {
+    set md "## \[Tcl/Namespaces\] Ensembles\n\n`namespace ensemble create` builds a command.\n\n## \[Tk/Geometrie\] grid\n\n`grid` with `-sticky`.\n"
+    ::kb::import::markdown $s $md
+    # roots Tcl + Tk, each with one child; entry lands under the leaf
+    set cats [lsort [lmap c [::kb::store::categories $s] { dict get $c name }]]
+    set roots [lsort [lmap c [::kb::store::categories $s] {
+        expr {[dict get $c parent_id] eq "" ? [dict get $c name] : [continue]} }]]
+    list $cats $roots
+} -result {{Geometrie Namespaces Tcl Tk} {Tcl Tk}}
+
+test import-prefix-title-clean {the [Path] prefix is stripped from the entry title} \
+-constraints fts5 -setup {set s [mkstore]} -cleanup {::kb::store::close $s} -body {
+    ::kb::import::markdown $s "## \[Tcl/Sprache\] proc und args\n\nbody"
+    dict get [lindex [::kb::store::entriesAll $s] 0] title
+} -result {proc und args}
+
+test import-tags-explicit {an explicit Tags: line overrides the backtick heuristic} \
+-constraints fts5 -setup {set s [mkstore]} -cleanup {::kb::store::close $s} -body {
+    ::kb::import::markdown $s "## \[Tcl/X\] T\n\nbody with `code` here.\n\nTags: alpha, beta gamma, delta\n"
+    set e [lindex [::kb::store::entriesAll $s] 0]
+    set tags [::kb::store::entryTags $s [dict get $e id]]
+    set body [dict get [::kb::store::entryGet $s [dict get $e id]] body]
+    list [lsort $tags] [string match {*Tags:*} $body]
+} -result {{alpha {beta gamma} delta} 0}
+
+cleanupTests

@@ -1,0 +1,259 @@
+# kb-store.test -- tests for the knowledge-base data layer (SQLite/FTS5).
+
+package require tcltest
+namespace import ::tcltest::*
+
+set here [file dirname [file normalize [info script]]]
+set edir [file dirname $here]
+if {[info exists ::env(TCLUTILS_TM)]} { catch {tcl::tm::path add $::env(TCLUTILS_TM)} }
+source [file join $edir kb-store.tcl]
+
+testConstraint fts5 [expr {![catch {
+    package require tdbc::sqlite3
+    set t [tdbc::sqlite3::connection new :memory:]
+    $t allrows {CREATE VIRTUAL TABLE x USING fts5(a)}
+    $t close
+}]}]
+
+proc mkstore {} { return [::kb::store::openSqlite :memory:] }
+
+proc seed {s} {
+    set cTcl [::kb::store::categoryAdd $s "Tcl Core"]
+    set cTk  [::kb::store::categoryAdd $s "Tk Widgets"]
+    set e1 [::kb::store::entryAdd $s "String model" \
+        "In Tcl everything is a string; EIAS. Lists are strings." $cTcl "sess-1"]
+    set e2 [::kb::store::entryAdd $s "Font actual trap" \
+        "font actual with a size resolves proportional, not monospace." $cTk "sess-2"]
+    set e3 [::kb::store::entryAdd $s "sqlite bind trap" \
+        "db eval binds :name to a Tcl variable in scope, not a passed value." $cTcl]
+    ::kb::store::entryTag $s $e1 string
+    ::kb::store::entryTag $s $e1 eias
+    ::kb::store::entryTag $s $e2 font
+    ::kb::store::entryTag $s $e2 tk
+    ::kb::store::entryTag $s $e3 sqlite
+    return [list $cTcl $cTk $e1 $e2 $e3]
+}
+
+test init-idempotent {opening twice on the same file does not error} \
+-constraints fts5 -body {
+    set f [makeFile {} kbtest.db]
+    set s1 [::kb::store::openSqlite $f]; ::kb::store::close $s1
+    set s2 [::kb::store::openSqlite $f]; ::kb::store::close $s2
+    file delete $f
+    set _ ok
+} -result ok
+
+test category-crud {categories are stored and listed sorted} \
+-constraints fts5 -setup {set s [mkstore]} -cleanup {::kb::store::close $s} -body {
+    seed $s
+    lmap c [::kb::store::categories $s] { dict get $c name }
+} -result {{Tcl Core} {Tk Widgets}}
+
+test entry-get {an entry round-trips with its fields} \
+-constraints fts5 -setup {set s [mkstore]} -cleanup {::kb::store::close $s} -body {
+    lassign [seed $s] cTcl cTk e1
+    set e [::kb::store::entryGet $s $e1]
+    list [dict get $e title] [dict get $e category_id] [dict get $e source]
+} -result [list {String model} 1 sess-1]
+
+test category-entries {entries are grouped under their category} \
+-constraints fts5 -setup {set s [mkstore]} -cleanup {::kb::store::close $s} -body {
+    lassign [seed $s] cTcl
+    lsort [lmap e [::kb::store::categoryEntries $s $cTcl] { dict get $e title }]
+} -result {{String model} {sqlite bind trap}}
+
+test tags {tags attach to entries and list sorted} \
+-constraints fts5 -setup {set s [mkstore]} -cleanup {::kb::store::close $s} -body {
+    lassign [seed $s] cTcl cTk e1
+    ::kb::store::entryTags $s $e1
+} -result {eias string}
+
+test tags-all {tagsAll lists every distinct tag} \
+-constraints fts5 -setup {set s [mkstore]} -cleanup {::kb::store::close $s} -body {
+    seed $s
+    ::kb::store::tagsAll $s
+} -result {eias font sqlite string tk}
+
+test tag-dedup {tagging the same tag twice keeps one link} \
+-constraints fts5 -setup {set s [mkstore]} -cleanup {::kb::store::close $s} -body {
+    lassign [seed $s] cTcl cTk e1
+    ::kb::store::entryTag $s $e1 string
+    ::kb::store::entryTags $s $e1
+} -result {eias string}
+
+# --- FTS ---------------------------------------------------------------------
+test search-basic {full-text search finds the matching entry} \
+-constraints fts5 -setup {set s [mkstore]} -cleanup {::kb::store::close $s} -body {
+    seed $s
+    lmap r [::kb::store::search $s monospace] { dict get $r title }
+} -result {{Font actual trap}}
+
+test search-stem-multi {a query word matches across entries} \
+-constraints fts5 -setup {set s [mkstore]} -cleanup {::kb::store::close $s} -body {
+    seed $s
+    lsort [lmap r [::kb::store::search $s trap] { dict get $r title }]
+} -result {{Font actual trap} {sqlite bind trap}}
+
+test search-category-filter {a category filter narrows the search} \
+-constraints fts5 -setup {set s [mkstore]} -cleanup {::kb::store::close $s} -body {
+    lassign [seed $s] cTcl
+    lmap r [::kb::store::search $s trap -category $cTcl] { dict get $r title }
+} -result {{sqlite bind trap}}
+
+test search-tag-filter {a tag filter narrows the search} \
+-constraints fts5 -setup {set s [mkstore]} -cleanup {::kb::store::close $s} -body {
+    seed $s
+    lmap r [::kb::store::search $s trap -tag tk] { dict get $r title }
+} -result {{Font actual trap}}
+
+test search-snippet {search returns a snippet with the match marked} \
+-constraints fts5 -setup {set s [mkstore]} -cleanup {::kb::store::close $s} -body {
+    seed $s
+    set r [lindex [::kb::store::search $s monospace] 0]
+    string match {*\[monospace\]*} [dict get $r snippet]
+} -result 1
+
+test entry-delete-fts {deleting an entry removes it from the FTS index} \
+-constraints fts5 -setup {set s [mkstore]} -cleanup {::kb::store::close $s} -body {
+    lassign [seed $s] cTcl cTk e1 e2
+    ::kb::store::entryDelete $s $e2
+    ::kb::store::search $s monospace
+} -result {}
+
+test entry-update-fts {updating an entry refreshes the FTS index} \
+-constraints fts5 -setup {set s [mkstore]} -cleanup {::kb::store::close $s} -body {
+    lassign [seed $s] cTcl cTk e1
+    ::kb::store::entryUpdate $s $e1 "String model" "now mentions coroutines" $cTcl
+    list [lmap r [::kb::store::search $s coroutines] { dict get $r title }] \
+         [::kb::store::search $s EIAS]
+} -result {{{String model}} {}}
+
+test category-recursive {a parent category includes descendant subcategory entries} \
+-constraints fts5 -setup {set s [mkstore]} -cleanup {::kb::store::close $s} -body {
+    set tcl [::kb::store::categoryAdd $s Tcl]
+    set ns  [::kb::store::categoryAdd $s Namespaces $tcl]
+    set oo  [::kb::store::categoryAdd $s TclOO $tcl]
+    set ens [::kb::store::categoryAdd $s Ensembles $ns]
+    ::kb::store::entryAdd $s E-tcl  x $tcl
+    ::kb::store::entryAdd $s E-ns   x $ns
+    ::kb::store::entryAdd $s E-deep x $ens
+    list [lsort [lmap e [::kb::store::categoryEntries $s $tcl] {dict get $e title}]] \
+         [lsort [lmap e [::kb::store::categoryEntries $s $ns]  {dict get $e title}]]
+} -result {{E-deep E-ns E-tcl} {E-deep E-ns}}
+
+test category-move {re-parenting moves a category (and its entries) under a new parent} \
+-constraints fts5 -setup {set s [mkstore]} -cleanup {::kb::store::close $s} -body {
+    set a  [::kb::store::categoryAdd $s A]
+    set b  [::kb::store::categoryAdd $s B]
+    set a1 [::kb::store::categoryAdd $s A1 $a]
+    ::kb::store::entryAdd $s inA1 x $a1
+    set before [llength [::kb::store::categoryEntries $s $b]]
+    ::kb::store::categoryMove $s $a1 $b
+    list $before [llength [::kb::store::categoryEntries $s $b]] \
+                 [llength [::kb::store::categoryEntries $s $a]]
+} -result {0 1 0}
+
+test category-move-toplevel {moving with parent "" puts a category at the top level} \
+-constraints fts5 -setup {set s [mkstore]} -cleanup {::kb::store::close $s} -body {
+    set a  [::kb::store::categoryAdd $s A]
+    set a1 [::kb::store::categoryAdd $s A1 $a]
+    ::kb::store::categoryMove $s $a1 ""
+    set row [lindex [::tclutils::tutdbc::rows [dict get $s conn] \
+        {SELECT parent_id FROM category WHERE id=:id} [dict create id $a1]] 0]
+    dict get $row parent_id
+} -result {}
+
+test category-move-cycle-self {a category cannot be moved under itself} \
+-constraints fts5 -setup {set s [mkstore]} -cleanup {::kb::store::close $s} -body {
+    set a [::kb::store::categoryAdd $s A]
+    catch {::kb::store::categoryMove $s $a $a} e opts
+    dict get $opts -errorcode
+} -result {KB STORE CYCLE}
+
+test category-move-cycle-descendant {a category cannot be moved under its own descendant} \
+-constraints fts5 -setup {set s [mkstore]} -cleanup {::kb::store::close $s} -body {
+    set a  [::kb::store::categoryAdd $s A]
+    set a1 [::kb::store::categoryAdd $s A1 $a]
+    set a2 [::kb::store::categoryAdd $s A2 $a1]
+    catch {::kb::store::categoryMove $s $a $a2} e opts
+    dict get $opts -errorcode
+} -result {KB STORE CYCLE}
+
+test category-descendants {descendants lists the whole subtree below a category} \
+-constraints fts5 -setup {set s [mkstore]} -cleanup {::kb::store::close $s} -body {
+    set a  [::kb::store::categoryAdd $s A]
+    set a1 [::kb::store::categoryAdd $s A1 $a]
+    set a2 [::kb::store::categoryAdd $s A2 $a1]
+    lsort -integer [::kb::store::categoryDescendants $s $a]
+} -result {2 3}
+
+test entries-by-tag {entriesByTag lists entries carrying a tag} \
+-constraints fts5 -setup {set s [mkstore]} -cleanup {::kb::store::close $s} -body {
+    seed $s
+    lmap e [::kb::store::entriesByTag $s font] { dict get $e title }
+} -result {{Font actual trap}}
+
+test category-rename {renaming a category updates its name} \
+-constraints fts5 -setup {set s [mkstore]} -cleanup {::kb::store::close $s} -body {
+    set a [::kb::store::categoryAdd $s Alt]
+    ::kb::store::categoryRename $s $a Neu
+    lmap c [::kb::store::categories $s] { dict get $c name }
+} -result Neu
+
+test category-delete-reparents {deleting a sub-category moves its children and entries to its parent} \
+-constraints fts5 -setup {set s [mkstore]} -cleanup {::kb::store::close $s} -body {
+    set a  [::kb::store::categoryAdd $s A]
+    set a1 [::kb::store::categoryAdd $s A1 $a]
+    set a1a [::kb::store::categoryAdd $s A1a $a1]
+    set e  [::kb::store::entryAdd $s inA1 x $a1]
+    ::kb::store::categoryDelete $s $a1
+    # A1 gone; A1a now under A; entry now under A
+    set names [lmap c [::kb::store::categories $s] { dict get $c name }]
+    set ent [::kb::store::entryGet $s $e]
+    list [lsort $names] [dict get $ent category_id]
+} -result [list {A A1a} 1]
+
+test category-delete-toplevel {deleting a top-level category orphans children/entries to top level} \
+-constraints fts5 -setup {set s [mkstore]} -cleanup {::kb::store::close $s} -body {
+    set a  [::kb::store::categoryAdd $s A]
+    set a1 [::kb::store::categoryAdd $s A1 $a]
+    set e  [::kb::store::entryAdd $s inA x $a]
+    ::kb::store::categoryDelete $s $a
+    set a1row [lindex [::tclutils::tutdbc::rows [dict get $s conn] \
+        {SELECT parent_id FROM category WHERE id=:id} [dict create id $a1]] 0]
+    set ent [::kb::store::entryGet $s $e]
+    list [dict get $a1row parent_id] [dict get $ent category_id]
+} -result {{} {}}
+
+test entries-by-tags-all {entriesByTags mode=all requires every tag} \
+-constraints fts5 -setup {set s [mkstore]} -cleanup {::kb::store::close $s} -body {
+    seed $s
+    list [lmap e [::kb::store::entriesByTags $s {string eias} all] { dict get $e title }] \
+         [::kb::store::entriesByTags $s {string tk} all]
+} -result {{{String model}} {}}
+
+test entries-by-tags-any {entriesByTags mode=any needs at least one tag} \
+-constraints fts5 -setup {set s [mkstore]} -cleanup {::kb::store::close $s} -body {
+    seed $s
+    lsort [lmap e [::kb::store::entriesByTags $s {string tk} any] { dict get $e title }]
+} -result {{Font actual trap} {String model}}
+
+test tags-all-used-only {tagsAll lists only tags still attached to an entry} \
+-constraints fts5 -setup {set s [mkstore]} -cleanup {::kb::store::close $s} -body {
+    lassign [seed $s] cTcl cTk e1 e2 e3
+    ::kb::store::entryDelete $s $e3   ;# e3 carried the sole 'sqlite' tag
+    ::kb::store::tagsAll $s
+} -result {eias font string tk}
+
+test prune-tags {pruneTags removes tag rows no entry references} \
+-constraints fts5 -setup {set s [mkstore]} -cleanup {::kb::store::close $s} -body {
+    lassign [seed $s] cTcl cTk e1 e2 e3
+    set c [dict get $s conn]
+    ::kb::store::entryDelete $s $e3
+    set before [::tclutils::tutdbc::value $c {SELECT count(*) FROM tag WHERE name='sqlite'}]
+    set removed [::kb::store::pruneTags $s]
+    set after  [::tclutils::tutdbc::value $c {SELECT count(*) FROM tag WHERE name='sqlite'}]
+    list $before $removed $after
+} -result {1 1 0}
+
+cleanupTests

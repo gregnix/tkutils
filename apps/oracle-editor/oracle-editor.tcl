@@ -36,7 +36,10 @@ if {[lindex $argv 0] eq "--check"} {
 }
 
 source [file join $::sqledit_dir sqledit-core.tcl]
-source [file join $::sqledit_dir sqledit-conn.tcl]
+# sqledit-conn.tcl (shared connection-profile store) is optional: source it
+# only when present, so the editor also starts without it.
+set ::_connFile [file join $::sqledit_dir sqledit-conn.tcl]
+if {[file exists $::_connFile]} { source $::_connFile }
 source [file join $::oraedit_dir  be-oracle.tcl]
 source [file join $::sqledit_dir sqledit-form.tcl]
 source [file join $::sqledit_dir sqledit-sheet.tcl]
