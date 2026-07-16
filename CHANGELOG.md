@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.42.2
+
+- Apps `tkdevtools` and `tkudesigner` now expose a `::app::buildApp` entry proc
+  guarded by the usual `argv0` check, so they package with
+  `build-app -launch '::app::buildApp .'` like every other app — the earlier
+  `-bootstrap tkutils` workaround is no longer needed for any bundled app.
+- Their `--shot` screenshot mode uses Img's `window` photo format
+  (`img::window`) instead of ImageMagick's `import` — self-contained,
+  cross-platform, and free of an external tool. It falls back to `import` only
+  when `img::window` is unavailable.
+- `tkdevtools` gains a **Graphemes** reference tab: it segments an input string
+  into grapheme clusters (combining marks, emoji skin-tone / ZWJ sequences,
+  flags) and shows each cluster with its component code points, making the
+  code-point-vs-cluster gap visible (a simplified UAX #29 segmenter, ready to
+  defer to a native core grapheme command once one ships).
+- Recommended pairing: tclutils 0.60.0 + tkutils 0.42.2.
+
 ## 0.42.1
 
 - README updated to 0.42.0 / 41 core widgets; recommended pairing is now

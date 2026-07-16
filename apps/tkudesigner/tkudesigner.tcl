@@ -833,35 +833,59 @@ proc ::tkudesigner::loadSample {} {
 # ===========================================================================
 # main / selftest
 # ===========================================================================
-proc ::tkudesigner::main {argv} {
-    # make tkutils/tclutils widgets findable if the env points at their tm roots
+# (1) buildApp assembles the UI and loads the default (sample) model, then
+#     returns -- no argv handling, no event loop. build-app packages it with
+#     -launch '::tkudesigner::buildApp .'.
+proc ::tkudesigner::buildApp {{parent .}} {
     buildUI
-    set oi [lsearch -exact $argv --open]
-    if {$oi >= 0} {
-        set fn [lindex $argv [expr {$oi+1}]]
-        set ch [open $fn r]; set spec [read $ch]; close $ch
-        deserialize $spec
-    } elseif {"--sample" in $argv || "--shot" in $argv || [llength $argv] == 0} {
-        loadSample
-    } else {
-        newModel
-    }
+    loadSample
     resetHistory
     rebuildPreview
     refreshTree
     showProps
     refreshStatus "Ready -- pick a palette item to add to the selection."
+    return .
+}
+
+# CLI entry: build the UI, then apply command-line options.
+#   --open FILE   load a saved design instead of the sample
+#   --shot FILE   grab a screenshot and exit
+proc ::tkudesigner::main {argv} {
+    buildApp
+    set oi [lsearch -exact $argv --open]
+    if {$oi >= 0} {
+        set fn [lindex $argv [expr {$oi+1}]]
+        set ch [open $fn r]; set spec [read $ch]; close $ch
+        deserialize $spec
+        resetHistory; rebuildPreview; refreshTree; showProps
+    } elseif {[llength $argv] && "--sample" ni $argv && "--shot" ni $argv} {
+        newModel
+        resetHistory; rebuildPreview; refreshTree; showProps
+    }
 
     set si [lsearch -exact $argv --shot]
     if {$si >= 0} {
         set out [lindex $argv [expr {$si+1}]]
         if {$out eq ""} { set out designer.png }
         update idletasks; after 500; update
-        catch {exec import -window root $out}
+        # (3) Img's window grab -- self-contained, cross-platform; falls back to
+        #     ImageMagick's import only if img::window is unavailable.
+        if {![catch {package require img::window}]} {
+            set p [image create photo -format window -data .]
+            $p write $out -format png; image delete $p
+        } else {
+            catch {exec import -window root $out}
+        }
         after 200
         exit 0
     }
 }
 
-::tkudesigner::main $argv
+# (1) argv0 guard: run the CLI entry when this file is the main program. Inside a
+#     zipkit it does NOT fire (main.tcl sources the file); build-app uses
+#     -launch '::tkudesigner::buildApp .'.
+if {[info exists argv0] && [file normalize $argv0] eq [file normalize [info script]]} {
+    package require Tk 8.6-
+    ::tkudesigner::main $argv
+}
 

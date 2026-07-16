@@ -992,7 +992,87 @@ proc formatScanRun {} {
     }
 }
 
+# ============================ Graphemes ====================================
+# A grapheme cluster is what a user perceives as one character; it may span
+# several code points (combining marks, emoji skin-tone / ZWJ sequences, flags).
+# Tcl works on code points, so [string length] counts code points, not clusters.
+# This is a SIMPLIFIED UAX #29 segmenter covering the common cases. When a future
+# Tcl core gains a native grapheme command, prefer it in graphemeClusters, e.g.:
+#   if {![catch {set out [string ?grapheme? $s]}]} { return $out }   ;# name TBD
+proc graphExtend {cp} {
+    expr {
+        ($cp >= 0x0300 && $cp <= 0x036F) || ($cp >= 0x0483 && $cp <= 0x0489) ||
+        ($cp >= 0x0591 && $cp <= 0x05BD) || ($cp >= 0x0610 && $cp <= 0x061A) ||
+        ($cp >= 0x064B && $cp <= 0x065F) || ($cp >= 0x1AB0 && $cp <= 0x1AFF) ||
+        ($cp >= 0x1DC0 && $cp <= 0x1DFF) || ($cp >= 0x20D0 && $cp <= 0x20FF) ||
+        ($cp >= 0xFE00 && $cp <= 0xFE0F) || ($cp >= 0x1F3FB && $cp <= 0x1F3FF) ||
+        $cp == 0x200C
+    }
+}
+proc graphRI {cp} { expr {$cp >= 0x1F1E6 && $cp <= 0x1F1FF} }
+proc graphemeClusters {s} {
+    set chars [split $s ""]; set n [llength $chars]; set out {}; set i 0
+    while {$i < $n} {
+        set cl [lindex $chars $i]; incr i
+        set ri [expr {[graphRI [scan $cl %c]] ? 1 : 0}]
+        while {$i < $n} {
+            set cp [scan [lindex $chars $i] %c]
+            if {[graphExtend $cp]} { append cl [lindex $chars $i]; incr i; continue }
+            if {$cp == 0x200D} {                       ;# ZWJ: joins the next base
+                append cl [lindex $chars $i]; incr i
+                if {$i < $n} { append cl [lindex $chars $i]; incr i }
+                continue
+            }
+            if {$ri == 1 && [graphRI $cp]} {            ;# regional-indicator pair (flag)
+                append cl [lindex $chars $i]; incr i; set ri 2; continue
+            }
+            break
+        }
+        lappend out $cl
+    }
+    return $out
+}
+proc buildGraphemes {f} {
+    set bar [frame $f.bar]
+    label $bar.l -text "Text:"
+    ttk::entry $bar.e -textvariable ::graphInput -width 44
+    label $bar.n -textvariable ::graphStatus
+    pack $bar.l $bar.e -side left -padx 3
+    pack $bar.n -side left -padx 8
+    pack $bar -fill x -pady 3
+    set t [scrolledTable $f \
+        {4 "#" right 8 Cluster center 5 "cps" right 46 "Code points" left} -height 16]
+    $t columnconfigure 1 -font {Helvetica 20}
+    set ::graphTable $t
+    catch {::tkutils::tkutlclip::installBindings $t}
+    bind $bar.e <KeyRelease> graphFill
+    # sample: café (combining accent), waving hand + skin tone, DE flag, family ZWJ
+    set ::graphInput "cafe\u0301 \U0001F44B\U0001F3FD \U0001F1E9\U0001F1EA \U0001F468\u200D\U0001F469\u200D\U0001F467"
+    graphFill
+}
+proc graphFill {} {
+    set t $::graphTable
+    $t delete 0 end
+    set clusters [graphemeClusters $::graphInput]
+    set i 1
+    foreach cl $clusters {
+        set cps {}
+        foreach ch [split $cl ""] { lappend cps [format {U+%04X} [scan $ch %c]] }
+        $t insert end [list $i $cl [string length $cl] [join $cps " "]]
+        incr i
+    }
+    set ::graphStatus "[llength $clusters] clusters  /  [string length $::graphInput] code points\
+                       (string length)  --  simplified UAX #29"
+}
+
 # ============================ assemble ======================================
+namespace eval ::tkdevtools {}
+
+# (1) buildApp assembles the whole UI into "." and returns -- no event loop, no
+#     blocking. The argv0 guard at the end runs it directly; build-app packages
+#     it with -launch '::tkdevtools::buildApp .'. (A parent arg is accepted for
+#     that call, but the toolbox is hardwired to the main window ".".)
+proc ::tkdevtools::buildApp {{parent .}} {
 wm title . "Tcl/Tk Developer Toolbox"
 
 # navigation tree (left) + stacked content frames (right)
@@ -1011,7 +1091,7 @@ grid columnconfigure .pw.content 0 -weight 1
 .pw add .pw.content -weight 1
 pack .pw -fill both -expand 1
 
-proc navSelect {} {
+proc ::navSelect {} {
     set id [lindex [.pw.nav.tv selection] 0]
     if {[info exists ::navFrame($id)]} { raise $::navFrame($id) }
 }
@@ -1021,6 +1101,7 @@ set ::toolTree {
     "Reference" {
         colors  "Colors"          buildColors
         chars   "Characters"      buildChars
+        graph   "Graphemes"       buildGraphemes
         fonts   "Fonts"           buildFonts
         bitmaps "Bitmaps"         buildBitmaps
     }
@@ -1065,15 +1146,34 @@ foreach {cat items} $::toolTree {
 bind .pw.nav.tv <<TreeviewSelect>> navSelect
 .pw.nav.tv selection set $first
 navSelect
+}
 
-set mode [lindex $argv 0]
-if {$mode eq "--shot"} {
-    set key [lindex $argv 2]
+# (3) Screenshot helper -- Img's "window" photo format grabs a Tk window with no
+#     external tool, works cross-platform and inside a zipkit. Falls back to
+#     ImageMagick's "import" only if img::window is unavailable.
+proc ::tkdevtools::shot {out {key ""}} {
     if {$key ne "" && [info exists ::navNode($key)]} {
         .pw.nav.tv selection set $::navNode($key); navSelect
     }
     wm geometry . 900x600
     update idletasks; update; after 500; update
-    catch {exec import -window root [lindex $argv 1]}
-    exit 0
+    if {![catch {package require img::window}]} {
+        set p [image create photo -format window -data .]
+        $p write $out -format png
+        image delete $p
+    } else {
+        catch {exec import -window root $out}
+    }
+}
+
+# (1) argv0 guard: build the UI when run as the main program. Inside a zipkit
+#     this does NOT fire (main.tcl sources the file); build-app is told the
+#     entry with -launch '::tkdevtools::buildApp .'.
+if {[info exists argv0] && [file normalize $argv0] eq [file normalize [info script]]} {
+    package require Tk 8.6-
+    ::tkdevtools::buildApp
+    if {[lindex $argv 0] eq "--shot"} {
+        ::tkdevtools::shot [lindex $argv 1] [lindex $argv 2]
+        exit 0
+    }
 }
