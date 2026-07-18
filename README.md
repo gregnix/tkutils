@@ -86,6 +86,7 @@ package require tkutils::tkunotes   ;# or a single widget
 | `tkutils::tkutablelist` | **Tablelist** (tklib) | Full editable/sortable table; CSV import/export; tests skip without Tablelist |
 | `tkutils::tkuxml`       | **tDOM**     | XML tree |
 | `tkutils::tkusqlite`    | **sqlite3**  | Lightweight DB browser |
+| `tkutils::tkuwinico` | `tclutils::tuico` | Build Windows `.ico` files from Tk images: each size rendered from SVG, or scaled from a photo; transparency preserved |
 | `tkutils::tkucanvaspng` | `tclutils::tupngdraw` (Glyphs for `-fontmap`) | Export a live Tk canvas to PNG: lines (arrows/dashes), shapes, elliptical arcs, text, images |
 | `tkutils::tkutical` | **tical** (`tical::view::month` + `tical::render::canvas`) | Month calendar on a canvas: prev/next/today, week numbers, day selection (none/single/multiple, Shift-click ranges), `-command` |
 | `tkutils::tkumonthcanvas` | **tical** | Canvas calendar (month/quarter/year): themes, week numbers, weekday header, today/weekend/holiday/note states, day selection (none/single/multiple) |

@@ -1,24 +1,24 @@
-# tkutils::tkico — build `.ico` files from Tk images
+# tkutils::tkuwinico — build `.ico` files from Tk images
 
 Renders the individual icon sizes with Tk and hands the PNG payloads to
 `tclutils::tuico`, which assembles the container. Transparency is preserved,
 because the payloads are PNGs written by Tk itself.
 
 ```tcl
-package require tkutils::tkico 0.1
+package require tkutils::tkuwinico 0.1
 ```
 
 ## The short version
 
 ```tcl
 # best quality: every size rendered from the vector
-tkutils::tkico fromSvg logo.svg app.ico
+tkutils::tkuwinico fromSvg logo.svg app.ico
 
 # from a raster image (integer scaling, see the caveat below)
-tkutils::tkico fromPhoto $photo app.ico -sizes {32 16}
+tkutils::tkuwinico fromPhoto $photo app.ico -sizes {32 16}
 
 # full control: one image per size, nothing is scaled here
-tkutils::tkico fromPhotos [list [list 32 $big] [list 16 $small]] app.ico
+tkutils::tkuwinico fromPhotos [list [list 32 $big] [list 16 $small]] app.ico
 ```
 
 ## Three ways to produce a size
@@ -76,7 +76,7 @@ Returns the default size list, `{256 128 64 48 32 16}`.
 
 ## Errors
 
-`errorCode` is always `{TKUTILS TKICO <REASON>}`:
+`errorCode` is always `{TKUTILS TKUWINICO <REASON>}`:
 
 | Reason | When |
 |---|---|

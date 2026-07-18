@@ -1,0 +1,73 @@
+.TH tkuwinico n 0.1 tkutils
+.SH "tkutils::tkuwinico — build \fB.ico\fR files from Tk images"
+.PP
+Renders the individual icon sizes with Tk and hands the PNG payloads to \fBtclutils::tuico\fR, which assembles the container. Transparency is preserved, because the payloads are PNGs written by Tk itself.
+.CS
+package require tkutils::tkuwinico 0.1
+.CE
+.SS "The short version"
+.CS
+# best quality: every size rendered from the vector
+tkutils::tkuwinico fromSvg logo.svg app.ico
+
+# from a raster image (integer scaling, see the caveat below)
+tkutils::tkuwinico fromPhoto $photo app.ico -sizes {32 16}
+
+# full control: one image per size, nothing is scaled here
+tkutils::tkuwinico fromPhotos [list [list 32 $big] [list 16 $small]] app.ico
+.CE
+.SS "Three ways to produce a size"
+.PP
+\fB1. From SVG — the good one.\fR Each size is rendered from the vector at its target resolution, so every step is crisp:
+.CS
+image create photo -file logo.svg -format {svg -scaletowidth 48}
+.CE
+.PP
+Tk 9 has SVG built in. Under Tk 8.6 the \fBtksvg\fR package provides the same photo format; load it before calling \fBfromSvg\fR.
+.PP
+\fB2. From a raster image.\fR \fBfromPhoto\fR scales with Tk's \fBimage copy \-zoom/\-subsample\fR. These are integer factors sampled without interpolation, so a 256\-pixel source reduced to 16 pixels gets visibly ragged. Fine for a quick icon, not for a shipped one.
+.PP
+\fB3. One image per size.\fR \fBfromPhotos\fR scales nothing and simply packs what it is given — the escape hatch when you rendered the sizes elsewhere, or drew the small ones by hand.
+.PP
+That last point is worth taking seriously: what reads well at 256 pixels turns to mush at 16. Simplified artwork for the small steps beats any scaler.
+.SS Commands
+.SS "\fBfromSvg svgFile outFile ?\-sizes list?\fR"
+.PP
+Renders every size from the SVG and writes the \fB.ico\fR. Returns the number of bytes written. \fB\-sizes\fR defaults to \fB{256 128 64 48 32 16}\fR.
+.SS "\fBfromPhoto photo outFile ?\-sizes list?\fR"
+.PP
+Scales one square photo image to every size. Same defaults, same return value. The source must be square.
+.SS "\fBfromPhotos photos outFile\fR"
+.PP
+Takes a list of \fB{size photoImage}\fR pairs. Each image must already be square and match its nominal size.
+.SS \fBdefaultSizes\fR
+.PP
+Returns the default size list, \fB{256 128 64 48 32 16}\fR.
+.SS Notes
+.IP \(bu
+Sizes are sorted largest first and de\-duplicated before writing.
+.IP \(bu
+Images created internally are deleted again; images passed in by the caller are left alone.
+.IP \(bu
+Tk needs a display connection even when no window is shown. In headless builds or CI, run under \fBXvfb\fR and \fBwm withdraw .\fR.
+.SS Errors
+.PP
+\fBerrorCode\fR is always \fB{TKUTILS TKUWINICO <REASON>}\fR:
+.TS
+l l.
+Reason	When
+\fBNOSIZES\fR	empty size list, or no images given
+\fBBADSIZE\fR	size outside 1..256
+\fBBADOPTION\fR	unknown option
+\fBNOFILE\fR	source file not readable
+\fBNOSVG\fR	SVG could not be rendered (no SVG photo format available)
+\fBNOTSQUARE\fR	source image is not square
+\fBSIZEMISMATCH\fR	supplied image does not match its nominal size
+\fBBADENTRY\fR	entry is not a \fB{size image}\fR pair
+\fBPNGFAILED\fR	Tk produced no PNG data
+.TE
+.PP
+Container\-level problems surface with \fB{TCLUTILS TUICO ...}\fR from the underlying module.
+.SS Requirements
+.PP
+Tcl 8.6+, Tk 8.6+, \fBtclutils::tuico\fR 0.1. For \fBfromSvg\fR: Tk 9, or Tk 8.6 with \fBtksvg\fR.

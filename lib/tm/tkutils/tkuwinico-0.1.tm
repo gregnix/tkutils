@@ -1,4 +1,4 @@
-# tkico-0.1.tm -- create Windows .ico files from Tk images.
+# tkuwinico-0.1.tm -- create Windows .ico files from Tk images.
 #
 # Copyright (c) 2026 Gregor
 # MIT licensed.
@@ -15,51 +15,51 @@
 #      factors and nearest-neighbour sampling, so small sizes get ragged.
 #   3. A caller-supplied photo per size: full control, no scaling here.
 #
-# Errors use errorCode {TKUTILS TKICO <REASON>}.
+# Errors use errorCode {TKUTILS TKUWINICO <REASON>}.
 
 package require Tcl 8.6-
 package require Tk 8.6-
 package require tclutils::tuico 0.1
 
-namespace eval ::tkutils::tkico {
+namespace eval ::tkutils::tkuwinico {
     namespace export fromSvg fromPhoto fromPhotos defaultSizes
     namespace ensemble create
 
     variable defaultSizeList {256 128 64 48 32 16}
 }
 
-# throw --
+# _throw --
 #   Raise an error with the module's errorCode convention.
-proc ::tkutils::tkico::throw {reason message} {
-    return -code error -errorcode [list TKUTILS TKICO $reason] $message
+proc ::tkutils::tkuwinico::_throw {reason message} {
+    return -code error -errorcode [list TKUTILS TKUWINICO $reason] $message
 }
 
 # defaultSizes --
 #   The size list used when none is given.
-proc ::tkutils::tkico::defaultSizes {} {
+proc ::tkutils::tkuwinico::defaultSizes {} {
     variable defaultSizeList
     return $defaultSizeList
 }
 
-# checkSizes --
+# _checkSizes --
 #   Validate a size list and return it sorted, largest first.
-proc ::tkutils::tkico::checkSizes {sizes} {
+proc ::tkutils::tkuwinico::_checkSizes {sizes} {
     if {[llength $sizes] == 0} {
-        throw NOSIZES "no icon sizes given"
+        _throw NOSIZES "no icon sizes given"
     }
     foreach size $sizes {
         if {![string is integer -strict $size] || $size < 1 || $size > 256} {
-            throw BADSIZE "size must be an integer 1..256, got: $size"
+            _throw BADSIZE "size must be an integer 1..256, got: $size"
         }
     }
     return [lsort -integer -decreasing -unique $sizes]
 }
 
-# photoToPng --
+# _photoToPng --
 #   Write a photo image to a temporary PNG and return its bytes. Tk 8.6 and
 #   later write PNG natively, so no Img package is required.
-proc ::tkutils::tkico::photoToPng {image} {
-    close [file tempfile path tkico]
+proc ::tkutils::tkuwinico::_photoToPng {image} {
+    close [file tempfile path tkuwinico]
     try {
         $image write $path -format png
         set channel [open $path rb]
@@ -72,27 +72,27 @@ proc ::tkutils::tkico::photoToPng {image} {
         file delete -force $path
     }
     if {$data eq ""} {
-        throw PNGFAILED "Tk produced no PNG data for image $image"
+        _throw PNGFAILED "Tk produced no PNG data for image $image"
     }
     return $data
 }
 
-# renderSvg --
+# _renderSvg --
 #   Render an SVG file to a photo of exactly size x size pixels.
-proc ::tkutils::tkico::renderSvg {svgFile size} {
+proc ::tkutils::tkuwinico::_renderSvg {svgFile size} {
     if {[catch {
         set image [image create photo -file $svgFile \
                        -format [list svg -scaletowidth $size]]
     } message]} {
-        throw NOSVG "cannot render $svgFile at ${size}px: $message\
+        _throw NOSVG "cannot render $svgFile at ${size}px: $message\
             (Tk 9 has SVG built in; under Tk 8.6 load the tksvg package first)"
     }
     return $image
 }
 
-# scalePhoto --
+# _scalePhoto --
 #   Scale a square photo to size x size using Tk's integer zoom/subsample.
-proc ::tkutils::tkico::scalePhoto {source size} {
+proc ::tkutils::tkuwinico::_scalePhoto {source size} {
     set width [image width $source]
     if {$width == $size} {
         # Copy anyway, so the caller may delete its own image safely.
@@ -100,7 +100,7 @@ proc ::tkutils::tkico::scalePhoto {source size} {
         $target copy $source
         return $target
     }
-    set divisor [gcd $size $width]
+    set divisor [_gcd $size $width]
     set zoom [expr {$size / $divisor}]
     set subsample [expr {$width / $divisor}]
     set target [image create photo -width $size -height $size]
@@ -108,9 +108,9 @@ proc ::tkutils::tkico::scalePhoto {source size} {
     return $target
 }
 
-# gcd --
+# _gcd --
 #   Greatest common divisor of two positive integers.
-proc ::tkutils::tkico::gcd {a b} {
+proc ::tkutils::tkuwinico::_gcd {a b} {
     while {$b != 0} {
         lassign [list $b [expr {$a % $b}]] a b
     }
@@ -123,25 +123,25 @@ proc ::tkutils::tkico::gcd {a b} {
 #   -sizes  list of pixel sizes; defaults to {256 128 64 48 32 16}
 #
 #   Returns the number of bytes written.
-proc ::tkutils::tkico::fromSvg {svgFile outFile args} {
+proc ::tkutils::tkuwinico::fromSvg {svgFile outFile args} {
     set sizes [defaultSizes]
     foreach {option value} $args {
         switch -- $option {
             -sizes  { set sizes $value }
-            default { throw BADOPTION "unknown option: $option" }
+            default { _throw BADOPTION "unknown option: $option" }
         }
     }
-    set sizes [checkSizes $sizes]
+    set sizes [_checkSizes $sizes]
 
     if {![file readable $svgFile]} {
-        throw NOFILE "cannot read $svgFile"
+        _throw NOFILE "cannot read $svgFile"
     }
 
     set entries {}
     foreach size $sizes {
-        set image [renderSvg $svgFile $size]
+        set image [_renderSvg $svgFile $size]
         try {
-            lappend entries [list $size [photoToPng $image]]
+            lappend entries [list $size [_photoToPng $image]]
         } finally {
             image delete $image
         }
@@ -156,27 +156,27 @@ proc ::tkutils::tkico::fromSvg {svgFile outFile args} {
 #
 #   The scaling uses integer factors without interpolation. For good small
 #   sizes prefer fromSvg, or render each size yourself and use fromPhotos.
-proc ::tkutils::tkico::fromPhoto {photo outFile args} {
+proc ::tkutils::tkuwinico::fromPhoto {photo outFile args} {
     set sizes [defaultSizes]
     foreach {option value} $args {
         switch -- $option {
             -sizes  { set sizes $value }
-            default { throw BADOPTION "unknown option: $option" }
+            default { _throw BADOPTION "unknown option: $option" }
         }
     }
-    set sizes [checkSizes $sizes]
+    set sizes [_checkSizes $sizes]
 
     set width [image width $photo]
     set height [image height $photo]
     if {$width != $height} {
-        throw NOTSQUARE "source image must be square, got ${width}x${height}"
+        _throw NOTSQUARE "source image must be square, got ${width}x${height}"
     }
 
     set entries {}
     foreach size $sizes {
-        set image [scalePhoto $photo $size]
+        set image [_scalePhoto $photo $size]
         try {
-            lappend entries [list $size [photoToPng $image]]
+            lappend entries [list $size [_photoToPng $image]]
         } finally {
             image delete $image
         }
@@ -189,25 +189,25 @@ proc ::tkutils::tkico::fromPhoto {photo outFile args} {
 #   scaled here; each image must already be square and of its nominal size.
 #
 #   photos  list of {size photoImage} pairs
-proc ::tkutils::tkico::fromPhotos {photos outFile} {
+proc ::tkutils::tkuwinico::fromPhotos {photos outFile} {
     if {[llength $photos] == 0} {
-        throw NOSIZES "no images given"
+        _throw NOSIZES "no images given"
     }
     set entries {}
     foreach pair $photos {
         if {[llength $pair] != 2} {
-            throw BADENTRY "entry must be a {size image} pair, got: $pair"
+            _throw BADENTRY "entry must be a {size image} pair, got: $pair"
         }
         lassign $pair size photo
         set width [image width $photo]
         set height [image height $photo]
         if {$width != $size || $height != $size} {
-            throw SIZEMISMATCH \
+            _throw SIZEMISMATCH \
                 "image for size $size is ${width}x${height}"
         }
-        lappend entries [list $size [photoToPng $photo]]
+        lappend entries [list $size [_photoToPng $photo]]
     }
     return [::tclutils::tuico::write $outFile $entries]
 }
 
-package provide tkutils::tkico 0.1
+package provide tkutils::tkuwinico 0.1

@@ -1,4 +1,4 @@
-# test-tkico.test -- tests for tkutils::tkico. Needs Tk and a display.
+# test-tkuwinico.test -- tests for tkutils::tkuwinico. Needs Tk and a display.
 
 package require Tcl 8.6-
 package require tcltest 2
@@ -9,12 +9,12 @@ tcl::tm::path add [file normalize [file join $here .. lib tm]]
 # tclutils::tuico lives in the tclutils tree; allow a sibling layout
 catch {tcl::tm::path add [file normalize [file join $here .. .. tclutils lib tm]]}
 package require Tk
-package require tkutils::tkico 0.1
+package require tkutils::tkuwinico 0.1
 package require tclutils::tuico 0.1
 
 wm withdraw .
 
-set tmpDir [makeDirectory tkico]
+set tmpDir [makeDirectory tkuwinico]
 
 # A small square SVG, used as the vector source.
 set svgFile [file join $tmpDir logo.svg]
@@ -39,14 +39,14 @@ proc haveSvg {} {
 }
 testConstraint svg [haveSvg]
 
-test tkico-1.1 {defaultSizes lists the usual icon steps} -body {
-    ::tkutils::tkico::defaultSizes
+test tkuwinico-1.1 {defaultSizes lists the usual icon steps} -body {
+    ::tkutils::tkuwinico::defaultSizes
 } -result {256 128 64 48 32 16}
 
-test tkico-2.1 {fromSvg writes an icon with all requested sizes} -constraints svg -setup {
+test tkuwinico-2.1 {fromSvg writes an icon with all requested sizes} -constraints svg -setup {
     set out [file join $tmpDir a.ico]
 } -body {
-    ::tkutils::tkico::fromSvg $svgFile $out -sizes {48 16}
+    ::tkutils::tkuwinico::fromSvg $svgFile $out -sizes {48 16}
     set widths {}
     foreach entry [::tclutils::tuico::info $out] {
         lappend widths [dict get $entry width]
@@ -54,16 +54,16 @@ test tkico-2.1 {fromSvg writes an icon with all requested sizes} -constraints sv
     set widths
 } -result {48 16} -cleanup {file delete -force $out}
 
-test tkico-2.2 {every entry carries a PNG payload} -constraints svg -setup {
+test tkuwinico-2.2 {every entry carries a PNG payload} -constraints svg -setup {
     set out [file join $tmpDir b.ico]
-    ::tkutils::tkico::fromSvg $svgFile $out -sizes {32}
+    ::tkutils::tkuwinico::fromSvg $svgFile $out -sizes {32}
 } -body {
     dict get [lindex [::tclutils::tuico::info $out] 0] format
 } -result png -cleanup {file delete -force $out}
 
-test tkico-2.3 {the payload really has the requested resolution} -constraints svg -setup {
+test tkuwinico-2.3 {the payload really has the requested resolution} -constraints svg -setup {
     set out [file join $tmpDir c.ico]
-    ::tkutils::tkico::fromSvg $svgFile $out -sizes {64}
+    ::tkutils::tkuwinico::fromSvg $svgFile $out -sizes {64}
     set png [file join $tmpDir c.png]
 } -body {
     ::tclutils::tuico::extract $out 64 $png
@@ -73,10 +73,10 @@ test tkico-2.3 {the payload really has the requested resolution} -constraints sv
     set result
 } -result {64 64} -cleanup {file delete -force $out $png}
 
-test tkico-2.4 {sizes are stored largest first} -constraints svg -setup {
+test tkuwinico-2.4 {sizes are stored largest first} -constraints svg -setup {
     set out [file join $tmpDir d.ico]
 } -body {
-    ::tkutils::tkico::fromSvg $svgFile $out -sizes {16 128 32}
+    ::tkutils::tkuwinico::fromSvg $svgFile $out -sizes {16 128 32}
     set widths {}
     foreach entry [::tclutils::tuico::info $out] {
         lappend widths [dict get $entry width]
@@ -84,12 +84,12 @@ test tkico-2.4 {sizes are stored largest first} -constraints svg -setup {
     set widths
 } -result {128 32 16} -cleanup {file delete -force $out}
 
-test tkico-3.1 {fromPhoto scales a raster source} -setup {
+test tkuwinico-3.1 {fromPhoto scales a raster source} -setup {
     set out [file join $tmpDir e.ico]
     set source [image create photo -width 64 -height 64]
     $source put "#4078c0" -to 0 0 64 64
 } -body {
-    ::tkutils::tkico::fromPhoto $source $out -sizes {32 16}
+    ::tkutils::tkuwinico::fromPhoto $source $out -sizes {32 16}
     set widths {}
     foreach entry [::tclutils::tuico::info $out] {
         lappend widths [dict get $entry width]
@@ -100,63 +100,63 @@ test tkico-3.1 {fromPhoto scales a raster source} -setup {
     file delete -force $out
 }
 
-test tkico-3.2 {a non-square source is refused} -setup {
+test tkuwinico-3.2 {a non-square source is refused} -setup {
     set source [image create photo -width 64 -height 32]
 } -body {
     catch {
-        ::tkutils::tkico::fromPhoto $source [file join $tmpDir f.ico]
+        ::tkutils::tkuwinico::fromPhoto $source [file join $tmpDir f.ico]
     } message options
     dict get $options -errorcode
-} -result {TKUTILS TKICO NOTSQUARE} -cleanup {image delete $source}
+} -result {TKUTILS TKUWINICO NOTSQUARE} -cleanup {image delete $source}
 
-test tkico-4.1 {fromPhotos takes one image per size} -setup {
+test tkuwinico-4.1 {fromPhotos takes one image per size} -setup {
     set out [file join $tmpDir g.ico]
     set small [image create photo -width 16 -height 16]
     $small put "#ff0000" -to 0 0 16 16
     set large [image create photo -width 32 -height 32]
     $large put "#00ff00" -to 0 0 32 32
 } -body {
-    ::tkutils::tkico::fromPhotos [list [list 16 $small] [list 32 $large]] $out
+    ::tkutils::tkuwinico::fromPhotos [list [list 16 $small] [list 32 $large]] $out
     llength [::tclutils::tuico::info $out]
 } -result 2 -cleanup {
     image delete $small $large
     file delete -force $out
 }
 
-test tkico-4.2 {an image of the wrong resolution is refused} -setup {
+test tkuwinico-4.2 {an image of the wrong resolution is refused} -setup {
     set wrong [image create photo -width 16 -height 16]
 } -body {
     catch {
-        ::tkutils::tkico::fromPhotos [list [list 32 $wrong]] [file join $tmpDir h.ico]
+        ::tkutils::tkuwinico::fromPhotos [list [list 32 $wrong]] [file join $tmpDir h.ico]
     } message options
     dict get $options -errorcode
-} -result {TKUTILS TKICO SIZEMISMATCH} -cleanup {image delete $wrong}
+} -result {TKUTILS TKUWINICO SIZEMISMATCH} -cleanup {image delete $wrong}
 
-test tkico-5.1 {an unknown option is refused} -constraints svg -body {
+test tkuwinico-5.1 {an unknown option is refused} -constraints svg -body {
     catch {
-        ::tkutils::tkico::fromSvg $svgFile [file join $tmpDir i.ico] -bogus 1
+        ::tkutils::tkuwinico::fromSvg $svgFile [file join $tmpDir i.ico] -bogus 1
     } message options
     dict get $options -errorcode
-} -result {TKUTILS TKICO BADOPTION}
+} -result {TKUTILS TKUWINICO BADOPTION}
 
-test tkico-5.2 {an invalid size is refused} -constraints svg -body {
+test tkuwinico-5.2 {an invalid size is refused} -constraints svg -body {
     catch {
-        ::tkutils::tkico::fromSvg $svgFile [file join $tmpDir j.ico] -sizes {0}
+        ::tkutils::tkuwinico::fromSvg $svgFile [file join $tmpDir j.ico] -sizes {0}
     } message options
     dict get $options -errorcode
-} -result {TKUTILS TKICO BADSIZE}
+} -result {TKUTILS TKUWINICO BADSIZE}
 
-test tkico-5.3 {a missing source file is refused} -body {
+test tkuwinico-5.3 {a missing source file is refused} -body {
     catch {
-        ::tkutils::tkico::fromSvg [file join $tmpDir nope.svg] \
+        ::tkutils::tkuwinico::fromSvg [file join $tmpDir nope.svg] \
             [file join $tmpDir k.ico]
     } message options
     dict get $options -errorcode
-} -result {TKUTILS TKICO NOFILE}
+} -result {TKUTILS TKUWINICO NOFILE}
 
-test tkico-6.1 {transparency survives the round trip} -constraints svg -setup {
+test tkuwinico-6.1 {transparency survives the round trip} -constraints svg -setup {
     set out [file join $tmpDir l.ico]
-    ::tkutils::tkico::fromSvg $svgFile $out -sizes {32}
+    ::tkutils::tkuwinico::fromSvg $svgFile $out -sizes {32}
     set png [file join $tmpDir l.png]
 } -body {
     ::tclutils::tuico::extract $out 32 $png
@@ -167,5 +167,5 @@ test tkico-6.1 {transparency survives the round trip} -constraints svg -setup {
     set alpha
 } -result 0 -cleanup {file delete -force $out $png}
 
-removeDirectory tkico
+removeDirectory tkuwinico
 cleanupTests

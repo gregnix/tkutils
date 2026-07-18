@@ -48,6 +48,6 @@ package require tkutils::tkuballoon 0.1
 package require tkutils::tkubind 0.1
 package require tkutils::tkucontextmenu 0.1
 package require tkutils::tkuwheel 0.2
-package require tkutils::tkico 0.1
+package require tkutils::tkuwinico 0.1
 
 package provide tkutils 0.43.0
