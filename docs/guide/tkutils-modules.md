@@ -1,5 +1,6 @@
 | package | version | description | category | test | doc | man | repo | path | deps |
 |---|---|---|---|---|---|---|---|---|---|
+| `tkutils::tkico` | 0.1 | build Windows `.ico` files from Tk images: render each size from SVG (`-scaletowidth`), scale a raster photo, or pack caller-rendered images; alpha preserved | Tk · images | Y | Y | Y | tkutils | `lib/tm/tkutils/tkico-0.1.tm` | tclutils::tuico |
 | `tkutils::tkuaction` | 0.1 | action abstraction (one action, many widgets) | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuaction-0.1.tm` |  |
 | `tkutils::tkuballoon` | 0.1 | balloon help / tooltips for any widget | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuballoon-0.1.tm` |  |
 | `tkutils::tkubase64` | 0.1 | Base64 encode/decode panel | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkubase64-0.1.tm` | tclutils::tubase64 |

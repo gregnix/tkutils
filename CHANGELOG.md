@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.43.0
+
+- `tkico` 0.1 — build Windows `.ico` files from Tk images. The module renders
+  the individual sizes and hands PNG payloads to `tclutils::tuico`, which
+  assembles the container; transparency survives the whole path.
+  - `fromSvg` renders **every size from the vector**
+    (`-format {svg -scaletowidth N}`), so each step is crisp rather than
+    resampled. Tk 9 has SVG built in; under Tk 8.6 the `tksvg` package provides
+    the same photo format.
+  - `fromPhoto` scales one square raster image with Tk's integer
+    `-zoom`/`-subsample`. That is nearest-neighbour sampling and gets ragged at
+    16 pixels — documented as such, with `fromSvg` as the recommendation.
+  - `fromPhotos` packs caller-rendered images, one per size, scaling nothing.
+  - `defaultSizes` returns `{256 128 64 48 32 16}`.
+  - Errors use `errorCode {TKUTILS TKICO <REASON>}`.
+  - 13 tests, headless under Xvfb, green on Tk 9.0.4 — including an alpha
+    round-trip check and a resolution check on the extracted payload.
+- Example `make-icon.tcl`: turns an SVG or PNG into an `.ico` from the command
+  line.
+
+Requires tclutils 0.61.0 for `tclutils::tuico` 0.1.
+
 ## 0.42.2
 
 - Apps `tkdevtools` and `tkudesigner` now expose a `::app::buildApp` entry proc

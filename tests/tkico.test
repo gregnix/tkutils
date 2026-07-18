@@ -1,0 +1,171 @@
+# test-tkico.test -- tests for tkutils::tkico. Needs Tk and a display.
+
+package require Tcl 8.6-
+package require tcltest 2
+namespace import ::tcltest::*
+
+set here [file dirname [file normalize [info script]]]
+tcl::tm::path add [file normalize [file join $here .. lib tm]]
+# tclutils::tuico lives in the tclutils tree; allow a sibling layout
+catch {tcl::tm::path add [file normalize [file join $here .. .. tclutils lib tm]]}
+package require Tk
+package require tkutils::tkico 0.1
+package require tclutils::tuico 0.1
+
+wm withdraw .
+
+set tmpDir [makeDirectory tkico]
+
+# A small square SVG, used as the vector source.
+set svgFile [file join $tmpDir logo.svg]
+set fh [open $svgFile w]
+puts $fh {<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <rect x="16" y="16" width="224" height="224" rx="40" fill="#4078c0"/>
+  <circle cx="128" cy="128" r="70" fill="#ffffff"/>
+</svg>}
+close $fh
+
+# Is SVG available as a photo format? Tk 9 has it built in; under 8.6 it needs
+# the tksvg package. Without it the SVG tests are skipped rather than failed.
+proc haveSvg {} {
+    variable ::svgFile
+    if {[catch {
+        set image [image create photo -file $::svgFile -format {svg -scaletowidth 32}]
+        image delete $image
+    }]} {
+        return 0
+    }
+    return 1
+}
+testConstraint svg [haveSvg]
+
+test tkico-1.1 {defaultSizes lists the usual icon steps} -body {
+    ::tkutils::tkico::defaultSizes
+} -result {256 128 64 48 32 16}
+
+test tkico-2.1 {fromSvg writes an icon with all requested sizes} -constraints svg -setup {
+    set out [file join $tmpDir a.ico]
+} -body {
+    ::tkutils::tkico::fromSvg $svgFile $out -sizes {48 16}
+    set widths {}
+    foreach entry [::tclutils::tuico::info $out] {
+        lappend widths [dict get $entry width]
+    }
+    set widths
+} -result {48 16} -cleanup {file delete -force $out}
+
+test tkico-2.2 {every entry carries a PNG payload} -constraints svg -setup {
+    set out [file join $tmpDir b.ico]
+    ::tkutils::tkico::fromSvg $svgFile $out -sizes {32}
+} -body {
+    dict get [lindex [::tclutils::tuico::info $out] 0] format
+} -result png -cleanup {file delete -force $out}
+
+test tkico-2.3 {the payload really has the requested resolution} -constraints svg -setup {
+    set out [file join $tmpDir c.ico]
+    ::tkutils::tkico::fromSvg $svgFile $out -sizes {64}
+    set png [file join $tmpDir c.png]
+} -body {
+    ::tclutils::tuico::extract $out 64 $png
+    set image [image create photo -file $png]
+    set result [list [image width $image] [image height $image]]
+    image delete $image
+    set result
+} -result {64 64} -cleanup {file delete -force $out $png}
+
+test tkico-2.4 {sizes are stored largest first} -constraints svg -setup {
+    set out [file join $tmpDir d.ico]
+} -body {
+    ::tkutils::tkico::fromSvg $svgFile $out -sizes {16 128 32}
+    set widths {}
+    foreach entry [::tclutils::tuico::info $out] {
+        lappend widths [dict get $entry width]
+    }
+    set widths
+} -result {128 32 16} -cleanup {file delete -force $out}
+
+test tkico-3.1 {fromPhoto scales a raster source} -setup {
+    set out [file join $tmpDir e.ico]
+    set source [image create photo -width 64 -height 64]
+    $source put "#4078c0" -to 0 0 64 64
+} -body {
+    ::tkutils::tkico::fromPhoto $source $out -sizes {32 16}
+    set widths {}
+    foreach entry [::tclutils::tuico::info $out] {
+        lappend widths [dict get $entry width]
+    }
+    set widths
+} -result {32 16} -cleanup {
+    image delete $source
+    file delete -force $out
+}
+
+test tkico-3.2 {a non-square source is refused} -setup {
+    set source [image create photo -width 64 -height 32]
+} -body {
+    catch {
+        ::tkutils::tkico::fromPhoto $source [file join $tmpDir f.ico]
+    } message options
+    dict get $options -errorcode
+} -result {TKUTILS TKICO NOTSQUARE} -cleanup {image delete $source}
+
+test tkico-4.1 {fromPhotos takes one image per size} -setup {
+    set out [file join $tmpDir g.ico]
+    set small [image create photo -width 16 -height 16]
+    $small put "#ff0000" -to 0 0 16 16
+    set large [image create photo -width 32 -height 32]
+    $large put "#00ff00" -to 0 0 32 32
+} -body {
+    ::tkutils::tkico::fromPhotos [list [list 16 $small] [list 32 $large]] $out
+    llength [::tclutils::tuico::info $out]
+} -result 2 -cleanup {
+    image delete $small $large
+    file delete -force $out
+}
+
+test tkico-4.2 {an image of the wrong resolution is refused} -setup {
+    set wrong [image create photo -width 16 -height 16]
+} -body {
+    catch {
+        ::tkutils::tkico::fromPhotos [list [list 32 $wrong]] [file join $tmpDir h.ico]
+    } message options
+    dict get $options -errorcode
+} -result {TKUTILS TKICO SIZEMISMATCH} -cleanup {image delete $wrong}
+
+test tkico-5.1 {an unknown option is refused} -constraints svg -body {
+    catch {
+        ::tkutils::tkico::fromSvg $svgFile [file join $tmpDir i.ico] -bogus 1
+    } message options
+    dict get $options -errorcode
+} -result {TKUTILS TKICO BADOPTION}
+
+test tkico-5.2 {an invalid size is refused} -constraints svg -body {
+    catch {
+        ::tkutils::tkico::fromSvg $svgFile [file join $tmpDir j.ico] -sizes {0}
+    } message options
+    dict get $options -errorcode
+} -result {TKUTILS TKICO BADSIZE}
+
+test tkico-5.3 {a missing source file is refused} -body {
+    catch {
+        ::tkutils::tkico::fromSvg [file join $tmpDir nope.svg] \
+            [file join $tmpDir k.ico]
+    } message options
+    dict get $options -errorcode
+} -result {TKUTILS TKICO NOFILE}
+
+test tkico-6.1 {transparency survives the round trip} -constraints svg -setup {
+    set out [file join $tmpDir l.ico]
+    ::tkutils::tkico::fromSvg $svgFile $out -sizes {32}
+    set png [file join $tmpDir l.png]
+} -body {
+    ::tclutils::tuico::extract $out 32 $png
+    set image [image create photo -file $png]
+    # The SVG leaves its corners empty, so pixel 0,0 must be fully transparent.
+    set alpha [lindex [$image get 0 0 -withalpha] 3]
+    image delete $image
+    set alpha
+} -result 0 -cleanup {file delete -force $out $png}
+
+removeDirectory tkico
+cleanupTests
