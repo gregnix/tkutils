@@ -1,0 +1,81 @@
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+
+set haveTk [expr {![catch {package require Tk}]}]
+if {$haveTk} { catch {wm withdraw .} }
+
+# tkufilelist needs a tclutils provider; require both, gate on availability.
+set ok 0
+if {$haveTk} {
+    set here [file dirname [file normalize [info script]]]
+    set tmDir [file normalize [file join $here .. lib tm]]
+    catch {tcl::tm::path add $tmDir}
+    if {[info exists ::env(TKUTILS_TM)]}  { catch {tcl::tm::path add $::env(TKUTILS_TM)} }
+    if {[info exists ::env(TCLUTILS_TM)]} { catch {tcl::tm::path add $::env(TCLUTILS_TM)} }
+    if {![catch {package require tkutils::tkufilelist}]
+     && ![catch {package require tclutils::tuprovider}]} { set ok 1 }
+}
+testConstraint tk $ok
+set ns ::tkutils::tkufilelist
+
+# a scratch directory with a known mix
+set dir [makeDirectory fl]
+foreach n {bericht.txt bericht.pdf notiz.txt daten.csv} {
+    set fh [open [file join $dir $n] w] ; puts $fh x ; close $fh
+}
+makeDirectory sub $dir
+proc rows {w} { llength [$w.tbl childkeys root] }
+
+test tkufilelist-1.1 {widget shows the directory contents} -constraints tk -body {
+    ${ns}::widget .l1 -dir $::dir
+    update
+    set n [rows .l1]        ;# 4 files + 1 dir
+    destroy .l1
+    set n
+} -result 5
+
+test tkufilelist-1.2 {dir reports the current directory} -constraints tk -body {
+    ${ns}::widget .l2 -dir $::dir
+    set r [${ns}::dir .l2]
+    destroy .l2
+    string equal $r $::dir
+} -result 1
+
+test tkufilelist-1.3 {setFilter narrows files but keeps directories} -constraints tk -body {
+    ${ns}::widget .l3 -dir $::dir
+    ${ns}::setFilter .l3 *.txt
+    update
+    set n [rows .l3]        ;# bericht.txt + notiz.txt + sub = 3
+    destroy .l3
+    set n
+} -result 3
+
+test tkufilelist-1.4 {a glob filter is case-insensitive} -constraints tk -body {
+    ${ns}::widget .l4 -dir $::dir
+    ${ns}::setFilter .l4 *BERICHT*
+    update
+    set n [rows .l4]        ;# 2 bericht.* + sub = 3
+    destroy .l4
+    set n
+} -result 3
+
+test tkufilelist-1.5 {clearing the filter restores all rows} -constraints tk -body {
+    ${ns}::widget .l5 -dir $::dir
+    ${ns}::setFilter .l5 *.txt
+    ${ns}::setFilter .l5 ""
+    update
+    set n [rows .l5]
+    destroy .l5
+    set n
+} -result 5
+
+test tkufilelist-1.6 {directories-only mode hides files} -constraints tk -body {
+    ${ns}::widget .l6 -dir $::dir -files 0
+    update
+    set n [rows .l6]        ;# just sub
+    destroy .l6
+    set n
+} -result 1
+
+cleanupTests

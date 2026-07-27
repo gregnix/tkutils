@@ -1,0 +1,54 @@
+.TH tkufilelist n 0.1 tkutils
+.SH tkutils::tkufilelist
+.PP
+A detail file list, filled from a storage provider. The list counterpart to \fBtkufiletree\fR: where the tree shows the hierarchy, the list shows the contents of one directory in columns (name, size, type). Directories and files are sorted separately, hidden files can be shown or hidden, and a glob filter narrows the files. Tk 8.6+ and 9.x.
+.SS API
+.CS
+::tkutils::tkufilelist::widget        path ?options?
+::tkutils::tkufilelist::setDir        path dir     ;# show a directory
+::tkutils::tkufilelist::dir           path         ;# current directory
+::tkutils::tkufilelist::refresh       path         ;# re-read the directory
+::tkutils::tkufilelist::setFilter     path glob    ;# filter files by glob ("" = all)
+::tkutils::tkufilelist::selectedEntry path         ;# entry dict of the selection, or ""
+.CE
+.SS Options
+.IP \(bu
+\fB\-provider\fR   a \fBtclutils::tuprovider\fR object (default: a local provider).
+.IP \(bu
+\fB\-dir\fR        the directory to show first.
+.IP \(bu
+\fB\-files\fR      1 to show files, 0 for directories only (default 1).
+.IP \(bu
+\fB\-showhidden\fR 1 to show dot\-files (default 0).
+.IP \(bu
+\fB\-onactivate\fR script, appended the entry dict \-\- double\-click / Enter.
+.IP \(bu
+\fB\-onselect\fR   script, appended the entry dict \-\- selection change.
+.SS "Entry dicts"
+.PP
+Callbacks and \fBselectedEntry\fR hand back a dict with \fBname\fR, \fBpath\fR, \fBtype\fR (\fBfile\fR/\fBdir\fR) and \fBsize\fR. Feed \fBpath\fR back to the provider's \fBget\fR/\fBstat\fR or to \fBsetDir\fR for a directory.
+.SS Use
+.CS
+package require tkutils::tkufilelist
+
+::tkutils::tkufilelist::widget .list -dir [pwd] \
+    -onactivate {apply {e {
+        if {[dict get $e type] eq "dir"} {
+            ::tkutils::tkufilelist::setDir .list [dict get $e path]
+        }
+    }}}
+pack .list -fill both -expand 1
+.CE
+.SS Filtering
+.PP
+\fBsetFilter\fR takes a case\-insensitive glob applied to file names; directories are never filtered, so navigation still works while a filter is active. \fB""\fR clears it. The \fBctrlutils::cufilter\fR controller wires a text box to this.
+.CS
+::tkutils::tkufilelist::setFilter .list *.txt   ;# only .txt files (plus dirs)
+::tkutils::tkufilelist::setFilter .list ""       ;# show everything again
+.CE
+.SS Provider\-backed
+.PP
+Because the list is filled through a provider, the same widget shows a local directory, the contents of a ZIP, or a WebDAV collection \-\- only the \fB\-provider\fR differs.
+.SS "See also"
+.PP
+\fBtkufiletree\fR, \fBtkupath\fR, \fBtclutils::tuprovider\fR

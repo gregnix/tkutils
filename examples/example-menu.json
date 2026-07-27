@@ -1,0 +1,18 @@
+{
+  "mode": "list",
+  "items": [
+    { "type": "menu", "label": "Internet", "items": [
+        { "type": "app", "label": "Firefox", "cmd": ["firefox"] },
+        { "type": "url", "label": "Tcl/Tk 9 Manual", "target": "https://www.tcl.tk/man/tcl9.0/" }
+    ]},
+    { "type": "menu", "label": "System", "items": [
+        { "type": "system", "id": "terminal" },
+        { "type": "system", "id": "taskmanager" },
+        { "type": "system", "id": "printers" },
+        { "type": "system", "id": "autostart" },
+        { "type": "system", "id": "settings" }
+    ]},
+    { "type": "separator" },
+    { "type": "open", "label": "Home", "target": "~" }
+  ]
+}

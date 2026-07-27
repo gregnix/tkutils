@@ -1,0 +1,88 @@
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+
+set haveTk [expr {![catch {package require Tk}]}]
+if {$haveTk} { catch {wm withdraw .} }
+testConstraint tk $haveTk
+
+if {$haveTk} {
+    set here [file dirname [file normalize [info script]]]
+    set tmDir [file normalize [file join $here .. lib tm]]
+    catch {tcl::tm::path add $tmDir}
+    if {[info exists ::env(TKUTILS_TM)]} { catch {tcl::tm::path add $::env(TKUTILS_TM)} }
+    package require tkutils::tkupreview
+}
+set ns ::tkutils::tkupreview
+
+# The preview is policy-free: each display method sets the widget's kind. We
+# check that the kind is reported correctly and that clear resets it. Structured
+# kinds fall back to plain text when their sibling widget is absent, but the
+# reported kind is still the requested one.
+
+test tkupreview-1.1 {widget creates and starts with no kind} -constraints tk -body {
+    ${ns}::widget .v1
+    set k [${ns}::kind .v1]
+    destroy .v1
+    set k
+} -result ""
+
+test tkupreview-1.2 {text sets kind to text} -constraints tk -body {
+    ${ns}::widget .v2
+    ${ns}::text .v2 "notes.txt" "hello\nworld"
+    set k [${ns}::kind .v2]
+    destroy .v2
+    set k
+} -result text
+
+test tkupreview-1.3 {message sets kind to message} -constraints tk -body {
+    ${ns}::widget .v3
+    ${ns}::message .v3 "nothing selected"
+    set k [${ns}::kind .v3]
+    destroy .v3
+    set k
+} -result message
+
+test tkupreview-1.4 {hex reports kind hex (or text fallback)} -constraints tk -body {
+    ${ns}::widget .v4
+    ${ns}::hex .v4 "bytes" "ABC\x00\x01"
+    set k [${ns}::kind .v4]
+    destroy .v4
+    expr {$k in {hex text}}
+} -result 1
+
+test tkupreview-1.5 {clear resets the kind} -constraints tk -body {
+    ${ns}::widget .v5
+    ${ns}::text .v5 "x" "y"
+    ${ns}::clear .v5
+    set k [${ns}::kind .v5]
+    destroy .v5
+    set k
+} -result ""
+
+test tkupreview-1.6 {switching kinds updates the reported kind} -constraints tk -body {
+    ${ns}::widget .v6
+    ${ns}::text .v6 "a" "text"
+    ${ns}::message .v6 "now a message"
+    set k [${ns}::kind .v6]
+    destroy .v6
+    set k
+} -result message
+
+test tkupreview-1.7 {markdown reports kind markdown (or text fallback)} -constraints tk -body {
+    ${ns}::widget .v7
+    ${ns}::markdown .v7 "R.md" "# Title\n\ntext"
+    set k [${ns}::kind .v7]
+    destroy .v7
+    expr {$k in {markdown text}}
+} -result 1
+
+test tkupreview-1.8 {csv accepts a delimiter and reports kind csv (or text fallback)} -constraints tk -body {
+    ${ns}::widget .v8
+    ${ns}::csv .v8 "d.tsv" "a\tb\n1\t2" -delimiter \t
+    set k [${ns}::kind .v8]
+    destroy .v8
+    expr {$k in {csv text}}
+} -result 1
+
+cleanupTests

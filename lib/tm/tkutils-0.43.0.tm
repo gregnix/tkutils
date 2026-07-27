@@ -50,4 +50,14 @@ package require tkutils::tkucontextmenu 0.1
 package require tkutils::tkuwheel 0.2
 package require tkutils::tkuwinico 0.1
 
+# Explorer-framework widgets: provider-backed file list, breadcrumb path bar,
+# policy-free content preview, and a tabbed container.
+package require tkutils::tkufilelist 0.1
+package require tkutils::tkupath 0.1
+package require tkutils::tkupreview 0.1
+package require tkutils::tkutab 0.1
+
+# application launcher (menu / list, cross-platform via tuopen)
+package require tkutils::tkulauncher 0.1
+
 package provide tkutils 0.43.0

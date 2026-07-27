@@ -1,0 +1,90 @@
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+
+# Headless Tk
+set haveTk [expr {![catch {package require Tk}]}]
+if {$haveTk} { catch {wm withdraw .} }
+testConstraint tk $haveTk
+
+if {$haveTk} {
+    set here [file dirname [file normalize [info script]]]
+    set tmDir [file normalize [file join $here .. lib tm]]
+    catch {tcl::tm::path add $tmDir}
+    if {[info exists ::env(TKUTILS_TM)]} { catch {tcl::tm::path add $::env(TKUTILS_TM)} }
+    package require tkutils::tkutab
+}
+set ns ::tkutils::tkutab
+
+test tkutab-1.1 {widget creates an empty tab bar} -constraints tk -body {
+    ${ns}::widget .t1
+    set n [${ns}::count .t1]
+    destroy .t1
+    set n
+} -result 0
+
+test tkutab-1.2 {add returns a content frame and raises the count} -constraints tk -body {
+    ${ns}::widget .t2
+    set f [${ns}::add .t2 "first"]
+    set r [list [winfo exists $f] [${ns}::count .t2]]
+    destroy .t2
+    set r
+} -result {1 1}
+
+test tkutab-1.3 {content goes inside the returned frame} -constraints tk -body {
+    ${ns}::widget .t3
+    set f [${ns}::add .t3 "x"]
+    ttk::label $f.l -text hi
+    set r [winfo exists $f.l]
+    destroy .t3
+    set r
+} -result 1
+
+test tkutab-1.4 {tabs and current track what was added} -constraints tk -body {
+    ${ns}::widget .t4
+    set a [${ns}::add .t4 "a"]
+    set b [${ns}::add .t4 "b"]
+    set r [list [llength [${ns}::tabs .t4]] [expr {[${ns}::current .t4] in [list $a $b]}]]
+    destroy .t4
+    set r
+} -result {2 1}
+
+test tkutab-1.5 {close removes a tab} -constraints tk -body {
+    ${ns}::widget .t5
+    set a [${ns}::add .t5 "a"]
+    set b [${ns}::add .t5 "b"]
+    ${ns}::close .t5 $a
+    set r [${ns}::count .t5]
+    destroy .t5
+    set r
+} -result 1
+
+test tkutab-1.6 {setLabel does not error and keeps the tab} -constraints tk -body {
+    ${ns}::widget .t6
+    set a [${ns}::add .t6 "old"]
+    ${ns}::setLabel .t6 $a "new"
+    set r [${ns}::count .t6]
+    destroy .t6
+    set r
+} -result 1
+
+test tkutab-1.7 {the "+" button runs -onnew} -constraints tk -body {
+    set ::fired 0
+    ${ns}::widget .t7 -onnew {incr ::fired}
+    .t7.bar.new invoke          ;# press the "+" button for real
+    destroy .t7
+    set ::fired
+} -result 1
+
+test tkutab-1.8 {-onselect fires when the active tab changes} -constraints tk -body {
+    set ::seen ""
+    ${ns}::widget .t8 -onselect {apply {f {set ::seen $f}}}
+    set a [${ns}::add .t8 "a"]
+    set b [${ns}::add .t8 "b"]
+    update
+    set r [expr {$::seen ne ""}]
+    destroy .t8
+    set r
+} -result 1
+
+cleanupTests

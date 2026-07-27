@@ -1,0 +1,250 @@
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+
+set haveTk [expr {![catch {package require Tk}]}]
+if {$haveTk} { catch {wm withdraw .} }
+
+set ok 0
+if {$haveTk} {
+    set here [file dirname [file normalize [info script]]]
+    set tmDir [file normalize [file join $here .. lib tm]]
+    catch {tcl::tm::path add $tmDir}
+    if {[info exists ::env(TKUTILS_TM)]}  { catch {tcl::tm::path add $::env(TKUTILS_TM)} }
+    if {[info exists ::env(TCLUTILS_TM)]} { catch {tcl::tm::path add $::env(TCLUTILS_TM)} }
+    if {![catch {package require tkutils::tkulauncher}]} { set ok 1 }
+}
+testConstraint tk $ok
+set ns ::tkutils::tkulauncher
+
+set spec {
+    {type menu label Internet items {
+        {type app label Firefox cmd firefox}
+        {type url label Manual target https://tcl.tk}
+        {type separator}
+        {type open label Home target /home/greg}
+    }}
+    {type separator}
+    {type app label Terminal cmd xterm}
+}
+
+# ---- resolve: turns an entry into an action, no side effects --------------
+test tkulauncher-1.1 {app resolves to an exec action} -constraints tk -body {
+    ${ns}::resolve {type app label X cmd {prog -a}}
+} -result {kind exec argv {prog -a}}
+
+test tkulauncher-1.2 {url resolves to an open action} -constraints tk -body {
+    ${ns}::resolve {type url label X target https://tcl.tk}
+} -result {kind open argv https://tcl.tk}
+
+test tkulauncher-1.3 {open (file/dir) resolves to an open action} -constraints tk -body {
+    ${ns}::resolve {type open label X target /home/greg}
+} -result {kind open argv /home/greg}
+
+test tkulauncher-1.4 {an unknown type is an error} -constraints tk -body {
+    catch {${ns}::resolve {type bogus label X}} e
+    set e
+} -result {cannot launch entry of type bogus}
+
+# ---- menu mode ------------------------------------------------------------
+test tkulauncher-2.1 {menu mode builds a menubutton with a menu} -constraints tk -body {
+    ${ns}::widget .m1 -mode menu -text Start -items $::spec
+    set r [list [winfo class .m1] [expr {[.m1 cget -menu] ne ""}]]
+    destroy .m1
+    set r
+} -result {TMenubutton 1}
+
+test tkulauncher-2.2 {a menu entry becomes a cascade} -constraints tk -body {
+    ${ns}::widget .m2 -mode menu -items $::spec
+    set r [.m2.menu type 0]      ;# Internet
+    destroy .m2
+    set r
+} -result cascade
+
+# ---- list mode ------------------------------------------------------------
+test tkulauncher-3.1 {list mode builds a frame with buttons} -constraints tk -body {
+    ${ns}::widget .l1 -mode list -items $::spec
+    set btns 0
+    foreach c [winfo children .l1] {
+        if {[winfo class $c] eq "TButton"} { incr btns }
+    }
+    destroy .l1
+    # Firefox, Manual, Home, Terminal = 4 buttons (Internet is a header)
+    set btns
+} -result 4
+
+# ---- launching via -onlaunch (intercepted, no real spawn) -----------------
+test tkulauncher-4.1 {activating an entry runs -onlaunch with the resolved action} -constraints tk -body {
+    set ::got ""
+    ${ns}::widget .l2 -mode list \
+        -items {{type app label Editor cmd {editor file}}} \
+        -onlaunch {apply {{kind argv} {set ::got [list $kind $argv] ; return 0}}}
+    foreach c [winfo children .l2] {
+        if {[winfo class $c] eq "TButton"} { $c invoke ; break }
+    }
+    destroy .l2
+    set ::got
+} -result {exec {editor file}}
+
+test tkulauncher-4.2 {-onlaunch returning false suppresses the real launch} -constraints tk -body {
+    # cmd is a bogus program; if it were actually run, exec would fail. The
+    # false return must stop that, so no error escapes.
+    set ::seen 0
+    ${ns}::widget .l3 -mode list \
+        -items {{type app label Bad cmd {/no/such/prog xyz}}} \
+        -onlaunch {apply {{k a} {incr ::seen ; return 0}}}
+    foreach c [winfo children .l3] {
+        if {[winfo class $c] eq "TButton"} { $c invoke ; break }
+    }
+    destroy .l3
+    set ::seen
+} -result 1
+
+# ---- loading from files ---------------------------------------------------
+test tkulauncher-5.1 {load a JSON spec} -constraints tk -setup {
+    set f [makeFile {} m.json]
+    set ch [open $f w]
+    puts $ch {{"items":[{"type":"app","label":"A","cmd":["a"]},{"type":"url","label":"B","target":"https://x"}]}}
+    close $ch
+} -body {
+    set items [${ns}::load $f]
+    list [llength $items] [dict get [lindex $items 0] label] \
+         [${ns}::resolve [lindex $items 1]]
+} -cleanup {removeFile m.json} -result {2 A {kind open argv https://x}}
+
+test tkulauncher-5.2 {load a bare JSON array} -constraints tk -setup {
+    set f [makeFile {} arr.json]
+    set ch [open $f w]
+    puts $ch {[{"type":"app","label":"Only","cmd":["only"]}]}
+    close $ch
+} -body {
+    set items [${ns}::load $f]
+    list [llength $items] [dict get [lindex $items 0] label]
+} -cleanup {removeFile arr.json} -result {1 Only}
+
+test tkulauncher-5.3 {load an INI spec, sections become submenus} -constraints tk -setup {
+    set f [makeFile {} m.ini]
+    set ch [open $f w]
+    puts $ch "\[Net\]\nFox = app: firefox\nDoc = url: https://tcl.tk\n\n\[Sys\]\nHome = open: /home/me"
+    close $ch
+} -body {
+    set items [${ns}::load $f]
+    set net [lindex $items 0]
+    list [llength $items] [dict get $net type] [dict get $net label] \
+         [${ns}::resolve [lindex [dict get $net items] 1]]
+} -cleanup {removeFile m.ini} -result {2 menu Net {kind open argv https://tcl.tk}}
+
+test tkulauncher-5.4 {an INI value with no type prefix defaults to app} -constraints tk -setup {
+    set f [makeFile {} d.ini]
+    set ch [open $f w]
+    puts $ch "\[X\]\nPlain = someprog --flag"
+    close $ch
+} -body {
+    set items [${ns}::load $f]
+    ${ns}::resolve [lindex [dict get [lindex $items 0] items] 0]
+} -cleanup {removeFile d.ini} -result {kind exec argv {someprog --flag}}
+
+test tkulauncher-5.5 {an unsupported file type is an error} -constraints tk -setup {
+    set f [makeFile {x} bad.txt]
+} -body {
+    catch {${ns}::load $f} e
+    string match {*unsupported*} $e
+} -cleanup {removeFile bad.txt} -result 1
+
+
+# ---- settings: edit / open location / reload ------------------------------
+test tkulauncher-6.1 {-settings appends a Settings group when a file is used} -constraints tk -setup {
+    set f [makeFile {} s.json]
+    set ch [open $f w] ; puts $ch {{"items":[{"type":"app","label":"A","cmd":["a"]}]}} ; close $ch
+} -body {
+    ${ns}::widget .s1 -mode menu -file $f -settings 1
+    set last [.s1.menu index end]
+    set r [list [.s1.menu type $last] [.s1.menu entrycget $last -label]]
+    destroy .s1
+    set r
+} -cleanup {removeFile s.json} -result {cascade Settings}
+
+test tkulauncher-6.2 {-settings is not added without a file} -constraints tk -body {
+    ${ns}::widget .s2 -mode menu -items {{type app label A cmd a}} -settings 1
+    # only the one app entry, no Settings cascade
+    set n [expr {[.s2.menu index end]+1}]
+    destroy .s2
+    set n
+} -result 1
+
+test tkulauncher-6.3 {reload picks up changes to the file} -constraints tk -setup {
+    set f [makeFile {} r.json]
+    set ch [open $f w] ; puts $ch {{"items":[{"type":"app","label":"One","cmd":["one"]}]}} ; close $ch
+} -body {
+    ${ns}::widget .s3 -mode list -file $f
+    set before [llength [winfo children .s3]]
+    set ch [open $f w]
+    puts $ch {{"items":[{"type":"app","label":"One","cmd":["one"]},{"type":"app","label":"Two","cmd":["two"]}]}}
+    close $ch
+    ${ns}::reload .s3
+    set after [llength [winfo children .s3]]
+    destroy .s3
+    list $before $after
+} -cleanup {removeFile r.json} -result {1 2}
+
+test tkulauncher-6.4 {a spec-built launcher has no config file} -constraints tk -body {
+    ${ns}::widget .s4 -mode list -items {{type app label A cmd a}}
+    # editConfig/openLocation key off state; with no file, file is empty
+    set r [set ::tkutils::tkulauncher::state(.s4,file)]
+    destroy .s4
+    set r
+} -result {}
+
+
+# ---- system entries: environment-aware -----------------------------------
+test tkulauncher-7.1 {system resolves per platform: Windows} -constraints tk -body {
+    set ns ::tkutils::tkulauncher
+    list [${ns}::resolveSystem taskmanager -platform windows -os {Windows NT}] \
+         [${ns}::resolveSystem printers    -platform windows -os {Windows NT}]
+} -result {{kind exec argv {taskmgr.exe}} {kind open argv ms-settings:printers}}
+
+test tkulauncher-7.2 {system resolves per desktop: XFCE vs GNOME vs KDE} -constraints tk -body {
+    set ns ::tkutils::tkulauncher
+    list [dict get [${ns}::resolveSystem terminal -platform unix -os Linux -desktop XFCE] argv] \
+         [dict get [${ns}::resolveSystem terminal -platform unix -os Linux -desktop GNOME] argv] \
+         [dict get [${ns}::resolveSystem terminal -platform unix -os Linux -desktop KDE] argv]
+} -result {xfce4-terminal gnome-terminal konsole}
+
+test tkulauncher-7.3 {a unix desktop falls back to the generic linux command} -constraints tk -body {
+    # printers has a generic linux entry; an unknown desktop should reach it
+    ${ns}::resolveSystem printers -platform unix -os Linux -desktop "Something"
+} -result {kind exec argv {system-config-printer}}
+
+test tkulauncher-7.4 {a Windows-only id is unavailable elsewhere} -constraints tk -body {
+    catch {${ns}::resolveSystem cmd -platform unix -os Linux -desktop XFCE} e
+    string match {*not available*} $e
+} -result 1
+
+test tkulauncher-7.5 {an unknown system id errors} -constraints tk -body {
+    catch {${ns}::resolveSystem nosuch} e
+    set e
+} -result {unknown system id: nosuch}
+
+test tkulauncher-7.6 {a system entry resolves through resolve()} -constraints tk -body {
+    # resolve uses the running platform; just check it returns an action dict
+    set act [${ns}::resolve {type system id terminal}]
+    expr {[dict get $act kind] in {exec open}}
+} -result 1
+
+test tkulauncher-7.7 {a system entry with no label uses the built-in title} -constraints tk -body {
+    ${ns}::widget .sys1 -mode list -items {{type system id taskmanager}}
+    set txt ""
+    foreach c [winfo children .sys1] { catch {set txt [$c cget -text]} }
+    destroy .sys1
+    set txt
+} -result {Task Manager}
+
+test tkulauncher-7.8 {-system appends a System group of available tools} -constraints tk -body {
+    ${ns}::widget .sys2 -mode menu -items {{type app label A cmd a}} -system 1
+    set last [.sys2.menu index end]
+    set r [.sys2.menu entrycget $last -label]
+    destroy .sys2
+    set r
+} -result System
+
+cleanupTests

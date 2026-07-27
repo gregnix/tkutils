@@ -9,6 +9,11 @@ under `lib/tm/tkutils/` in the `tkutils::<module>` namespace.
   [`module-paths.md`](module-paths.md) (loading modules),
   [`architecture.md`](architecture.md) (design/structure),
   [`HANDOFF-layout-designer.md`](HANDOFF-layout-designer.md).
+- **Explorer-framework HOWTOs** (task recipes for building on the widgets):
+  [`howto-browse-provider.md`](howto-browse-provider.md) (tree + list over a
+  provider), [`howto-preview-content.md`](howto-preview-content.md) (preview any
+  content), [`howto-build-file-manager.md`](howto-build-file-manager.md)
+  (assemble the whole framework).
 - **Man pages**: `man/mann/<module>.n`.
 - **Tests**: `tests/<module>.test` (run via `tests/all.tcl`).
 - **Apps**: `apps/` — standalone programs built on the library

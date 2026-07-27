@@ -1,0 +1,43 @@
+.TH tkutab n 0.1 tkutils
+.SH tkutils::tkutab
+.PP
+A tabbed container with the conveniences a file manager needs that a bare \fBttk::notebook\fR lacks: a "+" new\-tab button and closeable tabs (middle\-click, or a close call from the caller). Each tab is a frame the caller fills with its own content. Tk 8.6+ and 9.x.
+.SS API
+.CS
+::tkutils::tkutab::widget   path ?options?
+::tkutils::tkutab::add      path label      ;# add a tab, returns its content frame
+::tkutils::tkutab::close    path frame      ;# close the tab holding frame
+::tkutils::tkutab::current  path            ;# content frame of the active tab
+::tkutils::tkutab::setLabel path frame label
+::tkutils::tkutab::tabs     path            ;# list of content frames, in order
+::tkutils::tkutab::count    path            ;# number of open tabs
+.CE
+.SS Options
+.IP \(bu
+\fB\-onnew\fR    script \-\- run when the "+" button is pressed (typically calls \fBadd\fR).
+.IP \(bu
+\fB\-onclose\fR  script, appended the closing frame \-\- run when a tab is closed.
+.IP \(bu
+\fB\-onselect\fR script, appended the selected frame \-\- run when the active tab changes.
+.SS Use
+.CS
+package require tkutils::tkutab
+
+::tkutils::tkutab::widget .tabs \
+    -onnew    {apply {{} {newTab}}} \
+    -onselect {apply {f {puts "now on $f"}}}
+pack .tabs -fill both -expand 1
+
+proc newTab {} {
+    set f [::tkutils::tkutab::add .tabs "untitled"]
+    # fill $f with this tab's content
+    ttk::label $f.l -text "content of [::tkutils::tkutab::count .tabs]"
+    pack $f.l
+}
+newTab
+.CE
+.PP
+\fBadd\fR returns the content frame; put the tab's widgets inside it. \fBcurrent\fR gives the active tab's frame, so per\-tab state can be keyed by frame path. A tab is closed with middle\-click or by calling \fBclose\fR; \fB\-onclose\fR fires so the caller can release that tab's resources.
+.SS "See also"
+.PP
+\fBtkufilelist\fR, \fBtkufiletree\fR, \fBtkupath\fR

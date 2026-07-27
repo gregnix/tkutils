@@ -19,10 +19,14 @@ tkutils umbrella; require it directly once `tical` is on the module path
     ::tkutils::tkutical::setSelection   $w {dates / A..B ranges}
     ::tkutils::tkutical::clearSelection $w
     ::tkutils::tkutical::canvasWidget   $w            ;# underlying canvas
+    ::tkutils::tkutical::setView    $w month|week     ;# switch view; throws on bad view
+    ::tkutils::tkutical::getView    $w                ;# -> month|week
+    ::tkutils::tkutical::setDate    $w iso            ;# set the focused date (YYYY-MM-DD)
+    ::tkutils::tkutical::getDate    $w                ;# -> focused ISO date
 
 `-command CMD` is called as `CMD $w $selection` on selection changes (selection
 modes only). Default `-selectmode single`. Errorcodes: `{TKUTILS TKUTICAL MONTH}`,
-`{TKUTILS TKUTICAL SELECTMODE}`.
+`{TKUTILS TKUTICAL SELECTMODE}`, `{TKUTILS TKUTICAL VIEW}`, `{TKUTILS TKUTICAL DATE}`.
 
 ## Install / run
 - Drop `lib/tm/tkutils/tkutical-0.1.tm` into the tkutils tree (do NOT add it to
