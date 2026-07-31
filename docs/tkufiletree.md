@@ -11,6 +11,7 @@ fires a callback with its full path. Tk 8.6+ and 9.x.
 ::tkutils::tkufiletree::widget       path ?options?
 ::tkutils::tkufiletree::setRoot      path dir
 ::tkutils::tkufiletree::refresh      path
+::tkutils::tkufiletree::refreshDir   path dir     ;# re-populate one already-open node
 ::tkutils::tkufiletree::up           path        ;# re-root to parent dir
 ::tkutils::tkufiletree::selectedPath path        ;# full path or ""
 ::tkutils::tkufiletree::root         path        ;# current root dir or ""
@@ -26,6 +27,14 @@ was selected, else 0, and never raises. Together with `root` and `setRoot` this
 lets a host application keep the tree pointing at — and highlighting — whatever
 it just opened elsewhere. `up` re-roots to the parent directory (also bound to
 `BackSpace`) and reveals the previous root.
+
+`refreshDir` re-reads a single directory node that is already present in the
+tree and re-populates its children (trying both `$dir` and its normalized form),
+leaving it open. Use it after the contents of one directory change on disk --
+e.g. a paste that creates a new subfolder -- so the new child appears as a
+navigable node without rebuilding the whole tree. It returns 1 if the node
+existed and was refreshed, 0 otherwise, and never raises. `refresh` (no dir)
+rebuilds from the root instead.
 
 ### Options (widget)
 

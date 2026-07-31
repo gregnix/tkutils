@@ -31,8 +31,34 @@ package require tkutils::tkutree
 
 namespace eval ::tkutils {}
 namespace eval ::tkutils::tkufiletree {
-    namespace export widget setRoot refresh selectedPath treeview root reveal up
+    namespace export widget setRoot refresh refreshDir selectedPath treeview root reveal up
     variable state
+    # Sentinel root value for the virtual "This PC" node that lists all drive
+    # roots (Windows: C:/ D:/ ...). It is never a real path (leading NUL), so
+    # the path-handling code special-cases it explicitly before any
+    # normalize/split/dirname. On single-root platforms it degenerates to the
+    # sole volume and behaves like an ordinary root.
+    variable VOLUMES "\x00::volumes::"
+}
+
+# Public: the sentinel value callers use as -root to start at the volumes list.
+proc ::tkutils::tkufiletree::volumesRoot {} {
+    variable VOLUMES
+    return $VOLUMES
+}
+
+# The drive roots to show under "This PC". `file volumes` returns them on every
+# platform; on Windows that is the drives, elsewhere just "/" (and //zipfs:/),
+# which we drop so the virtual root is only meaningful where it is needed.
+proc ::tkutils::tkufiletree::_volumeList {} {
+    set out {}
+    foreach v [file volumes] {
+        if {[string match //zipfs:* $v]} continue
+        set label [string trimright $v /]
+        if {$label eq ""} { set label $v }
+        lappend out [list dir $label $v]
+    }
+    return $out
 }
 
 proc ::tkutils::tkufiletree::_cleanup {path w} {
@@ -79,12 +105,14 @@ proc ::tkutils::tkufiletree::widget {path args} {
 # (Re)load the tree under a new root directory.
 proc ::tkutils::tkufiletree::setRoot {path dir} {
     variable state
-    set dir [file normalize $dir]
+    variable VOLUMES
+    if {$dir ne $VOLUMES} { set dir [file normalize $dir] }
     set state($path,root) $dir
     array unset state $path,pop,*
     ::tkutils::tkutree::clear $path
     set tv [::tkutils::tkutree::treeview $path]
-    set rid [_insertDir $path "" $dir $dir]   ;# root labelled with full path
+    set label [expr {$dir eq $VOLUMES ? "This PC" : $dir}]
+    set rid [_insertDir $path "" $dir $label]   ;# root labelled with full path
     _populate $path $rid $dir
     $tv item $rid -open 1
     return
@@ -97,14 +125,41 @@ proc ::tkutils::tkufiletree::refresh {path} {
     return
 }
 
+# Re-populate the tree node for one directory, so entries created/removed since
+# it was first expanded (e.g. a folder just pasted into it) show up. Does
+# nothing if that directory has no node in the tree yet (it will scan fresh when
+# the user expands to it). Returns 1 if a node was refreshed.
+proc ::tkutils::tkufiletree::refreshDir {path dir} {
+    set tv [::tkutils::tkutree::treeview $path]
+    foreach cand [list $dir [file normalize $dir]] {
+        if {[$tv exists $cand]} {
+            _populate $path $cand $cand
+            catch {$tv item $cand -open 1}
+            return 1
+        }
+    }
+    return 0
+}
+
 # Move the root up to its parent directory and reveal the previous root, so the
 # user sees where they came from. No-op at a filesystem root.
 proc ::tkutils::tkufiletree::up {path} {
     variable state
+    variable VOLUMES
     if {![info exists state($path,root)]} { return }
-    set cur    $state($path,root)
+    set cur $state($path,root)
+    if {$cur eq $VOLUMES} { return }   ;# already at the virtual top
     set parent [file dirname $cur]
-    if {$parent eq $cur} { return }
+    if {$parent eq $cur} {
+        # At a filesystem root (e.g. C:/). If more than one volume exists,
+        # step up to the virtual "This PC" root so the other drives become
+        # reachable. Otherwise there is nowhere to go.
+        if {[llength [_volumeList]] > 1} {
+            setRoot $path $VOLUMES
+            reveal  $path $cur
+        }
+        return
+    }
     setRoot $path $parent
     reveal  $path $cur
     return
@@ -133,12 +188,30 @@ proc ::tkutils::tkufiletree::root {path} {
 # the exact target was selected, else 0. Never raises.
 proc ::tkutils::tkufiletree::reveal {path target} {
     variable state
+    variable VOLUMES
     if {![info exists state($path,root)]} { return 0 }
     set rootd  $state($path,root)
     set target [file normalize $target]
     set tv     [::tkutils::tkutree::treeview $path]
     if {![_isPop $path $rootd]} { _populate $path $rootd $rootd }
-    if {$target ne $rootd} {
+    if {$rootd eq $VOLUMES} {
+        # Virtual root: the drive nodes (C:/ ...) are direct children. Walk down
+        # from the target's own drive rather than by shared-prefix with rootd.
+        set tp [file split $target]
+        if {[llength $tp]} {
+            set cur [lindex $tp 0]                 ;# e.g. "C:/"
+            if {[$tv exists $cur]} {
+                if {![_isPop $path $cur]} { _populate $path $cur $cur }
+                catch {$tv item $cur -open 1}
+                foreach part [lrange $tp 1 end-1] {
+                    set cur [file join $cur $part]
+                    if {![$tv exists $cur]} { break }
+                    if {![_isPop $path $cur]} { _populate $path $cur $cur }
+                    catch {$tv item $cur -open 1}
+                }
+            }
+        }
+    } elseif {$target ne $rootd} {
         set rp [file split $rootd]
         set tp [file split $target]
         if {[lrange $tp 0 [expr {[llength $rp] - 1}]] ne $rp} { return 0 }
@@ -201,6 +274,8 @@ proc ::tkutils::tkufiletree::_populate {path id dir} {
 # Directory listing as a sorted list of {type name fullpath}, directories first.
 proc ::tkutils::tkufiletree::_scan {path dir} {
     variable state
+    variable VOLUMES
+    if {$dir eq $VOLUMES} { return [_volumeList] }
     set all [glob -nocomplain -directory $dir -- *]
     if {$state($path,hidden)} {
         catch {lappend all {*}[glob -nocomplain -directory $dir -- .*]}

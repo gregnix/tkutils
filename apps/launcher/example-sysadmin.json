@@ -1,0 +1,108 @@
+[
+  {
+    "type": "menu",
+    "label": "System",
+    "items": [
+      {
+        "type": "system",
+        "id": "taskmanager"
+      },
+      {
+        "type": "system",
+        "id": "services"
+      },
+      {
+        "type": "system",
+        "id": "devicemanager"
+      },
+      {
+        "type": "system",
+        "id": "diskmanager"
+      },
+      {
+        "type": "system",
+        "id": "systeminfo"
+      }
+    ]
+  },
+  {
+    "type": "menu",
+    "label": "Network",
+    "items": [
+      {
+        "type": "system",
+        "id": "network"
+      },
+      {
+        "type": "system",
+        "id": "wifi"
+      },
+      {
+        "type": "system",
+        "id": "firewall"
+      }
+    ]
+  },
+  {
+    "type": "menu",
+    "label": "Maintenance",
+    "items": [
+      {
+        "type": "system",
+        "id": "updates"
+      },
+      {
+        "type": "system",
+        "id": "software"
+      },
+      {
+        "type": "system",
+        "id": "users"
+      },
+      {
+        "type": "system",
+        "id": "datetime"
+      }
+    ]
+  },
+  {
+    "type": "menu",
+    "label": "Power",
+    "items": [
+      {
+        "type": "system",
+        "id": "lock"
+      },
+      {
+        "type": "system",
+        "id": "logout"
+      },
+      {
+        "type": "system",
+        "id": "suspend"
+      },
+      {
+        "type": "system",
+        "id": "restart"
+      },
+      {
+        "type": "system",
+        "id": "shutdown"
+      }
+    ]
+  },
+  {
+    "type": "separator"
+  },
+  {
+    "type": "system",
+    "id": "terminal"
+  },
+  {
+    "type": "system",
+    "id": "filemanager"
+  },
+  {
+    "type": "calc"
+  }
+]

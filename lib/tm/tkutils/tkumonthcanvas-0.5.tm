@@ -16,6 +16,7 @@ package require tical::view::month 1.0
 
 namespace eval ::tkutils {}
 namespace eval ::tkutils::tkumonthcanvas {
+    namespace export init drawMonth drawQuarter drawYear clear getMonthSize getQuarterSize getYearSize getMonthDates getWeekDates setSelectMode setSelection getSelection clearSelection setNotes addNote hasNote defineTheme setTheme getThemeValue setFontSize setCallback
     # Theme-System (aehnlich ttk, aber fuer Canvas)
     variable themes
     variable currentTheme "default"

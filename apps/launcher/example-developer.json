@@ -1,0 +1,94 @@
+[
+  {
+    "type": "menu",
+    "label": "Programs",
+    "items": [
+      {
+        "type": "system",
+        "id": "terminal"
+      },
+      {
+        "type": "system",
+        "id": "editor"
+      },
+      {
+        "type": "system",
+        "id": "filemanager"
+      }
+    ]
+  },
+  {
+    "type": "menu",
+    "label": "Tcl/Tk",
+    "items": [
+      {
+        "type": "url",
+        "label": "Tcl/Tk Manual",
+        "target": "https://www.tcl.tk/man/tcl9.0/"
+      },
+      {
+        "type": "url",
+        "label": "Tcl Wiki",
+        "target": "https://wiki.tcl-lang.org/"
+      },
+      {
+        "type": "url",
+        "label": "tcllib docs",
+        "target": "https://core.tcl-lang.org/tcllib/doc/trunk/embedded/index.html"
+      }
+    ]
+  },
+  {
+    "type": "menu",
+    "label": "Web",
+    "items": [
+      {
+        "type": "url",
+        "label": "GitHub",
+        "target": "https://github.com/"
+      },
+      {
+        "type": "url",
+        "label": "Stack Overflow",
+        "target": "https://stackoverflow.com/"
+      },
+      {
+        "type": "url",
+        "label": "MDN Web Docs",
+        "target": "https://developer.mozilla.org/"
+      }
+    ]
+  },
+  {
+    "type": "separator"
+  },
+  {
+    "type": "menu",
+    "label": "System",
+    "items": [
+      {
+        "type": "system",
+        "id": "taskmanager"
+      },
+      {
+        "type": "system",
+        "id": "systeminfo"
+      },
+      {
+        "type": "system",
+        "id": "services"
+      }
+    ]
+  },
+  {
+    "type": "calc"
+  },
+  {
+    "type": "calendar"
+  },
+  {
+    "type": "open",
+    "label": "Projects",
+    "target": "~/projects"
+  }
+]

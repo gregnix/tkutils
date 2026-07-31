@@ -1,0 +1,48 @@
+[
+  {
+    "type": "menu",
+    "label": "Internet",
+    "items": [
+      {
+        "type": "url",
+        "label": "Tcl/Tk Manual",
+        "target": "https://www.tcl.tk/man/tcl9.0/"
+      },
+      {
+        "type": "url",
+        "label": "Tcl Wiki",
+        "target": "https://wiki.tcl-lang.org/"
+      }
+    ]
+  },
+  {
+    "type": "menu",
+    "label": "Programs",
+    "items": [
+      {
+        "type": "app",
+        "label": "Terminal",
+        "cmd": "xterm"
+      },
+      {
+        "type": "app",
+        "label": "File Manager",
+        "cmd": "xdg-open"
+      }
+    ]
+  },
+  {
+    "type": "separator"
+  },
+  {
+    "type": "calendar"
+  },
+  {
+    "type": "calc"
+  },
+  {
+    "type": "open",
+    "label": "Home",
+    "target": "~"
+  }
+]

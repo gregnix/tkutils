@@ -32,6 +32,7 @@ package require tkutils::tkumonthcanvas
 ::tkutils::tkumonthcanvas::setTheme default|dark|light
 ::tkutils::tkumonthcanvas::defineTheme name spec
 ::tkutils::tkumonthcanvas::getThemeValue key        ;# e.g. background
+::tkutils::tkumonthcanvas::setFontSize size ?family? ;# set drawing font (default Arial)
 
 # callbacks
 ::tkutils::tkumonthcanvas::setCallback day    cmd   ;# cmd $c date

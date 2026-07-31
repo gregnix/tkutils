@@ -20,7 +20,14 @@
 # Tcl 8.6-
 package require Tcl 8.6-
 package require Tk
-package require tablelist
+# Accept either Tablelist variant: an application may already use tablelist_tile
+# (the themed build), and Tablelist forbids loading both tablelist and
+# tablelist_tile in one process. Both provide the same ::tablelist:: commands
+# this module needs, so use whichever is present; only load the classic one if
+# neither is.
+if {[catch {package present tablelist}] && [catch {package present tablelist_tile}]} {
+    package require tablelist
+}
 
 namespace eval ::tkutils {}
 namespace eval ::tkutils::tkutlfind {

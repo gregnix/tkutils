@@ -73,8 +73,18 @@ proc main {argv} {
 
         set tm [lindex [lsort [glob -nocomplain [file join $tmDir $mod-*.tm]]] end]
         if {$tm eq ""} { incr nNoSrc; puts [format "%-20s %-9s %-6s %-6s %s" $mod both ? ? "(keine Quelle - uebersprungen)"]; continue }
-        set exports [publicNames [readFile $tm] $repo $mod]
-        if {[llength $exports] == 0} { puts [format "%-20s %-9s %-6s %-6s %s" $mod both - - "(keine Exports)"]; continue }
+        set src [readFile $tm]
+        set exports [publicNames $src $repo $mod]
+        if {[llength $exports] == 0} {
+            # an umbrella module (only "package require <repo>::..." + provide)
+            # legitimately has no API of its own -- report, do not flag as a gap
+            if {[regexp "package require +${repo}::" $src]} {
+                puts [format "%-20s %-9s %-6s %-6s %s" $mod both - - "(umbrella - keine eigene API)"]
+            } else {
+                puts [format "%-20s %-9s %-6s %-6s %s" $mod both - - "(keine Exports)"]
+            }
+            continue
+        }
         set docTxt [readFile $md]; set manTxt [readFile $n]
         set missDoc {}; set missMan {}
         foreach e $exports {

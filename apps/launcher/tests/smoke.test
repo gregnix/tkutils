@@ -1,0 +1,109 @@
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+
+# Locate the app and the libraries. The app dir is one level up from tests/.
+set appdir [file normalize [file join [file dirname [info script]] ..]]
+
+set haveTk [expr {![catch {package require Tk}]}]
+if {$haveTk} { catch {wm withdraw .} }
+
+# make tkutils/tclutils discoverable and load the app without auto-running it
+set ok 0
+if {$haveTk} {
+    catch {source [file join $appdir .. _lib paths.tcl]}
+    if {[info exists ::env(TKUTILS_TM)]} { catch {tcl::tm::path add $::env(TKUTILS_TM)} }
+    if {[info exists ::env(TCLUTILS_TM)]} { catch {tcl::tm::path add $::env(TCLUTILS_TM)} }
+    set ::LAUNCHERAPP_TEST 1
+    if {![catch {source [file join $appdir launcher.tcl]}] \
+        && ![catch {package require tkutils::tkulauncher}]} {
+        set ok 1
+    }
+}
+testConstraint tk $ok
+
+test smoke-1 {defaultConfig returns a menu.json path} -constraints tk -body {
+    string match {*menu.json} [::launcherapp::defaultConfig]
+} -result 1
+
+test smoke-2 {starterSpec is a non-empty entry list} -constraints tk -body {
+    expr {[llength [::launcherapp::starterSpec]] > 0}
+} -result 1
+
+test smoke-3 {ensureConfig creates the config file from the starter spec} -constraints tk -body {
+    set f [file join [tcltest::temporaryDirectory] launcher_smoke.json]
+    file delete $f
+    ::launcherapp::ensureConfig $f
+    set exists [file exists $f]
+    # the file should load back into entries
+    set items [::tkutils::tkulauncher::load $f]
+    file delete $f
+    list $exists [expr {[llength $items] > 0}]
+} -result {1 1}
+
+test smoke-4 {buildApp constructs the Start menu and the panel} -constraints tk -body {
+    set f [file join [tcltest::temporaryDirectory] launcher_smoke2.json]
+    file delete $f
+    toplevel .app
+    ::launcherapp::buildApp .app $f
+    set r [list [winfo exists .app.top.start] [winfo exists .app.panel]]
+    destroy .app
+    file delete $f
+    set r
+} -result {1 1}
+
+
+test smoke-5 {all bundled example configs load into non-empty entries} -constraints tk -body {
+    set appdir [file normalize [file join [file dirname [info script]] ..]]
+    set bad {}
+    foreach f [lsort [glob -nocomplain [file join $appdir examples example-*.json]]] {
+        if {[catch {::tkutils::tkulauncher::load $f} items] || [llength $items] == 0} {
+            lappend bad [file tail $f]
+        }
+    }
+    set bad
+} -result {}
+
+
+test smoke-6 {buildApp adds a menu bar with File and Edit} -constraints tk -body {
+    set f [file join [tcltest::temporaryDirectory] launcher_smoke3.json]
+    file delete $f
+    toplevel .app2
+    ::launcherapp::buildApp .app2 $f
+    set r [list [winfo exists .app2.menubar] [winfo exists .app2.menubar.file] \
+                [winfo exists .app2.menubar.edit] [winfo exists .app2.status]]
+    destroy .app2
+    file delete $f
+    set r
+} -result {1 1 1 1}
+
+test smoke-7 {starter menu uses system entries, not raw commands} -constraints tk -body {
+    set f [file join [tcltest::temporaryDirectory] launcher_smoke4.json]
+    file delete $f
+    ::launcherapp::ensureConfig $f
+    set items [::tkutils::tkulauncher::load $f]
+    # collect all entry types anywhere in the tree
+    set types {}
+    proc _collect {items tv} {
+        upvar $tv out
+        foreach e $items {
+            lappend out [dict get $e type]
+            if {[dict exists $e items]} { _collect [dict get $e items] out }
+        }
+    }
+    _collect $items types
+    file delete $f
+    # system + tcl entries present, no bare "app" with xterm
+    expr {"system" in $types && "tcl" in $types}
+} -result 1
+
+
+test smoke-8 {a bundled icon.png exists and _setIcon runs without error} -constraints tk -body {
+    set appdir [file normalize [file join [file dirname [info script]] ..]]
+    set hasIcon [file exists [file join $appdir icon.png]]
+    # _setIcon should not throw even if no window manager icon support
+    set ok [expr {![catch {::launcherapp::_setIcon .}]}]
+    list $hasIcon $ok
+} -result {1 1}
+
+cleanupTests

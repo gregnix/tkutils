@@ -60,4 +60,10 @@ package require tkutils::tkutab 0.1
 # application launcher (menu / list, cross-platform via tuopen)
 package require tkutils::tkulauncher 0.1
 
+# calculator widget
+package require tkutils::tkucalc 0.1
+
+# clickable calendar widget
+package require tkutils::tkucalendar 0.1
+
 package provide tkutils 0.43.0

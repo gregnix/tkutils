@@ -73,7 +73,9 @@ proc ::tkutils::tkupath::_rebuild {path} {
         if {$part eq ""} continue
         incr i
         append acc "/$part"
-        ttk::label $path.sep$i -text "\u203a"   ;# a small ">" separator
+        ttk::label $path.sep$i -text ">"   ;# plain ASCII separator (renders in
+                                           ;# every font / encoding, unlike a
+                                           ;# Unicode chevron)
         pack $path.sep$i -side left -padx 1
         ttk::button $path.seg$i -style Toolbutton -text $part \
             -command [list ::tkutils::tkupath::_go $path $acc]

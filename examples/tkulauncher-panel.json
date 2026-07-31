@@ -1,0 +1,59 @@
+[
+  {
+    "type": "menu",
+    "label": "Important",
+    "items": [
+      {
+        "type": "system",
+        "id": "terminal"
+      },
+      {
+        "type": "system",
+        "id": "filemanager"
+      },
+      {
+        "type": "system",
+        "id": "taskmanager"
+      },
+      {
+        "type": "system",
+        "id": "settings"
+      },
+      {
+        "type": "system",
+        "id": "printers"
+      },
+      {
+        "type": "system",
+        "id": "printjobs"
+      },
+      {
+        "type": "system",
+        "id": "systeminfo"
+      },
+      {
+        "type": "system",
+        "id": "screenshot"
+      }
+    ]
+  },
+  {
+    "type": "separator"
+  },
+  {
+    "type": "calc"
+  },
+  {
+    "type": "calendar"
+  },
+  {
+    "type": "open",
+    "label": "Home",
+    "target": "~"
+  },
+  {
+    "type": "open",
+    "label": "This dir",
+    "target": "."
+  }
+]

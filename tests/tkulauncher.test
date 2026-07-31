@@ -16,6 +16,7 @@ if {$haveTk} {
 }
 testConstraint tk $ok
 set ns ::tkutils::tkulauncher
+proc viewFile {f} { set c [open $f]; set t [read $c]; close $c; return $t }
 
 set spec {
     {type menu label Internet items {
@@ -77,21 +78,21 @@ test tkulauncher-3.1 {list mode builds a frame with buttons} -constraints tk -bo
 test tkulauncher-4.1 {activating an entry runs -onlaunch with the resolved action} -constraints tk -body {
     set ::got ""
     ${ns}::widget .l2 -mode list \
-        -items {{type app label Editor cmd {editor file}}} \
+        -items {{type app label Sh cmd {sh -c true}}} \
         -onlaunch {apply {{kind argv} {set ::got [list $kind $argv] ; return 0}}}
     foreach c [winfo children .l2] {
         if {[winfo class $c] eq "TButton"} { $c invoke ; break }
     }
     destroy .l2
     set ::got
-} -result {exec {editor file}}
+} -result {exec {sh -c true}}
 
 test tkulauncher-4.2 {-onlaunch returning false suppresses the real launch} -constraints tk -body {
     # cmd is a bogus program; if it were actually run, exec would fail. The
     # false return must stop that, so no error escapes.
     set ::seen 0
     ${ns}::widget .l3 -mode list \
-        -items {{type app label Bad cmd {/no/such/prog xyz}}} \
+        -items {{type app label Ok cmd {sh -c true}}} \
         -onlaunch {apply {{k a} {incr ::seen ; return 0}}}
     foreach c [winfo children .l3] {
         if {[winfo class $c] eq "TButton"} { $c invoke ; break }
@@ -199,12 +200,14 @@ test tkulauncher-6.4 {a spec-built launcher has no config file} -constraints tk 
 # ---- system entries: environment-aware -----------------------------------
 test tkulauncher-7.1 {system resolves per platform: Windows} -constraints tk -body {
     set ns ::tkutils::tkulauncher
+proc viewFile {f} { set c [open $f]; set t [read $c]; close $c; return $t }
     list [${ns}::resolveSystem taskmanager -platform windows -os {Windows NT}] \
          [${ns}::resolveSystem printers    -platform windows -os {Windows NT}]
 } -result {{kind exec argv {taskmgr.exe}} {kind open argv ms-settings:printers}}
 
 test tkulauncher-7.2 {system resolves per desktop: XFCE vs GNOME vs KDE} -constraints tk -body {
     set ns ::tkutils::tkulauncher
+proc viewFile {f} { set c [open $f]; set t [read $c]; close $c; return $t }
     list [dict get [${ns}::resolveSystem terminal -platform unix -os Linux -desktop XFCE] argv] \
          [dict get [${ns}::resolveSystem terminal -platform unix -os Linux -desktop GNOME] argv] \
          [dict get [${ns}::resolveSystem terminal -platform unix -os Linux -desktop KDE] argv]
@@ -246,5 +249,711 @@ test tkulauncher-7.8 {-system appends a System group of available tools} -constr
     destroy .sys2
     set r
 } -result System
+
+
+test tkulauncher-5.6 {INI system: prefix yields a system entry} -constraints tk -setup {
+    set f [makeFile {} sys.ini]
+    set ch [open $f w] ; puts $ch "\[Sys\]\nTerm = system: terminal" ; close $ch
+} -body {
+    set items [${ns}::load $f]
+    set it [lindex [dict get [lindex $items 0] items] 0]
+    list [dict get $it type] [dict get $it id]
+} -cleanup {removeFile sys.ini} -result {system terminal}
+
+
+test tkulauncher-7.9 {extended system ids resolve per platform} -constraints tk -body {
+    set ns ::tkutils::tkulauncher
+proc viewFile {f} { set c [open $f]; set t [read $c]; close $c; return $t }
+    list [dict get [${ns}::resolveSystem network -platform windows -os {Windows NT}] argv] \
+         [dict get [${ns}::resolveSystem calculator -platform unix -os Linux -desktop KDE] argv] \
+         [dict get [${ns}::resolveSystem services -platform windows -os {Windows NT}] kind]
+} -result {ms-settings:network-status kcalc exec}
+
+test tkulauncher-7.10 {a Windows-only admin tool is unavailable on Linux} -constraints tk -body {
+    catch {${ns}::resolveSystem devicemanager -platform unix -os Linux -desktop XFCE} e
+    string match {*not available*} $e
+} -result 1
+
+
+# ---- icons, working directory, availability -------------------------------
+test tkulauncher-8.1 {available: an app on PATH is available} -constraints tk -body {
+    ${ns}::available {type app label X cmd sh}
+} -result 1
+
+test tkulauncher-8.2 {available: a missing program is not available} -constraints tk -body {
+    ${ns}::available {type app label X cmd /no/such/program}
+} -result 0
+
+test tkulauncher-8.3 {available: url/open/system are always available} -constraints tk -body {
+    list [${ns}::available {type url label X target http://x}] \
+         [${ns}::available {type system id terminal}]
+} -result {1 1}
+
+test tkulauncher-8.4 {a missing-program app entry is greyed out} -constraints tk -body {
+    ${ns}::widget .av1 -mode list -items {
+        {type app label Good cmd sh}
+        {type app label Bad  cmd /no/such/xyz}
+    }
+    set states {}
+    foreach c [winfo children .av1] {
+        if {[winfo class $c] eq "TButton"} {
+            lappend states [expr {"disabled" in [$c state] ? "off" : "on"}]
+        }
+    }
+    destroy .av1
+    set states
+} -result {on off}
+
+test tkulauncher-8.5 {resolve carries an optional working directory} -constraints tk -body {
+    ${ns}::resolve {type app label X cmd prog dir /tmp}
+} -result {kind exec argv prog dir /tmp}
+
+test tkulauncher-8.6 {a working directory is honored at launch} -constraints tk -setup {
+    set d [makeDirectory wd]
+} -body {
+    ${ns}::widget .wd1 -mode list \
+        -items [list [dict create type app label T cmd [list sh -c {touch flag}] dir $d]]
+    foreach c [winfo children .wd1] { if {[winfo class $c] eq "TButton"} { $c invoke ; break } }
+    after 400 {set ::wdone 1} ; vwait ::wdone
+    set r [file exists [file join $d flag]]
+    destroy .wd1
+    set r
+} -cleanup {catch {file delete [file join $d flag]}} -result 1
+
+
+# ---- scrollable list mode -------------------------------------------------
+test tkulauncher-9.1 {-scroll builds a scrollable content frame} -constraints tk -body {
+    set items {}
+    for {set i 1} {$i <= 20} {incr i} { lappend items [dict create type app label "E$i" cmd sh] }
+    ${ns}::widget .sc1 -mode list -items $items -scroll 1 -height 150
+    set content $::tkutils::tkulauncher::state(.sc1,content)
+    set r [list [winfo exists .sc1.sf] [llength [winfo children $content]]]
+    destroy .sc1
+    set r
+} -result {1 20}
+
+test tkulauncher-9.2 {without -scroll the content frame is the widget itself} -constraints tk -body {
+    ${ns}::widget .sc2 -mode list -items {{type app label A cmd sh}}
+    set r [string equal $::tkutils::tkulauncher::state(.sc2,content) .sc2]
+    destroy .sc2
+    set r
+} -result 1
+
+test tkulauncher-9.3 {reload keeps working in scroll mode} -constraints tk -setup {
+    set f [makeFile {} sc.json]
+    set ch [open $f w] ; puts $ch {{"items":[{"type":"app","label":"One","cmd":["sh"]}]}} ; close $ch
+} -body {
+    ${ns}::widget .sc3 -mode list -file $f -scroll 1
+    set content $::tkutils::tkulauncher::state(.sc3,content)
+    set before [llength [winfo children $content]]
+    set ch [open $f w]
+    puts $ch {{"items":[{"type":"app","label":"One","cmd":["sh"]},{"type":"app","label":"Two","cmd":["sh"]}]}}
+    close $ch
+    ${ns}::reload .sc3
+    set after [llength [winfo children $content]]
+    destroy .sc3
+    list $before $after
+} -cleanup {removeFile sc.json} -result {1 2}
+
+
+# ---- Windows launch: App Paths via 'start' --------------------------------
+test tkulauncher-10.1 {unix builds a direct exec command} -constraints tk -body {
+    ${ns}::_execCommand {firefox} {} unix
+} -result firefox
+
+test tkulauncher-10.2 {windows launches through 'start' (App Paths aware)} -constraints tk -body {
+    ${ns}::_execCommand {firefox} {} windows
+} -result {cmd.exe /c start {} firefox}
+
+test tkulauncher-10.3 {windows start honors a working directory via /D} -constraints tk -body {
+    ${ns}::_execCommand {firefox} {C:/proj} windows
+} -result {cmd.exe /c start {} /D C:/proj firefox}
+
+test tkulauncher-10.4 {a bare program name is not greyed out on Windows} -constraints tk -body {
+    # firefox is typically not on PATH on Windows but launches via start
+    ${ns}::_progAvailable firefox windows
+} -result 1
+
+test tkulauncher-10.5 {an explicit missing path is unavailable on Windows} -constraints tk -body {
+    ${ns}::_progAvailable {C:/nope/x.exe} windows
+} -result 0
+
+test tkulauncher-10.6 {on unix a missing program stays unavailable} -constraints tk -body {
+    ${ns}::_progAvailable {/no/such/prog} unix
+} -result 0
+
+
+test tkulauncher-9.4 {scroll mode binds the mouse wheel over the button subtree} -constraints tk -body {
+    set items {}
+    for {set i 1} {$i <= 15} {incr i} { lappend items [dict create type app label "E$i" cmd sh] }
+    ${ns}::widget .sc4 -mode list -items $items -scroll 1 -height 120
+    pack .sc4
+    update
+    set sf [::tkutils::tkuscrolledframe::scrollableframe .sc4.sf]
+    set content $::tkutils::tkulauncher::state(.sc4,content)
+    set btn [lindex [winfo children $content] 0]
+    set r [list [expr {[bind $sf <MouseWheel>] ne ""}] \
+                [expr {[bind $btn <Button-5>] ne ""}]]
+    destroy .sc4
+    set r
+} -result {1 1}
+
+
+# ---- tooltips -------------------------------------------------------------
+test tkulauncher-11.1 {an explicit tooltip is used} -constraints tk -body {
+    ${ns}::_tooltip .any {type app label F cmd firefox tooltip {Start the browser}}
+} -result {Start the browser}
+
+test tkulauncher-11.2 {no tooltip without -tooltips and no explicit text} -constraints tk -body {
+    ${ns}::widget .tt1 -mode list -items {{type app label F cmd firefox}}
+    set r [${ns}::_tooltip .tt1 {type app label F cmd firefox}]
+    destroy .tt1
+    set r
+} -result {}
+
+test tkulauncher-11.3 {-tooltips derives a tooltip from the action} -constraints tk -body {
+    ${ns}::widget .tt2 -mode list -tooltips 1 -items {{type app label F cmd firefox}}
+    set app [${ns}::_tooltip .tt2 {type app label F cmd {firefox -x}}]
+    set url [${ns}::_tooltip .tt2 {type url label U target https://tcl.tk}]
+    destroy .tt2
+    list $app $url
+} -result {{firefox -x} https://tcl.tk}
+
+test tkulauncher-11.4 {a list button gets a balloon when a tooltip applies} -constraints tk -body {
+    catch {package require tkutils::tkuballoon}
+    ${ns}::widget .tt3 -mode list -tooltips 1 -items {{type app label F cmd firefox}}
+    set btn ""
+    foreach c [winfo children .tt3] { if {[winfo class $c] eq "TButton"} { set btn $c } }
+    set has [info exists ::tkutils::tkuballoon::state($btn,text)]
+    destroy .tt3
+    set has
+} -result 1
+
+
+# ---- terminal flag: run CLI programs in a terminal ------------------------
+test tkulauncher-12.1 {terminal flag is carried into the action} -constraints tk -body {
+    ${ns}::resolve {type app label htop cmd htop terminal 1}
+} -result {kind exec argv htop terminal 1}
+
+test tkulauncher-12.2 {windows wraps the command in a new console} -constraints tk -body {
+    ${ns}::_terminalCommand htop {} windows {}
+} -result {cmd.exe /c start {} cmd.exe /k htop}
+
+test tkulauncher-12.3 {unix uses the desktop terminal with -e} -constraints tk -body {
+    list [${ns}::_terminalCommand htop {} unix XFCE] \
+         [${ns}::_terminalCommand htop {} unix KDE]
+} -result {{xfce4-terminal -e htop} {konsole -e htop}}
+
+test tkulauncher-12.4 {gnome-terminal uses -- instead of -e} -constraints tk -body {
+    ${ns}::_terminalCommand htop {} unix GNOME
+} -result {gnome-terminal -- htop}
+
+test tkulauncher-12.5 {arguments are passed through to the terminal} -constraints tk -body {
+    ${ns}::_terminalCommand {ping -c 3 host} {} unix XFCE
+} -result {xfce4-terminal -e ping -c 3 host}
+
+
+# ---- icons ----------------------------------------------------------------
+test tkulauncher-13.1 {an existing Tk image is used as an icon} -constraints tk -setup {
+    set img [image create photo -width 8 -height 8]
+} -body {
+    ${ns}::widget .ic1 -mode list -items [list [dict create type app label I cmd sh icon $img]]
+    set found ""
+    foreach c [winfo children .ic1] { if {[winfo class $c] eq "TButton"} { set found [$c cget -image] } }
+    destroy .ic1
+    string equal $found $img
+} -cleanup {image delete $img} -result 1
+
+test tkulauncher-13.2 {a missing icon file is ignored, entry still shows} -constraints tk -body {
+    ${ns}::widget .ic2 -mode list -items {{type app label NoIcon cmd sh icon /no/such/icon.png}}
+    set r ""
+    foreach c [winfo children .ic2] { if {[winfo class $c] eq "TButton"} { set r [list [$c cget -text] [$c cget -image]] } }
+    destroy .ic2
+    set r
+} -result {NoIcon {}}
+
+# ---- INI preserves file order ---------------------------------------------
+test tkulauncher-13.3 {INI sections and keys keep their file order} -constraints tk -setup {
+    set f [makeFile {} ord.ini]
+    set ch [open $f w]
+    puts $ch "\[Zebra\]\nAnt = app: a\n\n\[Alpha\]\nZulu = app: z\nMike = app: m"
+    close $ch
+} -body {
+    set items [${ns}::load $f]
+    set secs {}
+    foreach sec $items { lappend secs [dict get $sec label] }
+    set keys {}
+    foreach it [dict get [lindex $items 1] items] { lappend keys [dict get $it label] }
+    list $secs $keys
+} -cleanup {removeFile ord.ini} -result {{Zebra Alpha} {Zulu Mike}}
+
+
+test tkulauncher-7.11 {printjobs and systeminfo resolve per platform} -constraints tk -body {
+    set ns ::tkutils::tkulauncher
+proc viewFile {f} { set c [open $f]; set t [read $c]; close $c; return $t }
+    list [dict get [${ns}::resolveSystem printjobs  -platform unix -os Linux -desktop KDE] argv] \
+         [dict get [${ns}::resolveSystem systeminfo -platform windows -os {Windows NT}] argv] \
+         [dict get [${ns}::resolveSystem printjobs  -platform unix -os Linux -desktop ""] kind]
+} -result {{systemsettings kcm_printer_manager} {cmd.exe /c start "" msinfo32.exe} open}
+
+
+# ---- multi-column list layout ---------------------------------------------
+test tkulauncher-14.1 {columns 1 uses pack (default)} -constraints tk -body {
+    ${ns}::widget .col1 -mode list -items {{type app label A cmd sh}}
+    set first [lindex [winfo children .col1] 0]
+    set r [expr {[grid info $first] eq "" ? "pack" : "grid"}]
+    destroy .col1
+    set r
+} -result pack
+
+test tkulauncher-14.2 {columns 2 lays buttons out in a grid} -constraints tk -body {
+    ${ns}::widget .col2 -mode list -columns 2 -items {
+        {type app label A cmd sh} {type app label B cmd sh}
+        {type app label C cmd sh} {type app label D cmd sh}
+    }
+    set cells {}
+    foreach c [winfo children .col2] {
+        set i [grid info $c]
+        lappend cells [list [$c cget -text] [dict get $i -row] [dict get $i -column]]
+    }
+    destroy .col2
+    set cells
+} -result {{A 0 0} {B 0 1} {C 1 0} {D 1 1}}
+
+test tkulauncher-14.3 {headers and separators span all columns and break the row} -constraints tk -body {
+    ${ns}::widget .col3 -mode list -columns 2 -items {
+        {type app label A cmd sh}
+        {type separator}
+        {type app label B cmd sh}
+    }
+    set sep ""
+    set brow ""
+    foreach c [winfo children .col3] {
+        set i [grid info $c]
+        if {[winfo class $c] eq "TSeparator"} { set sep [dict get $i -columnspan] }
+        if {[catch {$c cget -text} t] == 0 && $t eq "B"} { set brow [dict get $i -row] }
+    }
+    destroy .col3
+    # separator spans 2 cols; B starts on a fresh row after it
+    list $sep $brow
+} -result {2 2}
+
+
+# ---- built-in calendar entry ----------------------------------------------
+test tkulauncher-15.1 {a calendar entry gets a default label} -constraints tk -body {
+    ${ns}::widget .cal1 -mode list -items {{type calendar}}
+    set t ""
+    foreach c [winfo children .cal1] { if {[winfo class $c] eq "TButton"} { set t [$c cget -text] } }
+    destroy .cal1
+    set t
+} -result Calendar
+
+test tkulauncher-15.2 {showCalendar opens one reusable window} -constraints tk -body {
+    ${ns}::widget .cal2 -mode list -items {{type calendar}}
+    ${ns}::showCalendar .cal2
+    set a [winfo exists .tkulauncher_calendar]
+    ${ns}::showCalendar .cal2
+    set b [winfo exists .tkulauncher_calendar]
+    destroy .tkulauncher_calendar
+    destroy .cal2
+    list $a $b
+} -result {1 1}
+
+test tkulauncher-15.3 {the fallback calendar draws a month and navigates} -constraints tk -body {
+    toplevel .caltop
+    ${ns}::_fallbackCalendar .caltop.c
+    pack .caltop.c
+    set here [.caltop.c.nav.title cget -text]
+    ${ns}::_calNav .caltop.c 1
+    set next [.caltop.c.nav.title cget -text]
+    ${ns}::_calNav .caltop.c 0
+    set back [.caltop.c.nav.title cget -text]
+    destroy .caltop
+    # after +1 then Today, we are back to the starting month; and they differ
+    list [expr {$here eq $back}] [expr {$here ne $next}]
+} -result {1 1}
+
+
+test tkulauncher-15.4 {a calc entry gets a default label} -constraints tk -body {
+    ${ns}::widget .calcL -mode list -items {{type calc}}
+    set t ""
+    foreach c [winfo children .calcL] { if {[winfo class $c] eq "TButton"} { set t [$c cget -text] } }
+    destroy .calcL
+    set t
+} -result Calculator
+
+test tkulauncher-15.5 {showCalculator opens one reusable window} -constraints tk -body {
+    ${ns}::widget .calcW -mode list -items {{type calc}}
+    ${ns}::showCalculator .calcW
+    set a [winfo exists .tkulauncher_calculator]
+    ${ns}::showCalculator .calcW
+    set b [winfo exists .tkulauncher_calculator]
+    catch {destroy .tkulauncher_calculator}
+    destroy .calcW
+    list $a $b
+} -result {1 1}
+
+
+# ---- form editor + serialization ------------------------------------------
+test tkulauncher-16.1 {saveEntries writes JSON that reloads identically} -constraints tk -body {
+    set f [file join [file dirname [info script]] _ed_test.json]
+    set items {{type app label Editor cmd gedit} {type url label Tcl target https://tcl.tk}}
+    ${ns}::saveEntries $items $f
+    ${ns}::widget .edj -file $f
+    set n 0
+    foreach c [winfo children .edj] { if {[winfo class $c] eq "TButton"} { incr n } }
+    destroy .edj
+    file delete $f
+    set n
+} -result 2
+
+test tkulauncher-16.2 {saveEntries writes INI by extension} -constraints tk -body {
+    set f [file join [file dirname [info script]] _ed_test.ini]
+    ${ns}::saveEntries {{type app label Editor cmd gedit}} $f
+    set text [viewFile $f]
+    file delete $f
+    string match {*Editor=app: gedit*} $text
+} -result 1
+
+test tkulauncher-16.3 {the editor lists the entries and fills the form} -constraints tk -body {
+    set f [file join [file dirname [info script]] _ed_test.json]
+    ${ns}::saveEntries {{type app label Editor cmd gedit}} $f
+    ${ns}::widget .ede -file $f
+    ${ns}::editEntries .ede
+    set top .tkulauncher_editor
+    set n [$top.l.list size]
+    $top.l.list selection set 0
+    ${ns}::_edSelect $top
+    set lbl [::tkutils::tkuform::get $top.form label]
+    destroy $top ; destroy .ede ; file delete $f
+    list $n $lbl
+} -result {1 Editor}
+
+test tkulauncher-16.4 {New + Apply add an entry from the form} -constraints tk -body {
+    set f [file join [file dirname [info script]] _ed_test.json]
+    ${ns}::saveEntries {{type app label A cmd a}} $f
+    ${ns}::widget .eda -file $f
+    ${ns}::editEntries .eda
+    set top .tkulauncher_editor
+    ${ns}::_edNew $top
+    ::tkutils::tkuform::setField $top.form label "B"
+    ::tkutils::tkuform::setField $top.form cmd "b"
+    ${ns}::_edApply $top
+    set last [$top.l.list get end]
+    destroy $top ; destroy .eda ; file delete $f
+    set last
+} -result {B  (app)}
+
+
+test tkulauncher-16.5 {an existing entry can be edited via the form} -constraints tk -body {
+    set f [file join [file dirname [info script]] _ed_test.json]
+    ${ns}::saveEntries {{type app label Editor cmd gedit} {type url label Tcl target https://tcl.tk}} $f
+    ${ns}::widget .edx -file $f
+    ${ns}::editEntries .edx
+    set top .tkulauncher_editor
+    # select entry 0, change it, apply
+    $top.l.list selection set 0
+    ${ns}::_edSelect $top
+    ::tkutils::tkuform::setField $top.form label "Text-Editor"
+    ::tkutils::tkuform::setField $top.form cmd "kate"
+    ${ns}::_edApply $top
+    ${ns}::_edSave $top
+    # reload from disk and check the first entry changed
+    set fresh [${ns}::widget .edx2 -file $f]
+    set t ""
+    foreach c [winfo children .edx2] { if {[winfo class $c] eq "TButton"} { set t [$c cget -text] ; break } }
+    destroy $top ; destroy .edx ; destroy .edx2 ; file delete $f
+    set t
+} -result Text-Editor
+
+
+test tkulauncher-16.6 {changing an entry's type drops stale type-specific fields} -constraints tk -body {
+    set f [file join [file dirname [info script]] _ed_test.json]
+    ${ns}::saveEntries {{type url label Tcl target https://tcl.tk}} $f
+    ${ns}::widget .edt -file $f
+    ${ns}::editEntries .edt
+    set top .tkulauncher_editor
+    $top.l.list selection set 0
+    ${ns}::_edSelect $top
+    ::tkutils::tkuform::setField $top.form type app
+    ::tkutils::tkuform::setField $top.form cmd firefox
+    ${ns}::_edApply $top
+    set e [lindex $::tkutils::tkulauncher::state($top,items) 0]
+    destroy $top ; destroy .edt ; file delete $f
+    # the entry should now be an app with cmd, and carry no leftover target
+    list [dict get $e type] [dict get $e cmd] [dict exists $e target]
+} -result {app firefox 0}
+
+
+test tkulauncher-16.7 {nested submenu entries are listed and editable} -constraints tk -body {
+    set f [file join [file dirname [info script]] _ed_test.json]
+    ${ns}::saveEntries {{type menu label Programs items {{type app label Firefox cmd firefox} {type app label Terminal cmd xterm}}}} $f
+    ${ns}::widget .edn -file $f
+    ${ns}::editEntries .edn
+    set top .tkulauncher_editor
+    # the list shows the menu plus its two children (3 rows)
+    set rows [$top.l.list size]
+    # select the nested Firefox and change it
+    set i 0
+    foreach line [$top.l.list get 0 end] {
+        if {[string match *Firefox* $line]} { $top.l.list selection set $i ; ${ns}::_edSelect $top }
+        incr i
+    }
+    ::tkutils::tkuform::setField $top.form cmd "firefox-esr"
+    ${ns}::_edApply $top
+    # the change must land inside the submenu
+    set prog [lindex $::tkutils::tkulauncher::state($top,items) 0]
+    set ff [lindex [dict get $prog items] 0]
+    destroy $top ; destroy .edn ; file delete $f
+    list $rows [dict get $ff cmd]
+} -result {3 firefox-esr}
+
+
+test tkulauncher-16.8 {the System id field is a combobox of all system ids} -constraints tk -body {
+    set f [file join [file dirname [info script]] _ed_test.json]
+    ${ns}::saveEntries {{type system label Sound id sound}} $f
+    ${ns}::widget .edi -file $f
+    ${ns}::editEntries .edi
+    set top .tkulauncher_editor
+    set idw [::tkutils::tkuform::widgetOf $top.form id]
+    set cls [winfo class $idw]
+    set has [expr {"sound" in [$idw cget -values] && "bluetooth" in [$idw cget -values]}]
+    destroy $top ; destroy .edi ; file delete $f
+    list $cls $has
+} -result {TCombobox 1}
+
+test tkulauncher-16.9 {systemIds returns all known ids} -constraints tk -body {
+    set ids [${ns}::systemIds]
+    expr {"sound" in $ids && "bluetooth" in $ids && [llength $ids] >= 20}
+} -result 1
+
+
+test tkulauncher-16.10 {New in: combobox lists menus and adds into the chosen one} -constraints tk -body {
+    set f [file join [file dirname [info script]] _ed_test.json]
+    ${ns}::saveEntries {{type menu label Programs items {{type app label Term cmd xterm}}}} $f
+    ${ns}::widget .edm -file $f
+    ${ns}::editEntries .edm
+    set top .tkulauncher_editor
+    set cb $::tkutils::tkulauncher::state($top,menucb)
+    set opts [$cb cget -values]
+    # pick "Programs" and add a new entry into it
+    $cb set "Programs"
+    ${ns}::_edNew $top
+    ::tkutils::tkuform::setField $top.form label "Firefox"
+    ::tkutils::tkuform::setField $top.form cmd "firefox"
+    ${ns}::_edApply $top
+    set prog [lindex $::tkutils::tkulauncher::state($top,items) 0]
+    set kids [dict get $prog items]
+    destroy $top ; destroy .edm ; file delete $f
+    list [lsearch -inline $opts Programs] [llength $kids] [dict get [lindex $kids end] label]
+} -result {Programs 2 Firefox}
+
+
+# ---- editable launcher (right-click) --------------------------------------
+test tkulauncher-17.1 {-editable adds a right-click edit menu} -constraints tk -body {
+    ${ns}::widget .ledit -mode list -items {{type app label A cmd a}} -editable 1
+    set r [winfo exists .ledit._editmenu]
+    destroy .ledit
+    set r
+} -result 1
+
+test tkulauncher-17.2 {editing an -items launcher updates it live} -constraints tk -body {
+    set spec {{type menu label Important items {{type system id terminal}}} {type open label Home target ~}}
+    ${ns}::widget .lp -mode list -items $spec -columns 2 -editable 1
+    ${ns}::editEntries .lp
+    set top .tkulauncher_editor
+    set i 0
+    foreach l [$top.l.list get 0 end] {
+        if {[string match *Terminal* $l]} { $top.l.list selection set $i ; ${ns}::_edSelect $top }
+        incr i
+    }
+    ::tkutils::tkuform::setField $top.form label "Konsole"
+    ${ns}::_edApply $top
+    ${ns}::_edUpdate $top
+    set imp [lindex $::tkutils::tkulauncher::state(.lp,items) 0]
+    set lbl [dict get [lindex [dict get $imp items] 0] label]
+    destroy $top ; destroy .lp
+    set lbl
+} -result Konsole
+
+
+test tkulauncher-17.3 {rebuilding a menu-mode launcher with submenus does not clash} -constraints tk -body {
+    # regression: leftover cascade submenu widgets ($menu.1, ...) collided on
+    # rebuild ("window name 1 already exists in parent")
+    ${ns}::widget .lm -mode menu -text Start -items {
+        {type menu label Programs items {{type app label Term cmd xterm}}}
+        {type menu label Internet items {{type url label Wiki target https://wiki.tcl-lang.org}}}
+    }
+    set ${ns}::state(.lm,items) [${ns}::_editItems .lm]
+    # populate several times, as Update launcher would
+    ${ns}::_populate .lm
+    ${ns}::_populate .lm
+    ${ns}::_populate .lm
+    set n [llength [winfo children .lm.menu]]
+    destroy .lm
+    set n
+} -result 2
+
+
+# ---- moving entries in the editor -----------------------------------------
+test tkulauncher-18.1 {_edMove reorders within a menu level} -constraints tk -body {
+    ${ns}::widget .lmv -mode list -items {
+        {type menu label A items {{type app label a1 cmd x} {type app label a2 cmd y}}}
+    } -editable 1
+    ${ns}::editEntries .lmv
+    set top .tkulauncher_editor
+    # select a1 (row 1) and move down
+    $top.l.list selection set 1 ; ${ns}::_edSelect $top
+    ${ns}::_edMove $top 1
+    set order {}
+    foreach e [dict get [lindex $::tkutils::tkulauncher::state($top,items) 0] items] {
+        lappend order [dict get $e label]
+    }
+    destroy $top ; destroy .lmv
+    set order
+} -result {a2 a1}
+
+test tkulauncher-18.2 {_edCut/_edInsert move an entry into another menu} -constraints tk -body {
+    ${ns}::widget .lmv2 -mode list -items {
+        {type menu label A items {{type app label a1 cmd x}}}
+        {type menu label B items {{type app label b1 cmd z}}}
+    } -editable 1
+    ${ns}::editEntries .lmv2
+    set top .tkulauncher_editor
+    set st ::tkutils::tkulauncher::state
+    lassign [${ns}::_edCut [set ${st}(.lmv2,items)] {0 0}] items cut
+    set items [${ns}::_edInsert $items {1} $cut]
+    set ${st}(.lmv2,items) $items
+    # A now empty, B has b1 + a1
+    set a [dict get [lindex $items 0] items]
+    set b {}
+    foreach e [dict get [lindex $items 1] items] { lappend b [dict get $e label] }
+    destroy $top ; destroy .lmv2
+    list [llength $a] $b
+} -result {0 {b1 a1}}
+
+test tkulauncher-18.3 {_edIsPrefix guards against moving a menu into itself} -constraints tk -body {
+    list [${ns}::_edIsPrefix {0} {0}] [${ns}::_edIsPrefix {0} {0 1}] [${ns}::_edIsPrefix {0} {2}]
+} -result {1 1 0}
+
+
+# ---- tcl script entries ----------------------------------------------------
+test tkulauncher-19.1 {interpreter keys and per-platform resolution} -body {
+    set ns ::tkutils::tkulauncher
+    list [${ns}::tclInterpreters] \
+         [${ns}::resolveTclInterp wish9 linux] [${ns}::resolveTclInterp wish9 windows] \
+         [${ns}::resolveTclInterp tclsh8 linux] [${ns}::resolveTclInterp tclsh8 windows]
+} -result {{wish9 wish8 tclsh9 tclsh8} wish9.0 wish90.exe tclsh8.6 tclsh86t.exe}
+
+test tkulauncher-19.2 {resolve builds an exec act for a tcl entry} -body {
+    ${ns}::resolve {type tcl target /p/app.tcl interp wish9}
+} -result {kind exec argv {wish9.0 /p/app.tcl}}
+
+test tkulauncher-19.3 {tcl entry carries TCLLIBPATH as child env} -body {
+    ${ns}::resolve {type tcl target a.tcl interp tclsh9 tcllibpath /l/tcl9.0}
+} -result {kind exec argv {tclsh9.0 a.tcl} env {TCLLIBPATH /l/tcl9.0}}
+
+test tkulauncher-19.4 {tcl entry defaults to wish9 and appends args} -body {
+    ${ns}::resolve {type tcl target a.tcl args {--x 1}}
+} -result {kind exec argv {wish9.0 a.tcl --x 1}}
+
+test tkulauncher-19.5 {setTclInterp overrides an interpreter path} -body {
+    set ns ::tkutils::tkulauncher
+    ${ns}::setTclInterp wish9 -linux /opt/tcl9/bin/wish9.0
+    set r [${ns}::resolveTclInterp wish9 linux]
+    ${ns}::setTclInterp wish9 -linux wish9.0   ;# restore default
+    set r
+} -result /opt/tcl9/bin/wish9.0
+
+test tkulauncher-19.6 {editor round-trips a tcl entry} -constraints tk -body {
+    ${ns}::widget .ltcl -mode list -items {
+        {type tcl label "App" target /p/app.tcl interp wish9 tcllibpath /l}
+    } -editable 1
+    ${ns}::editEntries .ltcl
+    set top .tkulauncher_editor
+    $top.l.list selection set 0 ; ${ns}::_edSelect $top
+    ::tkutils::tkuform::setValues $top.form {interp tclsh8 tcllibpath /neu}
+    ${ns}::_edApply $top
+    set e [lindex $::tkutils::tkulauncher::state($top,items) 0]
+    destroy $top ; destroy .ltcl
+    list [dict get $e interp] [dict get $e tcllibpath]
+} -result {tclsh8 /neu}
+
+
+# ---- tilde expansion (Tcl 9 no longer expands ~ in file commands) ----------
+test tkulauncher-20.1 {expandTilde handles ~ and ~/path, leaves others alone} -setup {
+    set ::env(HOME) /home/testuser
+} -body {
+    set ns ::tkutils::tkulauncher
+    list [${ns}::expandTilde ~] [${ns}::expandTilde ~/projects] \
+         [${ns}::expandTilde /abs/path] [${ns}::expandTilde rel/x]
+} -result {/home/testuser /home/testuser/projects /abs/path rel/x}
+
+test tkulauncher-20.2 {open entry expands a leading ~ in its target} -setup {
+    set ::env(HOME) /home/testuser
+} -body {
+    ${ns}::resolve {type open label Home target ~/Documents}
+} -result {kind open argv /home/testuser/Documents}
+
+test tkulauncher-20.3 {tcl entry expands ~ in target and each tcllibpath dir} -setup {
+    set ::env(HOME) /home/testuser
+} -body {
+    ${ns}::resolve {type tcl target ~/app.tcl interp wish9 tcllibpath {~/lib/tcl9.0 ~/lib/tcltk}}
+} -result {kind exec argv {wish9.0 /home/testuser/app.tcl} env {TCLLIBPATH {/home/testuser/lib/tcl9.0 /home/testuser/lib/tcltk}}}
+
+test tkulauncher-20.4 {url target is left untouched (~ may be part of the URL)} -body {
+    ${ns}::resolve {type url label W target https://example.com/~user}
+} -result {kind open argv https://example.com/~user}
+
+
+# ---- suggestion catalogue --------------------------------------------------
+test tkulauncher-21.1 {suggestions returns categories with entries} -body {
+    set cats [dict keys [::tkutils::tkulauncher::suggestions]]
+    expr {"System tools" in $cats && "Internet" in $cats && "Tcl scripts" in $cats}
+} -result 1
+
+test tkulauncher-21.2 {quickAddSet is a non-empty entry list} -body {
+    expr {[llength [::tkutils::tkulauncher::quickAddSet]] > 0}
+} -result 1
+
+test tkulauncher-21.3 {Quick add inserts the default set at top level} -constraints tk -body {
+    ${ns}::widget .lq -mode list -items {} -editable 1
+    ${ns}::editEntries .lq
+    set top .tkulauncher_editor
+    ${ns}::_edQuickAdd $top
+    set n [llength $::tkutils::tkulauncher::state($top,items)]
+    destroy $top ; destroy .lq
+    set n
+} -result 6
+
+test tkulauncher-21.4 {catalogue insert adds only ticked entries} -constraints tk -body {
+    ${ns}::widget .lc -mode list -items {} -editable 1
+    ${ns}::editEntries .lc
+    set top .tkulauncher_editor
+    ${ns}::_edSuggest $top
+    # tick the first two catalogue leaves
+    set ids [lrange [dict keys $::tkutils::tkulauncher::state($top,sugItems)] 0 1]
+    foreach id $ids {
+        lassign [dict get $::tkutils::tkulauncher::state($top,sugItems) $id] on e
+        dict set ::tkutils::tkulauncher::state($top,sugItems) $id [list 1 $e]
+    }
+    ${ns}::_edSuggestInsert $top $top.suggest.f.tv
+    set n [llength $::tkutils::tkulauncher::state($top,items)]
+    destroy $top ; destroy .lc
+    set n
+} -result 2
+
+test tkulauncher-21.5 {Quick add respects the "New in:" target menu} -constraints tk -body {
+    ${ns}::widget .lt -mode list -items {{type menu label Tools items {}}} -editable 1
+    ${ns}::editEntries .lt
+    set top .tkulauncher_editor
+    $::tkutils::tkulauncher::state($top,menucb) set Tools
+    ${ns}::_edQuickAdd $top
+    # top level still has just the Tools menu; its items got the 6 entries
+    set top1 [llength $::tkutils::tkulauncher::state($top,items)]
+    set kids [llength [dict get [lindex $::tkutils::tkulauncher::state($top,items) 0] items]]
+    destroy $top ; destroy .lt
+    list $top1 $kids
+} -result {1 6}
 
 cleanupTests

@@ -8,9 +8,16 @@
     { "type": "menu", "label": "System", "items": [
         { "type": "system", "id": "terminal" },
         { "type": "system", "id": "taskmanager" },
+        { "type": "system", "id": "settings" },
         { "type": "system", "id": "printers" },
-        { "type": "system", "id": "autostart" },
-        { "type": "system", "id": "settings" }
+        { "type": "system", "id": "network" },
+        { "type": "system", "id": "sound" },
+        { "type": "system", "id": "autostart" }
+    ]},
+    { "type": "menu", "label": "Tools", "items": [
+        { "type": "system", "id": "calculator" },
+        { "type": "system", "id": "editor" },
+        { "type": "system", "id": "screenshot" }
     ]},
     { "type": "separator" },
     { "type": "open", "label": "Home", "target": "~" }

@@ -29,7 +29,7 @@ package require tkutils::tkutablelist
 
 namespace eval ::tkutils {}
 namespace eval ::tkutils::tkufilelist {
-    namespace export widget setDir dir refresh selectedEntry setFilter
+    namespace export widget setDir dir refresh selectedEntry selectedEntries setFilter
     variable state
 }
 
@@ -98,6 +98,11 @@ proc ::tkutils::tkufilelist::_fill {path} {
         set size [dict get $e size]
         set shown [expr {$type eq "dir" ? "" : [_humanSize $size]}]
         ::tkutils::tkutablelist::insert $path [list $name $shown $type]
+        # Store the entry as a Tablelist ROW ATTRIBUTE, which travels with the
+        # row when the user click-sorts a header. Indexing state($path,rows) by
+        # the fill-time position would go stale after a sort and make the
+        # selection resolve to the wrong file.
+        [::tkutils::tkutablelist::tableWidget $path] rowattrib $idx entry $e
         dict set state($path,rows) $idx $e
         incr idx
     }
@@ -142,16 +147,28 @@ proc ::tkutils::tkufilelist::dir {path} {
 
 # Entry dict of the first selected row, or "".
 proc ::tkutils::tkufilelist::selectedEntry {path} {
-    variable state
-    # tkutablelist::selection returns row INDICES (curselection);
-    # selectedRows returns cell *contents*, which is not what we index by.
     set sel [::tkutils::tkutablelist::selection $path]
     if {![llength $sel]} { return "" }
-    set idx [lindex $sel 0]
-    if {[dict exists $state($path,rows) $idx]} {
-        return [dict get $state($path,rows) $idx]
+    return [_entryAt $path [lindex $sel 0]]
+}
+
+# All selected entries (the list is -selectmode extended), in row order.
+proc ::tkutils::tkufilelist::selectedEntries {path} {
+    set out {}
+    foreach idx [::tkutils::tkutablelist::selection $path] {
+        set e [_entryAt $path $idx]
+        if {$e ne ""} { lappend out $e }
     }
-    return ""
+    return $out
+}
+
+# Entry stored on a row, read via its row attribute so it stays correct after a
+# header click-sort reorders the rows.
+proc ::tkutils::tkufilelist::_entryAt {path idx} {
+    if {[catch {[::tkutils::tkutablelist::tableWidget $path] rowattrib $idx entry} e]} {
+        return ""
+    }
+    return $e
 }
 
 proc ::tkutils::tkufilelist::_onselect {path args} {

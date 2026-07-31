@@ -1,0 +1,42 @@
+[
+  {
+    "type": "menu",
+    "label": "My Tcl Apps",
+    "items": [
+      {
+        "type": "tcl",
+        "label": "app (wish9)",
+        "target": "~/projects/app.tcl",
+        "interp": "wish9",
+        "tcllibpath": "~/lib/tcl9.0 ~/lib/tcltk"
+      },
+      {
+        "type": "tcl",
+        "label": "app (wish8.6)",
+        "target": "~/projects/app.tcl",
+        "interp": "wish8",
+        "tcllibpath": "~/lib/tcl8.6 ~/lib/tcltk"
+      },
+      {
+        "type": "tcl",
+        "label": "tests (tclsh9)",
+        "target": "~/projects/test/all.tcl",
+        "interp": "tclsh9",
+        "terminal": "1"
+      },
+      {
+        "type": "tcl",
+        "label": "tests (tclsh8)",
+        "target": "~/projects/test/all.tcl",
+        "interp": "tclsh8",
+        "terminal": "1"
+      }
+    ]
+  },
+  {
+    "type": "separator"
+  },
+  {
+    "type": "calc"
+  }
+]

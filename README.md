@@ -15,7 +15,7 @@ engines in [`tclutils`](https://github.com/gregnix/tclutils). It is intentionall
 
 ```bash
 # explicit (recommended for tests/CI)
-export TCLUTILS_TM=/path/to/tclutils-0.61.0/lib/tm
+export TCLUTILS_TM=/path/to/tclutils-0.62.0/lib/tm
 export TKUTILS_TM=/path/to/tkutils-0.43.0/lib/tm
 
 # or source the bootstrap (adds both libs, finds the highest version)
@@ -114,7 +114,7 @@ Each `tests/*.test` runs in its own interpreter; `tests/all.tcl` runs the suite.
 several widgets against their engines.
 
 ```bash
-export TCLUTILS_TM=/path/to/tclutils-0.61.0/lib/tm
+export TCLUTILS_TM=/path/to/tclutils-0.62.0/lib/tm
 xvfb-run -a tclsh tests/all.tcl       # GUI tests need a display (Xvfb)
 ```
 
@@ -123,10 +123,10 @@ skip cleanly when those packages are absent.
 
 ## Dependency summary
 
-`tkutils 0.43.0` pairs with `tclutils 0.61.0`. The editing helpers
+`tkutils 0.43.0` pairs with `tclutils 0.62.0`. The editing helpers
 (`tkuini`/`tkuvcard`/`tkuical`/`tkuldif`) and `tkunotes` subtree/tags build on the
 `tclutils` engines, so a current `tclutils` is required alongside. The recommended
-pairing is **tclutils 0.61.0 + tkutils 0.43.0**.
+pairing is **tclutils 0.62.0 + tkutils 0.43.0**.
 
 `tkuwinico` in particular needs **tclutils 0.61.0 or newer**: it builds on
 `tclutils::tuico`, which arrived with that release. An older tclutils on the

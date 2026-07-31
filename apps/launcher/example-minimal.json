@@ -1,0 +1,24 @@
+[
+  {
+    "type": "system",
+    "id": "terminal"
+  },
+  {
+    "type": "system",
+    "id": "filemanager"
+  },
+  {
+    "type": "separator"
+  },
+  {
+    "type": "calc"
+  },
+  {
+    "type": "calendar"
+  },
+  {
+    "type": "open",
+    "label": "Home",
+    "target": "~"
+  }
+]

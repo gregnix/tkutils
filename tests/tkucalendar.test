@@ -1,0 +1,122 @@
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+
+set haveTk [expr {![catch {package require Tk}]}]
+if {$haveTk} { catch {wm withdraw .} }
+
+set ok 0
+if {$haveTk} {
+    set here [file dirname [file normalize [info script]]]
+    catch {tcl::tm::path add [file normalize [file join $here .. lib tm]]}
+    if {[info exists ::env(TKUTILS_TM)]} { catch {tcl::tm::path add $::env(TKUTILS_TM)} }
+    if {![catch {package require tkutils::tkucalendar}]} { set ok 1 }
+}
+testConstraint tk $ok
+set ns ::tkutils::tkucalendar
+
+test tkucalendar-1.1 {an initial -date is selected and its month shown} -constraints tk -body {
+    ${ns}::widget .c1 -date 2026-07-15
+    set r [list [${ns}::getDate .c1] [${ns}::getMonth .c1]]
+    destroy .c1
+    set r
+} -result {2026-07-15 {2026 07}}
+
+test tkucalendar-1.2 {getFormatted honors -dateformat} -constraints tk -body {
+    ${ns}::widget .c2 -date 2026-07-15 -dateformat "%d.%m.%Y"
+    set r [${ns}::getFormatted .c2]
+    destroy .c2
+    set r
+} -result 15.07.2026
+
+test tkucalendar-1.3 {no date selected -> empty getDate/getFormatted} -constraints tk -body {
+    ${ns}::widget .c3
+    set r [list [${ns}::getDate .c3] [${ns}::getFormatted .c3]]
+    destroy .c3
+    set r
+} -result {{} {}}
+
+test tkucalendar-1.4 {clicking a day selects it} -constraints tk -body {
+    ${ns}::widget .c4 -date 2026-07-01
+    ${ns}::_select .c4 2026-07-20
+    set r [${ns}::getDate .c4]
+    destroy .c4
+    set r
+} -result 2026-07-20
+
+test tkucalendar-1.5 {-command is called with the selected ISO date} -constraints tk -body {
+    set ::picked ""
+    ${ns}::widget .c5 -command {apply {{iso} {set ::picked $iso}}}
+    ${ns}::_select .c5 2026-03-14
+    destroy .c5
+    set ::picked
+} -result 2026-03-14
+
+test tkucalendar-1.6 {next/prev move the month, keeping the selection} -constraints tk -body {
+    ${ns}::widget .c6 -date 2026-07-20
+    ${ns}::next .c6
+    set a [list [${ns}::getMonth .c6] [${ns}::getDate .c6]]
+    ${ns}::prev .c6 ; ${ns}::prev .c6
+    set b [${ns}::getMonth .c6]
+    destroy .c6
+    list $a $b
+} -result {{{2026 08} 2026-07-20} {2026 06}}
+
+test tkucalendar-1.7 {month navigation wraps across the year} -constraints tk -body {
+    ${ns}::widget .c7 -date 2026-12-15
+    ${ns}::next .c7
+    set r [${ns}::getMonth .c7]
+    destroy .c7
+    set r
+} -result {2027 01}
+
+test tkucalendar-1.8 {setDate selects and shows that month} -constraints tk -body {
+    ${ns}::widget .c8
+    ${ns}::setDate .c8 2025-02-28
+    set r [list [${ns}::getDate .c8] [${ns}::getMonth .c8]]
+    destroy .c8
+    set r
+} -result {2025-02-28 {2025 02}}
+
+test tkucalendar-2.1 {Monday-first puts Monday in column 0} -constraints tk -body {
+    ${ns}::widget .cm -firstday monday -date 2026-07-01
+    set r [.cm.grid.h0 cget -text]
+    destroy .cm
+    # first header cell is a Monday name (locale-dependent short name)
+    expr {$r eq [clock format [clock scan 2024-01-01] -format %a]}
+} -result 1
+
+test tkucalendar-2.2 {Sunday-first puts Sunday in column 0} -constraints tk -body {
+    ${ns}::widget .cs -firstday sunday -date 2026-07-01
+    set r [.cs.grid.h0 cget -text]
+    destroy .cs
+    expr {$r eq [clock format [clock scan 2024-01-07] -format %a]}
+} -result 1
+
+test tkucalendar-2.3 {a bad -firstday errors} -constraints tk -body {
+    catch {${ns}::widget .cx -firstday sideways} e
+    string match {*must be monday or sunday*} $e
+} -result 1
+
+test tkucalendar-2.4 {the widget is a frame with nav and grid} -constraints tk -body {
+    ${ns}::widget .cw
+    set r [list [winfo class .cw] [winfo exists .cw.nav] [winfo exists .cw.grid]]
+    destroy .cw
+    set r
+} -result {TFrame 1 1}
+
+
+test tkucalendar-1.9 {navigating through months 08/09 (octal-unsafe) works} -constraints tk -body {
+    # 08 and 09 are invalid octal in Tcl 8.6; navigating there must not throw
+    ${ns}::widget .c9 -date 2026-07-15
+    ${ns}::next .c9    ;# August (08)
+    set a [${ns}::getMonth .c9]
+    ${ns}::next .c9    ;# September (09)
+    set b [${ns}::getMonth .c9]
+    ${ns}::setDate .c9 2026-08-31   ;# a day whose month/day are 08/31
+    set c [${ns}::getDate .c9]
+    destroy .c9
+    list $a $b $c
+} -result {{2026 08} {2026 09} 2026-08-31}
+
+cleanupTests

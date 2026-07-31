@@ -12,6 +12,7 @@ package require Tcl 8.6-
 package require Tk 8.6-
 
 namespace eval ::tkurender {
+    namespace export addNode deleteNode deserialize isContainer labelOf newModel nodeGeom nodeLayout nodeName nodeOpt nodeType optspecOf pkgAvail pkgFor renderChildren serialize setGeom setLayout setName setOpt setStretch
     variable D                ;# the design model + ui state
     variable PAL              ;# palette catalogue
     variable selectCmd ""     ;# editor hook: {*}$selectCmd <id> on <Button-1>
