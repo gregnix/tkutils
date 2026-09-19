@@ -71,9 +71,15 @@ proc ::tkutils::tkufiletree::widget {path args} {
     variable state
     array set o {
         -root "" -filter {} -files 1 -showhidden 0
-        -onactivate "" -onselect "" -height 16 -isolatekeys 0
+        -onactivate "" -onselect "" -height 16 -isolatekeys 0 -provider ""
     }
     array set o [::tkutils::tkuopts::merge TKUFILETREE [array get o] $args]
+    # -provider: a tclutils::tuprovider object; the tree then lists and tests
+    # directories through it instead of the local filesystem. The Explorer
+    # always passed -provider, but up to 0.1 it was swallowed and ignored: a
+    # ZIP or WebDAV tab showed the LOCAL filesystem in its tree. With the
+    # option check of 0.2 the call failed instead -- both fixed here.
+    set state($path,prov) $o(-provider)
     if {$o(-root) eq ""} { set o(-root) [pwd] }
 
     # tree shell (frame + treeview + scrollbar) via tkutree
@@ -107,7 +113,9 @@ proc ::tkutils::tkufiletree::widget {path args} {
 proc ::tkutils::tkufiletree::setRoot {path dir} {
     variable state
     variable VOLUMES
-    if {$dir ne $VOLUMES} { set dir [file normalize $dir] }
+    # provider paths are not local paths: file normalize would turn "/x"
+    # into "C:/x" on Windows
+    if {$dir ne $VOLUMES && $state($path,prov) eq ""} { set dir [file normalize $dir] }
     set state($path,root) $dir
     array unset state $path,pop,*
     ::tkutils::tkutree::clear $path
@@ -192,7 +200,7 @@ proc ::tkutils::tkufiletree::reveal {path target} {
     variable VOLUMES
     if {![info exists state($path,root)]} { return 0 }
     set rootd  $state($path,root)
-    set target [file normalize $target]
+    if {$state($path,prov) eq ""} { set target [file normalize $target] }
     set tv     [::tkutils::tkutree::treeview $path]
     if {![_isPop $path $rootd]} { _populate $path $rootd $rootd }
     if {$rootd eq $VOLUMES} {
@@ -277,6 +285,7 @@ proc ::tkutils::tkufiletree::_scan {path dir} {
     variable state
     variable VOLUMES
     if {$dir eq $VOLUMES} { return [_volumeList] }
+    if {$state($path,prov) ne ""} { return [_scanProvider $path $dir] }
     set all [glob -nocomplain -directory $dir -- *]
     if {$state($path,hidden)} {
         catch {lappend all {*}[glob -nocomplain -directory $dir -- .*]}
@@ -298,6 +307,38 @@ proc ::tkutils::tkufiletree::_scan {path dir} {
     return [concat $dirs $files]
 }
 
+# _scanProvider -- like _scan, through the -provider object.
+proc ::tkutils::tkufiletree::_scanProvider {path dir} {
+    variable state
+    set prov $state($path,prov)
+    if {[catch {$prov list $dir} entries]} { return {} }
+    set dirs {}
+    set files {}
+    foreach e $entries {
+        set name [dict get $e name]
+        if {$name eq "." || $name eq ".."} { continue }
+        if {!$state($path,hidden) && [string match ".*" $name]} { continue }
+        if {[dict get $e type] eq "dir"} {
+            lappend dirs [list dir $name [dict get $e path]]
+        } elseif {$state($path,files) && [_matches $path $name]} {
+            lappend files [list file $name [dict get $e path]]
+        }
+    }
+    set dirs  [lsort -index 1 -dictionary $dirs]
+    set files [lsort -index 1 -dictionary $files]
+    return [concat $dirs $files]
+}
+
+# _isDir path p -- is P a directory, locally or through -provider.
+proc ::tkutils::tkufiletree::_isDir {path p} {
+    variable state
+    if {[info exists state($path,prov)] && $state($path,prov) ne ""} {
+        if {[catch {$state($path,prov) stat $p} e]} { return 0 }
+        return [expr {[dict get $e type] eq "dir"}]
+    }
+    return [file isdirectory $p]
+}
+
 # True if $name passes the configured glob filter (empty filter = all).
 proc ::tkutils::tkufiletree::_matches {path name} {
     variable state
@@ -316,7 +357,7 @@ proc ::tkutils::tkufiletree::_expand {path} {
     set id [$tv focus]
     if {$id eq ""} { return }
     if {[info exists state($path,pop,$id)] && $state($path,pop,$id)} { return }
-    if {[file isdirectory $id]} { _populate $path $id $id }
+    if {[_isDir $path $id]} { _populate $path $id $id }
     return
 }
 
@@ -325,7 +366,7 @@ proc ::tkutils::tkufiletree::_expand {path} {
 proc ::tkutils::tkufiletree::_activate {path} {
     variable state
     set id [lindex [::tkutils::tkutree::selection $path] 0]
-    if {$id eq "" || [file isdirectory $id]} { return }
+    if {$id eq "" || [_isDir $path $id]} { return }
     if {$state($path,onact) ne ""} {
         uplevel #0 [linsert $state($path,onact) end $id]
     }

@@ -106,6 +106,22 @@ Before the change every call site in tkutils and ctrlutils (apps, examples,
 `bin/`, other modules, the Explorer, the address book) was checked against
 the options the procs know: 274 calls, none with an unknown option.
 
+### `tkufiletree`: `-provider` (found through the stricter options)
+
+The Explorer always created its tree with `-provider $prov`. `tkufiletree`
+had no such option: up to 0.1 `array set` swallowed it, and a ZIP or WebDAV
+tab showed the **local** filesystem in its tree. With the option check the
+call failed instead, and the Explorer did not start (reported from lxpro,
+2026-09-19). `tkufiletree` 0.2 now takes `-provider` and lists and tests
+directories through it; without it, nothing changes. Provider paths are not
+passed through `file normalize` (that would make "/x" into "C:/x" on
+Windows). New tests with a provider whose paths do not exist locally
+(`tkufiletree-9.*`); with the provider branch disabled they fail.
+
+My check of all call sites before the change had missed this: it cut each
+call at the first "]", and `-provider` came after `-root [_treeRoot $prov]`.
+The claim "274 calls, none with an unknown option" was wrong.
+
 ### `tests/all.tcl` says where the modules come from
 
 Before the tests run, the runner prints which file each library resolves to

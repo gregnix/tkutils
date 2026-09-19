@@ -48,6 +48,11 @@ rebuilds from the root instead.
   (directories are always shown). Empty = all files. Case-insensitive.
 - `-files 0|1` — show files at all (default 1; 0 = directories only).
 - `-showhidden 0|1` — include dot-entries (default 0).
+- `-provider obj` — a `tclutils::tuprovider` object (0.2). Directories are
+  listed and tested through it (`list`, `stat`), so a ZIP or WebDAV tree shows
+  the provider's content. Without it the local filesystem is used. Provider
+  paths are taken as they are (no `file normalize`). Up to 0.1 this option did
+  not exist and was silently ignored, so such trees showed the local disk.
 - `-onactivate cmd` — called with the full path when a file is activated
   (double-click or Return).
 - `-onselect cmd` — called with the full path on selection change.

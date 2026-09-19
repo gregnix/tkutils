@@ -205,4 +205,51 @@ test tkufiletree-3.6 {-isolatekeys drops the toplevel bindtag} -constraints tk -
     list [expr {"." ni $bt}] [expr {"Treeview" in $bt}]
 } -cleanup { ::tcltest::removeDirectory ft } -result {1 1}
 
+# --- 0.2: -provider ---------------------------------------------------------
+# A provider whose paths do not exist on the local disk. If the tree read the
+# filesystem instead (as up to 0.1, where -provider was silently ignored), it
+# would stay empty.
+oo::class create FakeProv {
+    variable tree
+    constructor {} {
+        set tree [dict create \
+            / {{name virtdir path /virtdir type dir} {name top.txt path /top.txt type file}} \
+            /virtdir {{name inner path /virtdir/inner type dir} {name a.txt path /virtdir/a.txt type file}} \
+            /virtdir/inner {}]
+    }
+    method list {p} { return [dict get $tree $p] }
+    method stat {p} {
+        if {[dict exists $tree $p]} { return [list name [file tail $p] path $p type dir] }
+        return [list name [file tail $p] path $p type file]
+    }
+}
+
+test tkufiletree-9.1 {-provider: the tree lists the provider, not the local disk} \
+        -constraints tk -setup {
+    set fp [FakeProv new]
+    ::tkutils::tkufiletree::widget .ftp -root / -provider $fp -files 1
+    update
+} -body {
+    set tv [::tkutils::tkutree::treeview .ftp]
+    set top [lmap id [$tv children [lindex [$tv children {}] 0]] {set id}]
+    list [expr {"/virtdir" in $top}] [expr {"/top.txt" in $top}]
+} -cleanup { destroy .ftp; $fp destroy } -result {1 1}
+
+test tkufiletree-9.2 {-provider: opening a directory populates it through the provider} \
+        -constraints tk -setup {
+    set fp [FakeProv new]
+    ::tkutils::tkufiletree::widget .ftp -root / -provider $fp -files 1
+    update
+} -body {
+    set tv [::tkutils::tkutree::treeview .ftp]
+    $tv focus /virtdir
+    ::tkutils::tkufiletree::_expand .ftp
+    lsort [$tv children /virtdir]
+} -cleanup { destroy .ftp; $fp destroy } -result {/virtdir/a.txt /virtdir/inner}
+
+test tkufiletree-9.3 {an unknown option is still rejected} -constraints tk -body {
+    catch {::tkutils::tkufiletree::widget .ftp -provder x} m o
+    dict get $o -errorcode
+} -cleanup { catch {destroy .ftp} } -result {TKUTILS TKUFILETREE OPTION -provder}
+
 cleanupTests
