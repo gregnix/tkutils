@@ -17,7 +17,8 @@ namespace eval ::srtool {
     array set opt {
         dir {} search {} replace {} pattern {*.tcl *.txt *.md}
         encoding utf-8 case 0 regex 0 recursive 1 multiline 0 allowReplace 0
-        backup 0 filesonly 0
+        backup 1 filesonly 0
+        binary 0
         datefrom {} dateto {}
         editor {}
     }
@@ -27,6 +28,8 @@ namespace eval ::srtool {
     variable itemInfo        ;# tree item -> {file F line L}
     array set itemInfo {}
     variable tbPath ""       ;# toolbar widget path (for enabling replace buttons)
+    variable dirNodes        ;# directory -> tree node, while a search runs
+    array set dirNodes {}
     variable searching 0     ;# a search loop is running
     variable cancel 0        ;# request to abort the running search
 }
@@ -35,33 +38,88 @@ namespace eval ::srtool {
 # Core logic (no Tk)
 # =============================================================================
 
+# Was beim Lesen ueber eine Datei herauskam: BINAER, welches Encoding
+# wirklich benutzt wurde, welche Zeilenenden drin standen.
+#
+# Drei Dinge, die vorher still passierten:
+#
+#   Eine Binaerdatei wurde durchsucht wie Text. Gemessen: eine Datei mit
+#   Nullbytes lieferte einen Treffer -- und "Alle ersetzen" schrieb sie
+#   ueber writeFileEnc zurueck. Das ZERSTOERT sie.
+#
+#   writeFileEnc setzte immer -translation lf. Eine CRLF-Datei kam als
+#   LF zurueck, ohne dass es jemand wollte.
+#
+#   Der Rueckfall auf iso8859-1 beim Lesen war unsichtbar. Geschrieben
+#   wurde danach mit dem GEWAEHLTEN Encoding -- also womoeglich mit
+#   einem anderen als dem gelesenen.
+namespace eval ::srtool {
+    variable lastRead {}
+    variable hinweisText ""
+    variable selPath ""
+    variable ctxTarget ""
+    # Verzeichnisse, die beim rekursiven Sammeln uebersprungen werden.
+    # Punkt-Verzeichnisse und __pycache__ waren es schon; der Rest liegt
+    # in jedem zweiten Projekt und soll nie durchsucht werden. Gemessen
+    # lief node_modules vorher voll mit.
+    variable skipDirs {
+        __pycache__ node_modules build dist target vendor
+        bower_components venv env
+    }
+}
+
+# Ist der Inhalt binaer?
+#
+# Ein Nullbyte entscheidet -- die Faustregel jedes Werkzeugs dieser Art.
+# Kein Ratespiel ueber Zeichenhaeufigkeiten: falsch positiv heisst hier,
+# dass eine Textdatei nicht durchsucht wird; falsch negativ, dass eine
+# Binaerdatei ueberschrieben wird. Das zweite ist der teurere Fehler.
+proc ::srtool::isBinary {content} {
+    expr {[string first "\x00" $content] >= 0}
+}
+
 proc ::srtool::readFileEnc {path enc} {
+    variable lastRead
+    set lastRead [dict create encoding $enc fallback 0 eol lf binary 0]
     set ch ""
+    # -translation lf beim Lesen: Tcl wandelt sonst CRLF still um, und
+    # wir koennten hinterher nicht sagen, was drin stand.
     if {[catch {
         set ch [open $path r]
-        fconfigure $ch -encoding $enc
+        fconfigure $ch -encoding $enc -translation lf
         set d [read $ch]
         close $ch
         set d
     } data]} {
         catch {close $ch}
         set ch [open $path r]
-        fconfigure $ch -encoding iso8859-1
+        fconfigure $ch -encoding iso8859-1 -translation lf
         set data [read $ch]
         close $ch
+        dict set lastRead encoding iso8859-1
+        dict set lastRead fallback 1
     }
+    if {[string first "\r\n" $data] >= 0} {
+        dict set lastRead eol crlf
+        set data [string map [list "\r\n" "\n"] $data]
+    }
+    if {[::srtool::isBinary $data]} { dict set lastRead binary 1 }
     return $data
 }
 
-proc ::srtool::writeFileEnc {path content enc} {
+# Schreiben mit DEM Encoding und DEN Zeilenenden, mit denen gelesen
+# wurde -- nicht mit der Auswahl im Fenster. Eine Datei, die nur ueber
+# den iso8859-1-Rueckfall lesbar war, darf nicht als UTF-8 zurueck.
+proc ::srtool::writeFileEnc {path content enc {eol lf}} {
     set ch [open $path w]
-    fconfigure $ch -encoding $enc -translation lf
+    fconfigure $ch -encoding $enc -translation $eol
     puts -nonewline $ch $content
     close $ch
 }
 
 proc ::srtool::_skipDir {name} {
-    expr {[string index $name 0] eq "." || $name eq "__pycache__"}
+    variable skipDirs
+    expr {[string index $name 0] eq "." || $name in $skipDirs}
 }
 
 proc ::srtool::collectFiles {dir patterns recursive} {
@@ -145,7 +203,14 @@ proc ::srtool::_matchOffsets {content needle opts} {
 
 # Search one file. Returns a list of hit dicts: {line N text preview}.
 proc ::srtool::searchFile {path needle opts} {
+    variable lastRead
     set content [readFileEnc $path [dict get $opts encoding]]
+    # Eine Binaerdatei wird NICHT durchsucht. Sonst steht sie in der
+    # Trefferliste, und "Alle ersetzen" schreibt sie zurueck.
+    if {[dict get $lastRead binary] &&
+        !([dict exists $opts binary] && [dict get $opts binary])} {
+        return {}
+    }
     set ml [expr {[dict get $opts multiline] || [string first "\n" $needle] >= 0}]
     set hits {}
     if {$ml} {
@@ -233,8 +298,16 @@ proc ::srtool::_escapeRe {s} {
 
 # Replace in one file. Returns the number of replacements (0 = file untouched).
 proc ::srtool::replaceInFile {path needle replacement opts} {
+    variable lastRead
     set enc [dict get $opts encoding]
     set content [readFileEnc $path $enc]
+    # Nie in eine Binaerdatei schreiben -- auch nicht, wenn jemand sie
+    # ausdruecklich durchsucht hat. Suchen ist lesend, Ersetzen nicht,
+    # und der Schaden laesst sich nicht zuruecknehmen.
+    if {[dict get $lastRead binary]} { return 0 }
+    # Mit dem Encoding und den Zeilenenden, mit denen gelesen wurde.
+    set enc [dict get $lastRead encoding]
+    set eol [dict get $lastRead eol]
     set ml [expr {[dict get $opts multiline] || [string first "\n" $needle] >= 0}]
     if {[dict get $opts regex]} {
         set flags [_reFlags $opts {-all}]
@@ -251,7 +324,7 @@ proc ::srtool::replaceInFile {path needle replacement opts} {
         if {[dict exists $opts backup] && [dict get $opts backup]} {
             catch { file copy -force -- $path $path.bak }
         }
-        writeFileEnc $path $new $enc
+        writeFileEnc $path $new $enc $eol
     }
     return $count
 }
@@ -262,7 +335,8 @@ proc ::srtool::currentOpts {} {
     return [dict create \
         case $opt(case) regex $opt(regex) recursive $opt(recursive) \
         multiline $opt(multiline) encoding $opt(encoding) backup $opt(backup) \
-        filesonly $opt(filesonly) datefrom $opt(datefrom) dateto $opt(dateto)]
+        filesonly $opt(filesonly) datefrom $opt(datefrom) dateto $opt(dateto) \
+        binary $opt(binary)]
 }
 
 proc ::srtool::countHits {results} {
@@ -350,18 +424,37 @@ proc ::srtool::buildGui {} {
     ttk::entry $p.ed -textvariable ::srtool::opt(editor)
     grid $p.led $p.ed -sticky ew -padx 2 -pady 2
 
+    # Zwei Reihen statt einer. Gemessen brauchten die sieben Schalter
+    # 866 px nebeneinander; Tk schneidet nicht ab, sondern stellt gar
+    # nicht dar, was nicht hineinpasst -- unter etwa 900 px
+    # Fensterbreite waren "Backup" und "Nur Dateinamen" weg.
+    #
+    # Erste Reihe: was die SUCHE bestimmt. Zweite: was beim ERSETZEN
+    # passiert. Die Trennung ist nicht nur Platz: die untere Reihe
+    # schreibt, die obere liest.
     set o [ttk::frame $p.opts]
-    ttk::checkbutton $o.case -text "Gross/Klein" -variable ::srtool::opt(case)
-    ttk::checkbutton $o.regex -text "Regex" -variable ::srtool::opt(regex)
-    ttk::checkbutton $o.rec  -text "Unterverz." -variable ::srtool::opt(recursive)
-    ttk::checkbutton $o.ml   -text "Mehrzeilig" -variable ::srtool::opt(multiline) \
+    set o1 [ttk::frame $o.a]
+    set o2 [ttk::frame $o.b]
+    pack $o1 $o2 -side top -anchor w
+    ttk::checkbutton $o1.case -text "Gross/Klein beachten" \
+        -variable ::srtool::opt(case)
+    ttk::checkbutton $o1.regex -text "Regex" -variable ::srtool::opt(regex)
+    ttk::checkbutton $o1.rec  -text "Unterverz." -variable ::srtool::opt(recursive)
+    ttk::checkbutton $o1.ml   -text "Mehrzeilig" -variable ::srtool::opt(multiline) \
         -command ::srtool::toggleMultiline
-    ttk::checkbutton $o.allow -text "Ersetzen erlauben" \
-        -variable ::srtool::opt(allowReplace) -command ::srtool::updateReplaceButtons
-    ttk::checkbutton $o.bak -text "Backup (.bak)" -variable ::srtool::opt(backup)
-    ttk::checkbutton $o.files -text "Nur Dateinamen" \
+    ttk::checkbutton $o1.files -text "Nur Dateinamen" \
         -variable ::srtool::opt(filesonly) -command ::srtool::updateReplaceButtons
-    pack $o.case $o.regex $o.rec $o.ml $o.allow $o.bak $o.files -side left -padx 6
+    pack $o1.case $o1.regex $o1.rec $o1.ml $o1.files -side left -padx 6
+    ttk::checkbutton $o2.allow -text "Ersetzen erlauben" \
+        -variable ::srtool::opt(allowReplace) -command ::srtool::updateReplaceButtons
+    # Backup ist VORGABE AN. Der Bestaetigungsdialog sagt "kann nicht
+    # rueckgaengig gemacht werden" -- dann soll die Sicherung nicht an
+    # einem Haken haengen, den man vergessen kann. Wer sie nicht will,
+    # macht ihn aus; das ist eine Entscheidung, kein Versehen.
+    ttk::checkbutton $o2.bak -text "Backup (.bak)" -variable ::srtool::opt(backup)
+    ttk::checkbutton $o2.bin -text "Binaerdateien einbeziehen" \
+        -variable ::srtool::opt(binary)
+    pack $o2.allow $o2.bak $o2.bin -side left -padx 6
     grid $o - - -sticky w -pady 2
 
     grid columnconfigure $p 1 -weight 1
@@ -372,19 +465,39 @@ proc ::srtool::buildGui {} {
 
     set left [ttk::frame $pw.left]
     set tv [ttk::treeview $left.tv -columns {line hit} \
-        -yscrollcommand [list $left.ys set]]
+        -yscrollcommand [list $left.ys set] \
+        -xscrollcommand [list $left.xs set]]
     $tv heading #0 -text "Datei/Verzeichnis"
     $tv heading line -text "Zeile"
     $tv heading hit -text "Treffer"
-    $tv column #0 -width 240 -anchor w
-    $tv column line -width 60 -anchor e
-    $tv column hit -width 280 -anchor w
+    # #0 breiter und mit -stretch 0, damit ein langer Pfad nicht auf
+    # Kosten der Trefferspalte gequetscht wird -- der Rollbalken unten
+    # macht ihn erreichbar. Ohne den war ein abgeschnittener Pfad
+    # endgueltig weg: man konnte nicht einmal hinsehen.
+    $tv column #0 -width 340 -minwidth 120 -stretch 0 -anchor w
+    $tv column line -width 60 -minwidth 40 -stretch 0 -anchor e
+    $tv column hit -width 420 -minwidth 100 -stretch 1 -anchor w
     $tv tag configure dir  -foreground "#1a4f8b"
-    $tv tag configure hit  -foreground "#a00000"
+    # Treffer nicht mehr dunkelrot: die Auswahl faerbt den Hintergrund
+    # blau, und Rot auf Blau ist kaum zu lesen. Schwarzer Text, und die
+    # STELLE ist im Vorschaufenster gelb markiert -- dort, wo man
+    # hinsieht.
+    $tv tag configure hit  -foreground "#202020"
     ttk::scrollbar $left.ys -orient vertical -command [list $tv yview]
+    ttk::scrollbar $left.xs -orient horizontal -command [list $tv xview]
     grid $tv $left.ys -sticky nsew
+    grid $left.xs -row 1 -column 0 -sticky ew
     grid rowconfigure $left 0 -weight 1
     grid columnconfigure $left 0 -weight 1
+
+    # Der volle Pfad des ausgewaehlten Knotens, unter dem Baum.
+    #
+    # Der Baum zeigt den Pfad relativ und gekuerzt; wer wissen will, WO
+    # die Datei liegt, soll nicht raten muessen. Eine Zeile, die immer
+    # da ist, ist besser als ein Tooltip, den man erst treffen muss.
+    ttk::label $left.path -textvariable ::srtool::selPath -anchor w \
+        -padding {2 2} -relief sunken
+    grid $left.path -row 2 -column 0 -columnspan 2 -sticky ew
 
     set right [ttk::frame $pw.right]
     text $right.t -wrap none -font TkFixedFont \
@@ -403,29 +516,108 @@ proc ::srtool::buildGui {} {
     $pw add $left
     $pw add $right
 
+    # Eine Zeile fuer das, was uebersprungen oder umgangen wurde.
+    # Sichtbar, aber nicht laut -- sie ist leer, solange nichts zu sagen
+    # ist.
+    ttk::label .hint -textvariable ::srtool::hinweisText -anchor w \
+        -foreground "#a04000" -padding {6 0}
+
     # --- status ---
     set st [::tkutils::tkustatus::widget .st]
+
+    # DIE REIHENFOLGE ZAEHLT. pack verteilt in der Reihenfolge der
+    # Aufrufe: was zuerst gepackt wird, bekommt seinen Platz zuerst, und
+    # was mit -expand 1 gepackt ist, bekommt den Rest.
+    #
+    # .pw stand vorher VOR der Statusleiste und nahm sich den Raum; als
+    # der Parameterblock um zwanzig Pixel wuchs, blieb fuer die
+    # Statusleiste nichts uebrig -- gemessen 1 px hoch statt 21. Eine
+    # Zeile, die es gibt und die niemand sieht, ist dasselbe wie eine
+    # Option, die nichts tut.
+    #
+    # Also: erst die festen Streifen unten, dann die Flaeche, die den
+    # Rest nimmt.
+    pack forget .pw
     pack $st -side bottom -fill x
+    pack .hint -side bottom -fill x
+    pack .pw -side top -fill both -expand 1
     ::tkutils::tkustatus::addField $st files -width 18
+    # Eigenes Feld fuer die Trefferzahl. Vorher stand sie nur im
+    # Haupttext und verschwand hinter einem langen Pfad oder hinter der
+    # flash-Meldung nach dem Ersetzen.
+    ::tkutils::tkustatus::addField $st hit -width 16
     ::tkutils::tkustatus::setText $st "Bereit."
 
-    # context menu
+    # --- Kontextmenue Baum ---
     set m [menu .ctx -tearoff 0]
     $m add command -label "Im eingebauten Editor oeffnen" -command ::srtool::openInBuiltinEditor
     $m add command -label "Im Editor oeffnen (extern)" -command ::srtool::openInEditor
     $m add command -label "Datei oeffnen (extern)" -command ::srtool::openExternal
     $m add command -label "Ordner im Explorer oeffnen" -command ::srtool::openFolder
-    $m add command -label "Pfad kopieren" -command ::srtool::copyPath
+    $m add separator
+    $m add command -label "Vollen Pfad kopieren" -command ::srtool::copyPath
+    $m add command -label "Dateinamen kopieren" -command ::srtool::copyName
+    $m add command -label "Trefferzeile kopieren" -command ::srtool::copyHitLine
+    $m add command -label "Alle Treffer kopieren" -command ::srtool::copyAllHits
     $m add separator
     $m add command -label "Alle aufklappen" -command {::srtool::expandAll 1}
     $m add command -label "Alle zuklappen" -command {::srtool::expandAll 0}
 
+    # --- Kontextmenue Vorschau ---
+    #
+    # Es gab keins. Man sah den Fund und konnte ihn nicht mitnehmen --
+    # bei einem Werkzeug, das zum Finden da ist, die naheliegendste
+    # Handlung.
+    set mv [menu .ctxview -tearoff 0]
+    $mv add command -label "Auswahl kopieren" -accelerator Strg+C \
+        -command {::srtool::copySelection .pw.right.t}
+    $mv add command -label "Zeile kopieren" -command ::srtool::copyPreviewLine
+    $mv add command -label "Alles kopieren" \
+        -command {::srtool::copyAll .pw.right.t}
+    $mv add separator
+    $mv add command -label "Alles markieren" -accelerator Strg+A \
+        -command {.pw.right.t tag add sel 1.0 end}
+
+    # --- Kontextmenue Eingabefelder ---
+    #
+    # Ausschneiden, Kopieren, Einfuegen. Tk kann das ueber die
+    # Standardbindungen, aber ohne Menue findet es nur, wer die
+    # Tastenkuerzel kennt.
+    set me [menu .ctxentry -tearoff 0]
+    $me add command -label "Ausschneiden" -accelerator Strg+X \
+        -command {::srtool::entryEdit cut}
+    $me add command -label "Kopieren" -accelerator Strg+C \
+        -command {::srtool::entryEdit copy}
+    $me add command -label "Einfuegen" -accelerator Strg+V \
+        -command {::srtool::entryEdit paste}
+    $me add separator
+    $me add command -label "Alles markieren" \
+        -command {::srtool::entryEdit selectall}
+
     # bindings
     bind $tv <<TreeviewSelect>> ::srtool::onSelect
     bind $tv <Double-1> ::srtool::openInBuiltinEditor
-    bind $tv <Button-3> {tk_popup .ctx %X %Y}
+    # Rechtsklick WAEHLT den Knoten unter dem Zeiger.
+    #
+    # Vorher tat er das nicht: das Menue wirkte auf das, was VORHER
+    # ausgewaehlt war. Wer auf eine andere Datei rechtsklickte und
+    # "Im Editor oeffnen" waehlte, bekam die alte -- und beim Kopieren
+    # den falschen Pfad in der Zwischenablage, ohne es zu merken.
+    bind $tv <Button-3> {::srtool::treePopup %W %x %y %X %Y}
+    # Alle Eingabefelder, auch die mehrzeiligen. Namen aus dem Aufbau
+    # abgeschrieben und NICHT geraten -- beim ersten Anlauf stand hier
+    # ".params.pattern", und das Feld heisst ".params.pat".
+    foreach __w [list $p.dir $p.search $p.repl $p.pat $p.ed \
+                      $p.searchml $p.replml] {
+        if {[winfo exists $__w]} {
+            bind $__w <Button-3> {::srtool::entryPopup %W %X %Y}
+        }
+    }
+    bind .pw.right.t <Button-3> {::srtool::viewPopup %W %X %Y}
     bind . <Control-f> {focus .params.search ; break}
     bind . <Escape> {::srtool::onEscape}
+    bind . <F3> {::srtool::nextHit 1 ; break}
+    bind . <Shift-F3> {::srtool::nextHit -1 ; break}
     bind $p.search <Return> ::srtool::doSearch
     bind $p.searchml <Control-Return> ::srtool::doSearch
     bind $p.repl <KeyRelease> ::srtool::updateReplaceButtons
@@ -437,6 +629,29 @@ proc ::srtool::buildGui {} {
 proc ::srtool::toggleMultiline {} {
     variable opt
     set p .params
+    # Den INHALT mitnehmen. Vorher tauschte diese Prozedur nur die
+    # Widgets im Gitter: wer einzeilig tippte und dann "Mehrzeilig"
+    # ankreuzte, suchte mit leerem Text -- und umgekehrt suchte er nach
+    # dem alten einzeiligen Text weiter. Ein stiller Verlust der
+    # Eingabe, und das schlimmste daran ist, dass das Feld daneben
+    # gefuellt aussieht.
+    if {$opt(multiline)} {
+        foreach {von nach} [list $p.search $p.searchml $p.repl $p.replml] {
+            set t [$von get]
+            $nach delete 1.0 end
+            if {$t ne ""} { $nach insert end $t }
+        }
+    } else {
+        foreach {von nach} [list $p.searchml $p.search $p.replml $p.repl] {
+            set t [string trimright [$von get 1.0 end] "\n"]
+            # Beim Zurueckschalten geht alles ab der ersten Zeile
+            # verloren -- ein Entry kann nur eine. Das ist unvermeidlich,
+            # aber es soll die ERSTE sein und nicht gar nichts.
+            set t [lindex [split $t "\n"] 0]
+            $nach delete 0 end
+            if {$t ne ""} { $nach insert 0 $t }
+        }
+    }
     if {$opt(multiline)} {
         grid forget $p.search
         grid $p.searchml $p.searchsb -row 1 -column 1 -sticky ew -padx 2 -pady 2
@@ -487,6 +702,8 @@ proc ::srtool::chooseDir {} {
 }
 
 proc ::srtool::clearResults {} {
+    array unset ::srtool::dirNodes
+    array set ::srtool::dirNodes {}
     variable results
     variable cache
     variable itemInfo
@@ -538,6 +755,12 @@ proc ::srtool::doSearch {} {
     _searchSetBusy 1
     set i 0
     set hitsN 0
+    set reFehler 0
+    set reText ""
+    set gezeigt 0
+    set ersterGezeigt 0
+    set fallbacks {}
+    set binaer 0
     foreach f $files {
         incr i
         if {[_dateFileOk $f $bounds]} {
@@ -546,11 +769,49 @@ proc ::srtool::doSearch {} {
                     lappend results [list $f {}]
                 }
             } else {
-                if {[catch {searchFile $f $needle $opts} hits]} { set hits {} }
+                if {[catch {searchFile $f $needle $opts} hits]} {
+                    # Ein ungueltiger regulaerer Ausdruck ergab vorher
+                    # NULL TREFFER ohne ein Wort -- die Suche sah aus,
+                    # als gaebe es nichts zu finden. Beim ersten Mal
+                    # gemeldet und dann abgebrochen: derselbe Fehler
+                    # wiederholt sich in jeder Datei.
+                    if {!$reFehler} {
+                        set reFehler 1
+                        set reText $hits
+                    }
+                    set hits {}
+                }
                 if {[llength $hits]} {
                     lappend results [list $f $hits]
                     incr hitsN [llength $hits]
                 }
+                # Was beim Lesen auffiel, wird GEZAEHLT statt
+                # geschluckt: eine Datei, die nur ueber den
+                # iso8859-1-Rueckfall lesbar war, und eine, die
+                # binaer ist.
+                if {[dict exists $::srtool::lastRead fallback] &&
+                    [dict get $::srtool::lastRead fallback]} {
+                    lappend fallbacks [file tail $f]
+                }
+                if {[dict exists $::srtool::lastRead binary] &&
+                    [dict get $::srtool::lastRead binary]} {
+                    incr binaer
+                }
+            }
+        }
+        # Den Baum WAEHREND der Suche wachsen lassen, nicht erst danach.
+        #
+        # Vorher lief populateTree nach der letzten Datei; bei einem
+        # grossen Baum sah man minutenlang nichts als eine Zahl. Jetzt
+        # wird jede Datei mit Treffern sofort angehaengt -- und der
+        # erste Treffer wird gewaehlt, sobald es einen gibt.
+        if {[llength $results] > $gezeigt} {
+            for {set k $gezeigt} {$k < [llength $results]} {incr k} {
+                ::srtool::addResultNode [lindex $results $k]
+            }
+            set gezeigt [llength $results]
+            if {!$ersterGezeigt} {
+                set ersterGezeigt [::srtool::selectFirstHit]
             }
         }
         # keep the UI responsive and let the Abbrechen button / Escape through
@@ -558,13 +819,19 @@ proc ::srtool::doSearch {} {
             set prog [expr {$names ? "[llength $results] Datei(en)" \
                                     : "$hitsN Treffer"}]
             catch {::tkutils::tkustatus::setText .st "Suche... $i/$total Dateien, $prog"}
+            catch {::tkutils::tkustatus::progress .st $i $total}
             update
             if {$cancel} break
         }
     }
     set searching 0
     _searchSetBusy 0
-    populateTree
+    # Nicht mehr populateTree: der Baum ist waehrend des Laufs gewachsen.
+    # Nur der Rest, den die letzte Runde nicht mehr angehaengt hat.
+    for {set k $gezeigt} {$k < [llength $results]} {incr k} {
+        ::srtool::addResultNode [lindex $results $k]
+    }
+    catch {::tkutils::tkustatus::progress .st 0 0}
     set fn [llength $results]
     set pre [expr {$cancel ? "Abgebrochen -- " : ""}]
     set suf [expr {$cancel ? " ($i/$total durchsucht)" : ""}]
@@ -574,6 +841,26 @@ proc ::srtool::doSearch {} {
         ::tkutils::tkustatus::setText .st "$pre$hitsN Treffer in $fn Datei(en)$suf."
     }
     ::tkutils::tkustatus::setField .st files "$fn Datei(en)"
+    # Der erste Treffer ist schon gewaehlt -- die Schleife oben tut das,
+    # sobald es einen gibt. Hier stand derselbe Aufruf noch einmal, und
+    # die Gegenprobe "ersten Treffer nicht waehlen" blieb deshalb gruen:
+    # sie traf nur eine von zwei Stellen. Zwei Wege fuer dieselbe Sache
+    # sind einer zuviel.
+    # Was uebersprungen oder umgangen wurde, gehoert in die Anzeige --
+    # nicht in ein catch. Eine Suche, die schweigt, sieht aus wie eine
+    # Suche, die nichts gefunden hat.
+    set hinweise {}
+    if {$binaer} { lappend hinweise "$binaer Binaerdatei(en) uebersprungen" }
+    if {[llength $fallbacks]} {
+        lappend hinweise "[llength $fallbacks] Datei(en) nur als iso8859-1\
+                lesbar (z.B. [lindex $fallbacks 0])"
+    }
+    set ::srtool::hinweisText [join $hinweise " -- "]
+    catch {.hint configure -text $::srtool::hinweisText}
+    if {$reFehler} {
+        ::tkutils::tkudialog::showWarning \
+            "Der Suchausdruck ist als regulaerer Ausdruck ungueltig:\n\n$reText"
+    }
     updateReplaceButtons
 }
 
@@ -602,22 +889,141 @@ proc ::srtool::_searchSetBusy {busy} {
 # Escape: abort a running search, otherwise clear the results.
 proc ::srtool::onEscape {} {
     variable searching
-    if {$searching} { cancelSearch } else { clearResults }
+    variable results
+    if {$searching} {
+        cancelSearch
+        return
+    }
+    # Im Ruhezustand loeschte Esc vorher wortlos die Trefferliste. Nach
+    # einer langen Suche ist das ein Datenverlust ohne Nachfrage -- und
+    # Esc ist die Taste, die man drueckt, um einen Dialog wegzubekommen.
+    if {![llength $results]} { return }
+    if {[::tkutils::tkudialog::confirm \
+            "Trefferliste leeren?\n\n[llength $results] Datei(en)."]} {
+        clearResults
+    }
+}
+
+# Alle Trefferknoten in Anzeigereihenfolge -- die Grundlage fuer
+# "erster Treffer" und fuer F3.
+proc ::srtool::hitNodes {} {
+    variable itemInfo
+    set tv .pw.left.tv
+    set out {}
+    foreach d [$tv children {}] {
+        foreach f [$tv children $d] {
+            foreach h [$tv children $f] { lappend out $h }
+            # Im Dateinamen-Modus gibt es keine Trefferzeilen; dann ist
+            # die Datei selbst der Treffer.
+            if {![llength [$tv children $f]]} { lappend out $f }
+        }
+    }
+    return $out
+}
+
+proc ::srtool::selectFirstHit {} {
+    set nodes [::srtool::hitNodes]
+    if {![llength $nodes]} { return 0 }
+    ::srtool::gotoHit [lindex $nodes 0]
+    return 1
+}
+
+proc ::srtool::gotoHit {node} {
+    set tv .pw.left.tv
+    if {$node eq "" || ![$tv exists $node]} { return }
+    $tv selection set $node
+    $tv focus $node
+    $tv see $node
+    ::srtool::onSelect
+    ::srtool::showHitCount
+}
+
+# "Treffer k von N" -- eine Zahl, an der man sieht, wo man ist.
+proc ::srtool::showHitCount {} {
+    set nodes [::srtool::hitNodes]
+    set n [llength $nodes]
+    if {!$n} { return }
+    set sel [lindex [.pw.left.tv selection] 0]
+    set k [lsearch -exact $nodes $sel]
+    if {$k < 0} { return }
+    catch {::tkutils::tkustatus::setField .st hit "Treffer [expr {$k+1}]/$n"}
+}
+
+# Weiter und zurueck. Laeuft um: nach dem letzten kommt der erste. Das
+# ist bei einer Trefferliste die uebliche Erwartung -- wer am Ende
+# stehenbleibt, weiss nicht, ob er fertig ist oder die Taste klemmt.
+proc ::srtool::nextHit {{schritt 1}} {
+    set nodes [::srtool::hitNodes]
+    set n [llength $nodes]
+    if {!$n} { return }
+    set sel [lindex [.pw.left.tv selection] 0]
+    set k [lsearch -exact $nodes $sel]
+    if {$k < 0} { set k [expr {$schritt > 0 ? -1 : 0}] }
+    set k [expr {($k + $schritt + $n) % $n}]
+    ::srtool::gotoHit [lindex $nodes $k]
+}
+
+# Eine Ergebniszeile anhaengen. Herausgeloest aus populateTree, damit
+# sie WAEHREND der Suche gerufen werden kann -- eine Prozedur fuer
+# beides, nicht zwei, die auseinanderlaufen.
+proc ::srtool::addResultNode {pair} {
+    variable itemInfo
+    variable dirNodes
+    set tv .pw.left.tv
+    set wurzel [file normalize $::srtool::opt(dir)]
+    lassign $pair file hits
+    set dir [file dirname $file]
+    if {![info exists dirNodes($dir)]} {
+        set dirNodes($dir) [$tv insert {} end -open 1 -tags dir \
+            -text [::srtool::relPath $dir $wurzel] -values [list "" ""]]
+    }
+    set dn $dirNodes($dir)
+    set lbl [expr {[llength $hits] ? "([llength $hits] Treffer)" : "Datei"}]
+    set fn [$tv insert $dn end -text [file tail $file] -open 1 \
+        -values [list "" $lbl]]
+    set itemInfo($fn) [list file $file line ""]
+    foreach hit $hits {
+        set hn [$tv insert $fn end -tags hit \
+            -text "Zeile [dict get $hit line]" \
+            -values [list [dict get $hit line] [dict get $hit text]]]
+        set itemInfo($hn) [list file $file line [dict get $hit line]]
+    }
+    # Die Trefferzahl am Ordnerknoten mitzaehlen.
+    set bisher 0
+    regexp {^(\d+)} [lindex [$tv item $dn -values] 1] -> bisher
+    set dazu [expr {[llength $hits] ? [llength $hits] : 1}]
+    $tv item $dn -values [list "" "[expr {$bisher + $dazu}] Treffer"]
 }
 
 proc ::srtool::populateTree {} {
     variable results
     variable itemInfo
+    variable dirNodes
     set tv .pw.left.tv
     $tv delete [$tv children {}]
     array unset itemInfo
     array set itemInfo {}
+    array unset dirNodes
+    array set dirNodes {}
+    # Der Pfad RELATIV zur Suchwurzel. Vorher stand dort der absolute,
+    # und ohne Horizontal-Rollbalken war er abgeschnitten -- bei
+    # /home/greg/Project/2026/code/... sah man von der Spalte nichts
+    # ausser dem Anfang, der bei allen Knoten gleich ist.
+    set wurzel [file normalize $::srtool::opt(dir)]
     set dirNodes [dict create]
+    set dirHits [dict create]
+    foreach pair $results {
+        lassign $pair file hits
+        set dir [file dirname $file]
+        dict incr dirHits $dir [expr {[llength $hits] ? [llength $hits] : 1}]
+    }
     foreach pair $results {
         lassign $pair file hits
         set dir [file dirname $file]
         if {![dict exists $dirNodes $dir]} {
-            set dn [$tv insert {} end -text $dir -open 1 -tags dir]
+            set kurz [::srtool::relPath $dir $wurzel]
+            set dn [$tv insert {} end -open 1 -tags dir \
+                -text $kurz -values [list "" "[dict get $dirHits $dir] Treffer"]]
             dict set dirNodes $dir $dn
         }
         set dn [dict get $dirNodes $dir]
@@ -626,11 +1032,28 @@ proc ::srtool::populateTree {} {
             -values [list "" $lbl]]
         set itemInfo($fn) [list file $file line ""]
         foreach hit $hits {
-            set hn [$tv insert $fn end -text "" -tags hit \
+            # Die Spalte #0 war bei Trefferzeilen LEER -- nur Einrueckung.
+            # Jetzt steht die Zeilennummer dort, wo das Auge sie sucht.
+            set hn [$tv insert $fn end -tags hit \
+                -text "Zeile [dict get $hit line]" \
                 -values [list [dict get $hit line] [dict get $hit text]]]
             set itemInfo($hn) [list file $file line [dict get $hit line]]
         }
     }
+}
+
+# Ein Pfad relativ zur Suchwurzel. Liegt er ausserhalb, bleibt er
+# absolut -- ein "../../.." waere unleserlicher als der ganze Pfad.
+proc ::srtool::relPath {pfad wurzel} {
+    set pfad [file normalize $pfad]
+    if {$pfad eq $wurzel} { return "." }
+    set w [file split $wurzel]
+    set p [file split $pfad]
+    if {[llength $p] > [llength $w] &&
+        [lrange $p 0 [expr {[llength $w]-1}]] eq $w} {
+        return [file join {*}[lrange $p [llength $w] end]]
+    }
+    return $pfad
 }
 
 proc ::srtool::onSelect {} {
@@ -641,28 +1064,84 @@ proc ::srtool::onSelect {} {
     if {![info exists itemInfo($item)]} return
     set file [dict get $itemInfo($item) file]
     set line [dict get $itemInfo($item) line]
+    set ::srtool::selPath [expr {$line eq "" ? $file : "$file : $line"}]
     showPreview $file $line
+    ::srtool::showHitCount
+}
+
+# Wieviele Zeilen die Vorschau hoechstens zeigt.
+#
+# Gemessen an einer Datei mit 200000 Zeilen (5 MB): showPreview brauchte
+# 1596 ms und baute 200002 Zeilen ins Widget. Waehrenddessen steht die
+# Anwendung -- und zwar bei JEDEM Klick auf einen Treffer, weil die
+# Vorschau jedes Mal neu aufgebaut wird.
+#
+# Gezeigt wird stattdessen die UMGEBUNG der Trefferzeile. Wer die ganze
+# Datei will, hat den eingebauten Editor im Kontextmenue; die Vorschau
+# ist zum Hinsehen da, nicht zum Lesen.
+namespace eval ::srtool {
+    variable previewMax 2000
+    variable previewAround 400
 }
 
 proc ::srtool::showPreview {file line} {
     variable opt
     variable cache
+    variable previewMax
+    variable previewAround
     if {![info exists cache($file)]} {
         set cache($file) [readFileEnc $file $opt(encoding)]
     }
+    set alle [split $cache($file) "\n"]
+    set gesamt [llength $alle]
+
+    # Welcher Ausschnitt? Ohne Trefferzeile der Anfang, sonst die
+    # Umgebung. Die Zeilennummern bleiben die ECHTEN -- eine Vorschau,
+    # die bei 1 zu zaehlen anfaengt, waehrend der Treffer in Zeile 4711
+    # steht, ist schlimmer als keine.
+    set von 1
+    set bis $gesamt
+    set gekuerzt 0
+    if {$gesamt > $previewMax} {
+        set gekuerzt 1
+        if {$line ne ""} {
+            set mitte [lindex [split $line -] 0]
+            set von [expr {max(1, $mitte - $previewAround)}]
+            set bis [expr {min($gesamt, $mitte + $previewAround)}]
+        } else {
+            set bis $previewMax
+        }
+    }
+
     set t .pw.right.t
     $t configure -state normal
     $t delete 1.0 end
-    set n 0
-    foreach l [split $cache($file) "\n"] {
+    if {$gekuerzt && $von > 1} {
+        $t insert end "   ... Zeilen 1 bis [expr {$von - 1}] nicht gezeigt\n" lineno
+    }
+    set n [expr {$von - 1}]
+    foreach l [lrange $alle [expr {$von - 1}] [expr {$bis - 1}]] {
         incr n
         $t insert end [format "%5d  " $n] lineno
         $t insert end "$l\n"
     }
+    if {$gekuerzt && $bis < $gesamt} {
+        $t insert end "   ... Zeilen [expr {$bis + 1}] bis $gesamt nicht gezeigt\n" lineno
+    }
     $t configure -state disabled
+    if {$gekuerzt} {
+        set ::srtool::hinweisText "Vorschau gekuerzt: Zeilen $von-$bis von\
+                $gesamt -- die ganze Datei im Editor (Kontextmenue)"
+        catch {.hint configure -text $::srtool::hinweisText}
+    }
     if {$line ne ""} {
         set first [lindex [split $line -] 0]
         set last [lindex [split $line -] end]
+        # Die Zeile im WIDGET ist nicht die Zeile in der DATEI, sobald
+        # gekuerzt wurde. Ein Versatz, der genau einmal gerechnet wird.
+        set versatz [expr {$von - 1 - ($gekuerzt && $von > 1 ? 1 : 0)}]
+        set first [expr {$first - $versatz}]
+        set last [expr {$last - $versatz}]
         $t tag add hitline $first.0 [expr {$last + 1}].0
         $t see $first.0
         # mark the matches within the hit line(s) yellow
@@ -844,6 +1323,132 @@ proc ::srtool::resolveEditor {} {
     # locate a known GUI editor via tclutils::tuexe (PATH + platform extensions)
     return [::tclutils::tuexe::find {code gedit kate mousepad geany xed kwrite gvim}]
 }
+
+# --- Kontextmenues: Aufklappen und Kopieren ----------------------------
+
+# Rechtsklick im Baum. Waehlt ZUERST den Knoten unter dem Zeiger, dann
+# klappt das Menue auf -- sonst wirkt es auf die vorherige Auswahl.
+proc ::srtool::treePopup {tv x y X Y} {
+    set item [$tv identify item $x $y]
+    if {$item ne ""} {
+        $tv selection set $item
+        $tv focus $item
+        ::srtool::onSelect
+    }
+    tk_popup .ctx $X $Y
+}
+
+proc ::srtool::viewPopup {w X Y} {
+    tk_popup .ctxview $X $Y
+}
+
+# Fuer die Eingabefelder: das Menue muss wissen, WELCHES Feld gemeint
+# ist. Ein Menue fuer alle, und der Zielpfad in einer Variablen.
+proc ::srtool::entryPopup {w X Y} {
+    set ::srtool::ctxTarget $w
+    focus $w
+    tk_popup .ctxentry $X $Y
+}
+
+proc ::srtool::entryEdit {was} {
+    set w $::srtool::ctxTarget
+    if {$w eq "" || ![winfo exists $w]} { return }
+    set istText [expr {[winfo class $w] eq "Text"}]
+    switch -- $was {
+        cut   { if {$istText} {tk_textCut $w} else {tk_textCut $w} }
+        copy  { if {$istText} {tk_textCopy $w} else {tk_textCopy $w} }
+        paste { if {$istText} {tk_textPaste $w} else {tk_textPaste $w} }
+        selectall {
+            if {$istText} {
+                $w tag add sel 1.0 end
+            } else {
+                $w selection range 0 end
+            }
+        }
+    }
+}
+
+# In die Zwischenablage, und SAGEN, dass es drin ist. Ein Kopieren, das
+# nichts meldet, laesst den Benutzer im Zweifel -- und er drueckt noch
+# einmal.
+proc ::srtool::toClipboard {text {was "kopiert"}} {
+    if {$text eq ""} { return 0 }
+    clipboard clear
+    clipboard append -- $text
+    set n [llength [split $text "\n"]]
+    catch {::tkutils::tkustatus::setText .st \
+        "$was: [expr {$n > 1 ? "$n Zeilen" : "[string length $text] Zeichen"}]"}
+    return 1
+}
+
+proc ::srtool::copyName {} {
+    variable itemInfo
+    set item [lindex [.pw.left.tv selection] 0]
+    if {$item eq "" || ![info exists itemInfo($item)]} { return }
+    ::srtool::toClipboard [file tail [dict get $itemInfo($item) file]] \
+        "Dateiname kopiert"
+}
+
+# Die Trefferzeile, wie sie im Baum steht: Datei, Zeilennummer, Text.
+# Das ist das Format, das man in eine Notiz oder eine Meldung klebt.
+proc ::srtool::copyHitLine {} {
+    variable itemInfo
+    set tv .pw.left.tv
+    set item [lindex [$tv selection] 0]
+    if {$item eq "" || ![info exists itemInfo($item)]} { return }
+    set file [dict get $itemInfo($item) file]
+    set line [dict get $itemInfo($item) line]
+    if {$line eq ""} { return [::srtool::copyPath] }
+    set text [lindex [$tv item $item -values] 1]
+    ::srtool::toClipboard "$file:$line: $text" "Trefferzeile kopiert"
+}
+
+# Alle Treffer als Liste. Dasselbe Format wie eine Zeile, damit man
+# beides ohne Nachdenken zusammenfuegen kann.
+proc ::srtool::copyAllHits {} {
+    variable results
+    set out {}
+    foreach pair $results {
+        lassign $pair file hits
+        if {![llength $hits]} {
+            lappend out $file
+            continue
+        }
+        foreach hit $hits {
+            lappend out "$file:[dict get $hit line]: [dict get $hit text]"
+        }
+    }
+    ::srtool::toClipboard [join $out "\n"] "Trefferliste kopiert"
+}
+
+proc ::srtool::copySelection {w} {
+    if {[catch {$w get sel.first sel.last} t]} {
+        # Ohne Markierung die Zeile, in der die Einfuegemarke steht --
+        # das ist fast immer gemeint und besser als gar nichts.
+        return [::srtool::copyPreviewLine]
+    }
+    ::srtool::toClipboard $t "Auswahl kopiert"
+}
+
+proc ::srtool::copyPreviewLine {} {
+    set w .pw.right.t
+    # Die markierte Trefferzeile, sonst die Zeile unter der Marke.
+    set r [$w tag ranges hitline]
+    if {[llength $r]} {
+        set z [lindex [split [lindex $r 0] .] 0]
+    } else {
+        set z [lindex [split [$w index insert] .] 0]
+    }
+    ::srtool::toClipboard [string trimright [$w get $z.0 $z.end]] \
+        "Zeile kopiert"
+}
+
+proc ::srtool::copyAll {w} {
+    ::srtool::toClipboard [string trimright [$w get 1.0 end] "\n"] \
+        "Vorschau kopiert"
+}
+
+proc ::srtool::treePopup_dummy {} {}
 
 proc ::srtool::copyPath {} {
     set f [_selectedFile]

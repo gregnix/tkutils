@@ -1,0 +1,253 @@
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+
+set here [file dirname [file normalize [info script]]]
+# Das Modell ist ein Paket -- lib/tm daneben in die Modulsuche.
+set ::abmodules [file join $here lib tm]
+if {[file isdirectory $::abmodules]
+        && $::abmodules ni [::tcl::tm::path list]} {
+    ::tcl::tm::path add $::abmodules
+}
+package require adressbuch::model
+
+testConstraint dav [expr {![catch {package require tclutils::tudav}]}]
+
+# WARUM EIN ECHTER SERVER UND KEINE ATTRAPPE.
+#
+# Eine nachgebaute "tudav::get"-Prozedur wuerde genau das messen, was man
+# selbst hineinschreibt. Der Weg vom PROPFIND ueber die
+# Multistatus-Antwort bis zur geholten vCard -- also das, woran es
+# scheitern kann -- bliebe ungeprueft.
+#
+# UND IN EINEM EIGENEN PROZESS: im selben wartet der Klient in seiner
+# Ereignisschleife auf eine Antwort, die der Server erst geben kann,
+# wenn dieselbe Schleife ihn drankommen laesst. Gemessen 12.09.2026:
+# der Aufruf blieb ohne Fehlermeldung stehen.
+# IM HINTERGRUND STARTEN UND AUSDRUECKLICH BEENDEN.
+#
+# "open |... r" und danach "close" waere der naheliegende Weg und
+# haengt: close auf eine Leitung wartet, bis das Kind sich beendet --
+# und der Server laeuft in "vwait forever". Gemessen: der Testlauf lief
+# in die Zeitsperre, ohne eine Zeile auszugeben.
+#
+# Darum: im Hintergrund starten, den Port ueber eine Datei holen, am
+# Ende die Kennung abschiessen.
+proc serverStarten {verz} {
+    global here
+    set skript [file join $here dav-testserver.tcl]
+    set portDatei [file join $verz port.txt]
+    file delete -force $portDatei
+    set pid [exec [info nameofexecutable] $skript $verz > $portDatei &]
+    # Warten, bis der Port dasteht -- hoechstens zwei Sekunden.
+    for {set i 0} {$i < 200} {incr i} {
+        if {[file exists $portDatei] && [file size $portDatei] > 1} break
+        after 10
+    }
+    set fh [open $portDatei r]
+    set port [string trim [gets $fh]]
+    close $fh
+    return [list $pid $port]
+}
+
+proc serverStoppen {pid} {
+    catch {exec kill $pid}
+}
+
+proc vcfAblegen {verz} {
+    file mkdir $verz
+    set a [open [file join $verz 1.vcf] w]
+    fconfigure $a -encoding utf-8 -translation binary
+    puts -nonewline $a "BEGIN:VCARD\r\nFN:Aino Baltrusch\r\nN:Baltrusch;Aino;;;\r\nEMAIL:aino@example.org\r\nTEL;TYPE=cell:00170/22\r\nEND:VCARD\r\n"
+    close $a
+    set b [open [file join $verz 2.vcf] w]
+    fconfigure $b -encoding utf-8 -translation binary
+    puts -nonewline $b "BEGIN:VCARD\r\nFN:Boris Cendrowski\r\nN:Cendrowski;Boris;;;\r\nEMAIL:boris@example.org\r\nEND:VCARD\r\n"
+    close $b
+    # Eine Datei, die KEINE vCard ist -- sie darf nicht eingelesen werden.
+    set c [open [file join $verz nicht.txt] w]
+    puts $c "kein vcard"
+    close $c
+}
+
+test dav-1.1 {vCards ueber CardDAV holen} -constraints dav -body {
+    set verz [makeDirectory dav-vcf]
+    vcfAblegen $verz
+    lassign [serverStarten $verz] pid port
+    set f [makeFile {} dav.db]
+    file delete $f
+    adressbuch::schliessen
+    adressbuch::oeffnen $f
+    set n [adressbuch::davHolen "http://127.0.0.1:$port" -pfad /adressen/]
+    set namen {}
+    foreach id [adressbuch::alle] {
+        lappend namen [dict get [adressbuch::lesen $id] name]
+    }
+    adressbuch::schliessen
+    serverStoppen $pid
+    list $n [lsort $namen]
+} -result {2 {Baltrusch Cendrowski}}
+
+test dav-1.2 {Nicht-vCards werden uebergangen} -constraints dav -body {
+    # Eine Sammlung enthaelt auch anderes. Wer alles herunterlaedt,
+    # bekommt HTML-Seiten als Adressen -- die Datei "nicht.txt" liegt
+    # absichtlich daneben.
+    set verz [makeDirectory dav-vcf2]
+    vcfAblegen $verz
+    lassign [serverStarten $verz] pid port
+    set f [makeFile {} dav2.db]
+    file delete $f
+    adressbuch::schliessen
+    adressbuch::oeffnen $f
+    set n [adressbuch::davHolen "http://127.0.0.1:$port" -pfad /adressen/]
+    adressbuch::schliessen
+    serverStoppen $pid
+    # Drei Dateien liegen da, zwei sind vCards.
+    set n
+} -result 2
+
+test dav-1.3 {die Angaben kommen vollstaendig an} -constraints dav -body {
+    set verz [makeDirectory dav-vcf3]
+    vcfAblegen $verz
+    lassign [serverStarten $verz] pid port
+    set f [makeFile {} dav3.db]
+    file delete $f
+    adressbuch::schliessen
+    adressbuch::oeffnen $f
+    adressbuch::davHolen "http://127.0.0.1:$port" -pfad /adressen/
+    set d ""
+    foreach id [adressbuch::alle] {
+        set x [adressbuch::lesen $id]
+        if {[dict get $x name] eq "Baltrusch"} { set d $x }
+    }
+    adressbuch::schliessen
+    serverStoppen $pid
+    list [dict get $d vorname] [dict get $d email] [dict get $d mobil]
+} -result {Aino aino@example.org 00170/22}
+
+test dav-2.1 {ein nicht erreichbarer Server meldet einen Fehler} \
+        -constraints dav -body {
+    # Und laesst die vorhandenen Daten in Ruhe.
+    set f [makeFile {} dav4.db]
+    file delete $f
+    adressbuch::schliessen
+    adressbuch::oeffnen $f
+    adressbuch::schreiben "" {vorname A name B}
+    # Port 1 ist nicht belegt.
+    set rc [catch {adressbuch::davHolen "http://127.0.0.1:1" -pfad /x/} e]
+    set n [llength [adressbuch::alle]]
+    adressbuch::schliessen
+    list $rc $n
+} -result {1 1}
+
+test dav-4.1 {zweimal holen verdoppelt nicht} -constraints dav -body {
+    # DAS IST DER UNTERSCHIED zwischen Holen und Abgleichen. Gemessen
+    # 12.09.2026 vor der Behebung: aus 2 Datensaetzen wurden beim
+    # zweiten Lauf 4.
+    #
+    # Erkannt wird an der vCard-UID, nicht am Namen: zwei Menschen
+    # koennen gleich heissen, eine UID gibt es einmal.
+    set verz [makeDirectory dav-sync]
+    vcfAblegen $verz
+    lassign [serverStarten $verz] pid port
+    set f [makeFile {} sync.db]
+    file delete $f
+    adressbuch::schliessen
+    adressbuch::oeffnen $f
+    set a [adressbuch::davHolen "http://127.0.0.1:$port" -pfad /adressen/]
+    set n1 [llength [adressbuch::alle]]
+    set b [adressbuch::davHolen "http://127.0.0.1:$port" -pfad /adressen/]
+    set n2 [llength [adressbuch::alle]]
+    adressbuch::schliessen
+    serverStoppen $pid
+    list $a $n1 $b $n2
+} -result {2 2 2 2}
+
+test dav-4.2 {die UID wird gespeichert} -constraints dav -body {
+    set verz [makeDirectory dav-uid]
+    vcfAblegen $verz
+    lassign [serverStarten $verz] pid port
+    set f [makeFile {} uid.db]
+    file delete $f
+    adressbuch::schliessen
+    adressbuch::oeffnen $f
+    adressbuch::davHolen "http://127.0.0.1:$port" -pfad /adressen/
+    set uids {}
+    foreach id [adressbuch::alle] { lappend uids [adressbuch::uidVon $id] }
+    adressbuch::schliessen
+    serverStoppen $pid
+    # Beide Karten tragen eine, und sie sind verschieden.
+    list [llength $uids] [expr {[lindex $uids 0] ne ""}] \
+         [expr {[lindex $uids 0] ne [lindex $uids 1]}]
+} -result {2 1 1}
+
+test dav-4.3 {voreingestellt wird nichts geloescht} -constraints dav -body {
+    # Ein Abgleich, der ungefragt loescht, ist gefaehrlich: ein halb
+    # geantworteter Server oder ein falscher Pfad wuerde das ganze
+    # Adressbuch leeren.
+    set verz [makeDirectory dav-keep]
+    vcfAblegen $verz
+    lassign [serverStarten $verz] pid port
+    set f [makeFile {} keep.db]
+    file delete $f
+    adressbuch::schliessen
+    adressbuch::oeffnen $f
+    # Ein eigener Datensatz, den der Server nicht kennt.
+    adressbuch::schreiben "" {vorname Eigen name Eintrag}
+    adressbuch::davHolen "http://127.0.0.1:$port" -pfad /adressen/
+    set n [llength [adressbuch::alle]]
+    adressbuch::schliessen
+    serverStoppen $pid
+    # Zwei vom Server plus der eigene.
+    set n
+} -result 3
+
+test dav-4.4 {die Schema-Fassung traegt die UID-Spalte} -body {
+    set f [makeFile {} schema.db]
+    file delete $f
+    adressbuch::schliessen
+    adressbuch::oeffnen $f
+    set v [adressbuch::schemaFassung]
+    adressbuch::schliessen
+    set v
+} -result 2
+
+# --- gegen einen ECHTEN Radicale --------------------------------------------
+#
+# Der Tcl-Nachbau oben spricht so viel CardDAV, wie davHolen braucht --
+# aber eben nur so viel. Ob es mit einem RICHTIGEN Server geht, sagt nur
+# ein richtiger Server. Gemessen 12.09.2026 mit Radicale 3.8.0: geht.
+#
+# DER TEST STARTET DEN SERVER NICHT SELBST. Ein "exec sh start.sh"
+# wartet auf alle Kindprozesse -- auch auf den Server, der absichtlich
+# weiterlaeuft. Der Lauf blieb dabei stehen.
+#
+# Also von Hand aufsetzen und den Port nennen:
+#
+#     sh radicale-testserver.sh /tmp/rad 5232
+#     ADRESSBUCH_RADICALE=5232 tclsh adressbuch-dav.test
+#
+# Ohne die Variable wird uebersprungen -- eine fehlende Voraussetzung
+# ist kein Fehlschlag.
+
+testConstraint radicale [expr {
+    [info exists ::env(ADRESSBUCH_RADICALE)]
+    && $::env(ADRESSBUCH_RADICALE) ne ""}]
+
+test dav-3.1 {vCards aus einem echten Radicale} -constraints {dav radicale} -body {
+    set port $::env(ADRESSBUCH_RADICALE)
+    set f [makeFile {} rad.db]
+    file delete $f
+    adressbuch::schliessen
+    adressbuch::oeffnen $f
+    set n [adressbuch::davHolen "http://127.0.0.1:$port" \
+            -pfad /greg/adressen/ -user greg -password geheim]
+    set namen {}
+    foreach id [adressbuch::alle] {
+        lappend namen [dict get [adressbuch::lesen $id] name]
+    }
+    adressbuch::schliessen
+    list $n [lsort $namen]
+} -result {2 {Baltrusch Cendrowski}}
+
+::tcltest::cleanupTests

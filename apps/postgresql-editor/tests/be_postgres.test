@@ -16,7 +16,13 @@ namespace import ::tcltest::*
 
 set here [file dirname [file normalize [info script]]]
 namespace eval ::sqledit {}
-source [file join $here be-postgres.tcl]
+# Die Backend-Datei liegt eine Ebene HOEHER, nicht in tests/.
+# $here ist immer das Verzeichnis dieses Skripts -- der Test konnte so
+# nie laufen, egal von wo man ihn aufrief. Dieselbe Zeile steht seit
+# jeher im tdbc-Test daneben.
+set edir $here
+if {![file exists [file join $edir be-postgres.tcl]]} { set edir [file dirname $here] }
+source [file join $edir be-postgres.tcl]
 set be ::sqledit::be
 
 # --- try to connect; set the pgdb constraint accordingly --------------------

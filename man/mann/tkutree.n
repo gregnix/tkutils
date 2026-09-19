@@ -1,4 +1,4 @@
-.TH tkutree n 0.1 tkutils
+.TH tkutree n 0.2 tkutils
 .SH tkutils::tkutree
 .PP
 A thin \fBttk::treeview\fR wrapper for hierarchical data: build a tree (optional data columns and a scrollbar), insert nodes, load a nested structure in one call, and read selection / text / values back.

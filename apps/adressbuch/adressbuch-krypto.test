@@ -1,0 +1,428 @@
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+
+set here [file dirname [file normalize [info script]]]
+# Das Modell ist ein Paket -- lib/tm daneben in die Modulsuche.
+set ::abmodules [file join $here lib tm]
+if {[file isdirectory $::abmodules]
+        && $::abmodules ni [::tcl::tm::path list]} {
+    ::tcl::tm::path add $::abmodules
+}
+package require adressbuch::model
+
+# Nur wenn der Bau wirklich verschluesseln kann -- GEMESSEN, nicht am
+# Befehl erkannt.
+testConstraint krypto [adressbuch::kannVerschluesseln]
+
+# Verschluesseln ist im Modell abgeschaltet (::adressbuch::kryptoEin 0,
+# Stand 2026-09-19). Tests, die VERSCHLUESSELN oder ein Kennwort AENDERN,
+# laufen nur, wenn jemand diese Zeile im Code auf 1 setzt. Tests, die eine
+# schon verschluesselte Datei OEFFNEN, ERKENNEN oder ENTSCHLUESSELN, laufen
+# immer -- das muss auch mit abgeschalteter Funktion gehen.
+testConstraint kryptoEin [adressbuch::kryptoEin]
+testConstraint kryptoAus [expr {![adressbuch::kryptoEin]}]
+
+# verschluesselteDatei pfad kennwort ?datensatz? -- legt eine verschluesselte
+# Datei als Ausgangsmaterial an. Dafuer wird die Funktion NUR hier und nur
+# fuer diesen Aufbau eingeschaltet und danach -- auch nach einem Fehler --
+# wieder auf den Stand im Code gesetzt.
+proc verschluesselteDatei {f kennwort {satz {vorname A name B}}} {
+    set vorher $::adressbuch::kryptoEin
+    set ::adressbuch::kryptoEin 1
+    try {
+        file delete $f
+        adressbuch::schliessen
+        adressbuch::oeffnen $f $kennwort
+        adressbuch::schreiben "" $satz
+        adressbuch::schliessen
+    } finally {
+        set ::adressbuch::kryptoEin $vorher
+    }
+}
+
+test krypto-1.1 {ohne Kennwort bleibt alles wie bisher} -body {
+    # Verschluesselung ist eine Moeglichkeit, keine Pflicht: wer kein
+    # Kennwort gibt, bekommt eine gewoehnliche Datei.
+    set f [makeFile {} klar.db]
+    file delete $f
+    adressbuch::schliessen
+    adressbuch::oeffnen $f
+    adressbuch::schreiben "" {vorname Anna name Bergfeld}
+    adressbuch::schliessen
+    set fh [open $f rb] ; set b [read $fh] ; close $fh
+    string match "SQLite format 3*" $b
+} -result 1
+
+test krypto-2.1 {mit Kennwort steht kein Klartext in der Datei} \
+        -constraints {krypto kryptoEin} -body {
+    set f [makeFile {} krypt.db]
+    file delete $f
+    adressbuch::schliessen
+    adressbuch::oeffnen $f geheim
+    adressbuch::schreiben "" {vorname Anna name Bergfeld ort Ortoben}
+    adressbuch::schliessen
+    set fh [open $f rb] ; set b [read $fh] ; close $fh
+    # Weder der Name noch der uebliche Dateikopf.
+    list [string match *Bergfeld* $b] [string match "SQLite format 3*" $b]
+} -result {0 0}
+
+test krypto-2.2 {mit demselben Kennwort wieder lesbar} -constraints krypto -body {
+    set f [makeFile {} krypt2.db]
+    verschluesselteDatei $f geheim {vorname Anna name Bergfeld ort Ortoben}
+    adressbuch::oeffnen $f geheim
+    set n [dict get [adressbuch::lesen 1] name]
+    adressbuch::schliessen
+    set n
+} -result Bergfeld
+
+test krypto-2.3 {falsches Kennwort wird beim OEFFNEN gemeldet} \
+        -constraints krypto -body {
+    # Nicht erst beim ersten Lesen -- dort saehe es aus wie eine kaputte
+    # Datei, und man suchte am falschen Ende.
+    set f [makeFile {} krypt3.db]
+    verschluesselteDatei $f richtig
+    set rc [catch {adressbuch::oeffnen $f falsch} e]
+    adressbuch::schliessen
+    list $rc [string match "Falsches Kennwort*" $e]
+} -result {1 1}
+
+test krypto-2.4 {ein Apostroph im Kennwort bricht nichts} -constraints {krypto kryptoEin} -body {
+    # PRAGMA nimmt keine gebundenen Werte, das Kennwort muss eingesetzt
+    # werden -- und dabei sind Anfuehrungszeichen zu verdoppeln.
+    set f [makeFile {} krypt4.db]
+    file delete $f
+    set kw "geheim'mit'apostroph"
+    adressbuch::schliessen
+    adressbuch::oeffnen $f $kw
+    adressbuch::schreiben "" {vorname A name Bergfeld}
+    adressbuch::schliessen
+    adressbuch::oeffnen $f $kw
+    set n [dict get [adressbuch::lesen 1] name]
+    adressbuch::schliessen
+    set n
+} -result Bergfeld
+
+test krypto-3.1 {ohne faehigen Bau wird ein Kennwort ABGELEHNT} \
+        -constraints !krypto -body {
+    # NICHT stillschweigend unverschluesselt weitermachen. Wer ein
+    # Kennwort angibt, erwartet Schutz; eine ungeschuetzte Datei, die
+    # man fuer geschuetzt haelt, ist schlimmer als eine offen als
+    # ungeschuetzt bekannte.
+    set f [makeFile {} nok.db]
+    file delete $f
+    adressbuch::schliessen
+    set rc [catch {adressbuch::oeffnen $f geheim} e]
+    adressbuch::schliessen
+    list $rc [string match "*kann nicht verschluesseln*" $e]
+} -result {1 1}
+
+test krypto-4.1 {"rekey" der gewoehnlichen Anbindung luegt} -constraints !krypto -body {
+    # GEMESSEN 12.09.2026: der Unterbefehl existiert, meldet Erfolg --
+    # und verschluesselt nichts. Wer sich darauf verlaesst, haelt eine
+    # offene Datei fuer geschuetzt. Dieser Test haelt den Befund fest.
+    set f [makeFile {} rekey.db]
+    file delete $f
+    sqlite3 probe $f
+    set rc [catch {probe rekey geheim}]
+    probe eval {CREATE TABLE t(a TEXT)}
+    probe eval {INSERT INTO t VALUES('KLARTEXTPROBE')}
+    probe close
+    set fh [open $f rb] ; set b [read $fh] ; close $fh
+    # rekey meldet Erfolg (rc 0) UND der Klartext steht drin.
+    list $rc [string match *KLARTEXTPROBE* $b]
+} -result {0 1}
+
+test krypto-5.1 {die dist-Pfade passen zu Plattform und Tcl-Fassung} -body {
+    # Eine .so passt nur zu EINER Tcl-Fassung und EINEM Betriebssystem.
+    # Gemessen: gegen Tcl 8.6 gebaut, laedt sie unter 9.0 nicht -- sie
+    # uebersetzt sauber und scheitert erst beim Laden.
+    set pfade [adressbuch::_mcPfade]
+    set fassung [join [lrange [split [info tclversion] .] 0 1] .]
+    set treffer 0
+    foreach p $pfade {
+        if {[string match "*tcl$fassung*" $p]} { incr treffer }
+    }
+    # Alle Kandidaten tragen die eigene Fassung im Pfad, und es sind
+    # mehrere (dist daneben und eine Ebene hoeher).
+    list [expr {$treffer == [llength $pfade]}] [expr {[llength $pfade] >= 2}]
+} -result {1 1}
+
+test krypto-5.2 {die Endung richtet sich nach dem Betriebssystem} -body {
+    set p [lindex [adressbuch::_mcPfade] 0]
+    switch -- $::tcl_platform(platform) {
+        windows { set erwartet .dll }
+        default {
+            set erwartet [expr {$::tcl_platform(os) eq "Darwin" ? ".dylib" : ".so"}]
+        }
+    }
+    string match "*$erwartet" $p
+} -result 1
+
+test krypto-5.3 {ein ausdruecklich genannter Pfad, den es nicht gibt, ist ein Fehler} -body {
+    # Wer ADRESSBUCH_SQLITE3MC setzt, will DIESE Bibliothek. Still auf
+    # die gewoehnliche zurueckzufallen hiesse, ihm eine
+    # unverschluesselte Datei unterzuschieben.
+    set alt [expr {[info exists ::env(ADRESSBUCH_SQLITE3MC)]
+                   ? $::env(ADRESSBUCH_SQLITE3MC) : ""}]
+    set ::env(ADRESSBUCH_SQLITE3MC) /gibt/es/nicht.so
+    set rc [catch {adressbuch::_mcLaden} e]
+    if {$alt eq ""} { unset ::env(ADRESSBUCH_SQLITE3MC) } else {
+        set ::env(ADRESSBUCH_SQLITE3MC) $alt
+    }
+    set rc
+} -result 1
+
+test krypto-6.1 {mcEinrichten kopiert ins Datenverzeichnis} -constraints krypto -body {
+    # EINMAL EINRICHTEN STATT JEDESMAL SETZEN. Ein gemerkter Pfad zeigt
+    # irgendwann ins Leere -- Quellbaum aufgeraeumt, Verzeichnis
+    # umbenannt -- und der Fehler faellt erst auf, wenn man ein Kennwort
+    # eingibt.
+    set alt [expr {[info exists ::env(XDG_DATA_HOME)]
+                   ? $::env(XDG_DATA_HOME) : ""}]
+    set ::env(XDG_DATA_HOME) [makeDirectory mc-heim]
+    set quelle $::adressbuch::mcDatei
+    if {$quelle eq ""} { return "keine Quelle" }
+    set ziel [adressbuch::mcEinrichten $quelle]
+    set da [file exists $ziel]
+    set imHeim [string match "$::env(XDG_DATA_HOME)*" $ziel]
+    if {$alt eq ""} { unset ::env(XDG_DATA_HOME) } else {
+        set ::env(XDG_DATA_HOME) $alt
+    }
+    list $da $imHeim
+} -result {1 1}
+
+test krypto-6.2 {eine untaugliche Datei wird NICHT einsortiert} -body {
+    # Sonst verschiebt man den Fehler nur: sie laege am richtigen Platz
+    # und scheiterte beim naechsten Start.
+    set f [makeFile "kein gueltiges Objekt" nichts.so]
+    set rc [catch {adressbuch::mcEinrichten $f} e]
+    removeFile nichts.so
+    list $rc [string match "*laedt nicht*" $e]
+} -result {1 1}
+
+test krypto-6.3 {eine fehlende Datei wird gemeldet} -body {
+    set rc [catch {adressbuch::mcEinrichten /gibt/es/nicht.so} e]
+    list $rc [string match "nicht lesbar*" $e]
+} -result {1 1}
+
+test krypto-7.1 {der Zustand wird am DATEIKOPF erkannt, nicht am Vorhaben} -body {
+    # Wer eine alte unverschluesselte Datei mit Kennwort oeffnet,
+    # bekaeme sonst "ja" angezeigt -- und die Datei waere offen.
+    # Eine unverschluesselte SQLite-Datei beginnt mit "SQLite format 3".
+    set f [makeFile {} zustand.db]
+    file delete $f
+    adressbuch::schliessen
+    adressbuch::oeffnen $f
+    adressbuch::schreiben "" {vorname A name B}
+    set offen [adressbuch::istVerschluesselt]
+    adressbuch::schliessen
+    set offen
+} -result 0
+
+test krypto-7.2 {verschluesselt wird als verschluesselt erkannt} \
+        -constraints krypto -body {
+    set f [makeFile {} zustand2.db]
+    verschluesselteDatei $f geheim
+    adressbuch::oeffnen $f geheim
+    set v [adressbuch::istVerschluesselt]
+    adressbuch::schliessen
+    set v
+} -result 1
+
+test krypto-7.3 {ohne Datei ist der Zustand leer, nicht "nein"} -body {
+    # "nein" waere eine Aussage ueber eine Datei, die es nicht gibt.
+    adressbuch::schliessen
+    adressbuch::istVerschluesselt /gibt/es/nicht.db
+} -result {}
+
+test krypto-7.4 {auskunft nennt Tcl, SQLite und den Zustand} -body {
+    set f [makeFile {} auskunft.db]
+    file delete $f
+    adressbuch::schliessen
+    adressbuch::oeffnen $f
+    adressbuch::schreiben "" {vorname A name B}
+    set a [adressbuch::auskunft]
+    adressbuch::schliessen
+    list [dict exists $a tcl] [dict exists $a sqlite] \
+         [dict get $a eintraege] [dict get $a verschluesselt] \
+         [dict get $a schema]
+} -result {1 1 1 0 2}
+
+test krypto-8.1 {eine vorhandene offene Datei verschluesseln} -constraints {krypto kryptoEin} -body {
+    # DER WEG, DER GEFEHLT HAT. Wer schon ein Adressbuch hat, kann es
+    # nicht einfach mit Kennwort oeffnen -- das scheitert. Es muss
+    # umgeschrieben werden.
+    set f [makeFile {} um1.db]
+    file delete $f
+    adressbuch::schliessen
+    adressbuch::oeffnen $f
+    adressbuch::schreiben "" {vorname Anna name Bergfeld ort Ortoben}
+    set vorher [adressbuch::istVerschluesselt]
+    set kopie [adressbuch::verschluesseln geheim]
+    set nachher [adressbuch::istVerschluesselt]
+    adressbuch::schliessen
+    adressbuch::oeffnen $f geheim
+    set n [dict get [adressbuch::lesen 1] name]
+    adressbuch::schliessen
+    list $vorher $nachher $n [file exists $kopie]
+} -result {0 1 Bergfeld 1}
+
+test krypto-8.2 {die Sicherung enthaelt den Stand VOR dem Umschreiben} \
+        -constraints {krypto kryptoEin} -body {
+    # Ein Abbruch mitten im Umschreiben liesse sonst eine Datei zurueck,
+    # die weder mit altem noch mit neuem Schluessel zu oeffnen ist.
+    set f [makeFile {} um2.db]
+    file delete $f
+    adressbuch::schliessen
+    adressbuch::oeffnen $f
+    adressbuch::schreiben "" {vorname Anna name Bergfeld}
+    set kopie [adressbuch::verschluesseln geheim]
+    adressbuch::schliessen
+    # Die Sicherung ist noch offen lesbar.
+    adressbuch::oeffnen $kopie
+    set n [dict get [adressbuch::lesen 1] name]
+    set offen [adressbuch::istVerschluesselt]
+    adressbuch::schliessen
+    list $n $offen
+} -result {Bergfeld 0}
+
+test krypto-8.3 {das Kennwort laesst sich aendern} -constraints {krypto kryptoEin} -body {
+    set f [makeFile {} um3.db]
+    file delete $f
+    adressbuch::schliessen
+    adressbuch::oeffnen $f alt
+    adressbuch::schreiben "" {vorname A name B}
+    adressbuch::verschluesseln neu
+    adressbuch::schliessen
+    set mitAlt [catch {adressbuch::oeffnen $f alt}]
+    adressbuch::schliessen
+    adressbuch::oeffnen $f neu
+    set mitNeu [llength [adressbuch::alle]]
+    adressbuch::schliessen
+    list $mitAlt $mitNeu
+} -result {1 1}
+
+test krypto-8.4 {ein leeres Kennwort entschluesselt} -constraints krypto -body {
+    # Der Rueckweg muss es geben: wer die Datei weitergeben oder mit
+    # einem anderen Werkzeug oeffnen will, braucht sie offen.
+    set f [makeFile {} um4.db]
+    verschluesselteDatei $f geheim
+    adressbuch::oeffnen $f geheim
+    adressbuch::verschluesseln ""
+    set zustand [adressbuch::istVerschluesselt]
+    adressbuch::schliessen
+    adressbuch::oeffnen $f
+    set n [llength [adressbuch::alle]]
+    adressbuch::schliessen
+    list $zustand $n
+} -result {0 1}
+
+test krypto-8.5 {ohne offene Datei geht es nicht} -body {
+    adressbuch::schliessen
+    set rc [catch {adressbuch::verschluesseln x} e]
+    list $rc [string match "keine Datei*" $e]
+} -result {1 1}
+
+test krypto-9.1 {die Bibliothek laesst sich als Paket laden} -body {
+    # Fuer Anwendungen, die nicht das ganze Adressbuch wollen:
+    #     lappend auto_path /pfad/dist/linux/tcl9.0
+    #     package require sqlite3mc
+    #
+    # In einem EIGENEN Interpreter: im laufenden ist sie schon geladen,
+    # und "package require" wuerde nichts beweisen.
+    set fassung [join [lrange [split [info tclversion] .] 0 1] .]
+    set verz [file join [file dirname [file normalize [info script]]] \
+            dist linux tcl$fassung]
+    if {![file readable [file join $verz pkgIndex.tcl]]} {
+        return "kein pkgIndex"
+    }
+    set i [interp create]
+    set rc [catch {
+        $i eval [list lappend auto_path $verz]
+        $i eval {package require sqlite3mc}
+    } v]
+    interp delete $i
+    list $rc [expr {$v ne ""}]
+} -result {0 1}
+
+test krypto-9.2 {der Paketname ist NICHT sqlite3} -body {
+    # Sonst entschiede die Reihenfolge im Suchpfad, welche Fassung
+    # kommt -- die verschluesselnde oder die gewoehnliche. Die eine kann
+    # "PRAGMA key", die andere nicht.
+    set fassung [join [lrange [split [info tclversion] .] 0 1] .]
+    set idx [file join [file dirname [file normalize [info script]]] \
+            dist linux tcl$fassung pkgIndex.tcl]
+    if {![file readable $idx]} { return "kein pkgIndex" }
+    set fh [open $idx r] ; set t [read $fh] ; close $fh
+    list [string match "*package ifneeded sqlite3mc*" $t] \
+         [string match "*package ifneeded sqlite3 *" $t]
+} -result {1 0}
+
+test krypto-9.3 {der erzeugte Index enthaelt echte Variablen} -body {
+    # Ein ungeschuetzter Heredoc frass die Dollarzeichen: aus "$dir"
+    # wurde nichts, und der Index lud nie. "package require" meldete
+    # dann nur "can't find package" -- gemessen 12.09.2026.
+    set fassung [join [lrange [split [info tclversion] .] 0 1] .]
+    set idx [file join [file dirname [file normalize [info script]]] \
+            dist linux tcl$fassung pkgIndex.tcl]
+    if {![file readable $idx]} { return "kein pkgIndex" }
+    set fh [open $idx r] ; set t [read $fh] ; close $fh
+    list [string match {*file join $dir *} $t] \
+         [string match {*load $f Sqlite3*} $t]
+} -result {1 1}
+
+# --- Verschluesseln abgeschaltet (::adressbuch::kryptoEin 0) ---------------
+
+test aus-1.1 {abgeschaltet: verschluesseln mit Kennwort wird abgelehnt, die Datei bleibt offen} \
+        -constraints kryptoAus -body {
+    set f [makeFile {} aus1.db]
+    file delete $f
+    adressbuch::schliessen
+    adressbuch::oeffnen $f
+    adressbuch::schreiben "" {vorname Anna name KLARTEXTAUS}
+    set rc [catch {adressbuch::verschluesseln geheim} e o]
+    adressbuch::schliessen
+    set fh [open $f rb] ; set b [read $fh] ; close $fh
+    list $rc [dict get $o -errorcode] [string match "SQLite format 3*" $b] \
+         [llength [glob -nocomplain $f.*.vor-verschluesselung]]
+} -result {1 {ADRESSBUCH KRYPTO_AUS} 1 0}
+
+test aus-1.2 {abgeschaltet: eine NEUE Datei mit Kennwort wird nicht angelegt} \
+        -constraints kryptoAus -body {
+    set f [makeFile {} aus2.db]
+    file delete $f
+    adressbuch::schliessen
+    set rc [catch {adressbuch::oeffnen $f geheim} e o]
+    list $rc [dict get $o -errorcode] [file exists $f]
+} -result {1 {ADRESSBUCH KRYPTO_AUS} 0}
+
+test aus-1.3 {abgeschaltet: das Kennwort einer verschluesselten Datei laesst sich nicht aendern} \
+        -constraints {krypto kryptoAus} -body {
+    set f [makeFile {} aus3.db]
+    verschluesselteDatei $f alt
+    adressbuch::oeffnen $f alt
+    set rc [catch {adressbuch::verschluesseln neu} e o]
+    adressbuch::schliessen
+    # mit dem alten Kennwort weiterhin lesbar
+    adressbuch::oeffnen $f alt
+    set n [llength [adressbuch::alle]]
+    adressbuch::schliessen
+    list $rc [dict get $o -errorcode] $n
+} -result {1 {ADRESSBUCH KRYPTO_AUS} 1}
+
+test aus-1.4 {abgeschaltet: die Meldung sagt, wo man einschaltet} \
+        -constraints kryptoAus -body {
+    set f [makeFile {} aus4.db]
+    file delete $f
+    adressbuch::schliessen
+    catch {adressbuch::oeffnen $f geheim} e
+    string match "*kryptoEin*model-0.1.tm*" $e
+} -result 1
+
+test aus-1.5 {auskunft nennt den Schalter} -body {
+    adressbuch::schliessen
+    dict get [adressbuch::auskunft] kryptoEin
+} -result [adressbuch::kryptoEin]
+
+::tcltest::cleanupTests

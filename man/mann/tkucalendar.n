@@ -1,0 +1,42 @@
+.TH tkucalendar n 0.2 tkutils
+.SH tkutils::tkucalendar
+.PP
+A clickable month calendar widget: a month grid with previous/next/today navigation and click\-to\-select day cells \-\- a dependency\-free replacement for \fBwidget::calendar\fR. The reference month and the selected day are tracked as ISO dates; the display uses the system locale (or a given \fB\-locale\fR) for month and weekday names. Pure Tk + \fBclock\fR; nothing external. Tk 8.6+ and 9.x.
+.SS API
+.CS
+::tkutils::tkucalendar::widget       path ?options?
+::tkutils::tkucalendar::getDate      path   ;# selected ISO date, or ""
+::tkutils::tkucalendar::getFormatted path   ;# selected date via -dateformat, or ""
+::tkutils::tkucalendar::setDate      path iso
+::tkutils::tkucalendar::today        path
+::tkutils::tkucalendar::next         path   ;# move one month forward
+::tkutils::tkucalendar::prev         path   ;# move one month back
+::tkutils::tkucalendar::getMonth     path   ;# "yyyy mm" of the displayed month
+.CE
+.SS Options
+.IP \(bu
+\fB\-date\fR iso \-\- initially selected day (ISO \fByyyy\-mm\-dd\fR); default: none.
+.IP \(bu
+\fB\-firstday\fR \-\- first column: \fBmonday\fR (default) or \fBsunday\fR.
+.IP \(bu
+\fB\-dateformat\fR fmt \-\- clock format used by \fBgetFormatted\fR (default \fB%Y\-%m\-%d\fR).
+.IP \(bu
+\fB\-locale\fR name \-\- locale for month/weekday names (default: current).
+.IP \(bu
+\fB\-command\fR script \-\- appended the selected ISO date on each selection.
+.SS Example
+.CS
+package require tkutils::tkucalendar
+
+::tkutils::tkucalendar::widget .cal -date 2026-07-15 -dateformat "%d.%m.%Y" \
+    -command {apply {{iso} {puts "picked $iso"}}}
+pack .cal
+
+::tkutils::tkucalendar::getDate .cal        ;# -> 2026-07-15
+::tkutils::tkucalendar::getFormatted .cal   ;# -> 15.07.2026
+.CE
+.PP
+Clicking a day selects it (highlighted); today is emphasized. Navigation keeps the current selection. Internally everything is ISO; \fB\-dateformat\fR and \fB\-locale\fR only affect what is shown, so date handling stays version\- and locale\-safe.
+.SS "See also"
+.PP
+\fBtkudateentry\fR, \fBtkucal\fR, \fBtkucalc\fR

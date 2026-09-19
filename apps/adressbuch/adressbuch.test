@@ -1,0 +1,357 @@
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+
+set here [file dirname [file normalize [info script]]]
+# Das Modell ist ein Paket -- lib/tm daneben in die Modulsuche.
+set ::abmodules [file join $here lib tm]
+if {[file isdirectory $::abmodules]
+        && $::abmodules ni [::tcl::tm::path list]} {
+    ::tcl::tm::path add $::abmodules
+}
+package require adressbuch::model
+
+# Die Sicherungen der Tests wieder wegraeumen.
+#
+# Sonst bleibt nach jedem Lauf eine ".sicherung" im Verzeichnis liegen --
+# dieselbe Unsitte, die bei den pdf4tcl-Demos dreizehn Dateien in den
+# Baum gespuelt hat.
+proc aufraeumenSicherungen {} {
+    foreach f [glob -nocomplain -directory [::tcltest::configure -tmpdir] \
+            *.sicherung] {
+        file delete -force $f
+    }
+    foreach f [glob -nocomplain -directory \
+            [file dirname [file normalize [info script]]] *.sicherung] {
+        file delete -force $f
+    }
+}
+
+proc frisch {} {
+    adressbuch::schliessen
+    set f [makeFile {} ab-test.db]
+    file delete $f
+    adressbuch::oeffnen $f
+    return $f
+}
+
+test ab-1.1 {anlegen, lesen, aendern} -body {
+    frisch
+    set id [adressbuch::schreiben "" {vorname Anna name Bergfeld ort Ortoben}]
+    set a [dict get [adressbuch::lesen $id] ort]
+    adressbuch::schreiben $id {vorname Anna name Bergfeld ort Ortunten}
+    list $a [dict get [adressbuch::lesen $id] ort] [llength [adressbuch::alle]]
+} -result {Ortoben Ortunten 1}
+
+test ab-1.2 {die Suche geht ueber ALLE Felder} -body {
+    # Wer eine Nummer im Kopf hat, sucht danach -- nicht nach dem Namen.
+    frisch
+    adressbuch::schreiben "" {vorname Anna name Bergfeld ort Ortoben mobil 0171/2222}
+    adressbuch::schreiben "" {vorname Bernd name Clemens ort Ortzwei}
+    list [llength [adressbuch::alle 0171]] \
+         [llength [adressbuch::alle ortzwei]] \
+         [llength [adressbuch::alle nichtsda]]
+} -result {1 1 0}
+
+test ab-2.1 {CSV wird ueber die Kopfzeile gelesen, nicht ueber Spaltennummern} -body {
+    # Wer eine Spalte einfuegt, verschiebt sonst alles dahinter -- und es
+    # faellt erst auf, wenn Telefonnummern im Ortsfeld stehen.
+    frisch
+    set f [makeFile "Name,Ort,Vorname\nBerg,Ortoben,Anna\n" ab-kopf.csv]
+    adressbuch::csvLesen $f
+    set d [adressbuch::lesen 1]
+    removeFile ab-kopf.csv
+    list [dict get $d vorname] [dict get $d name] [dict get $d ort]
+} -result {Anna Berg Ortoben}
+
+test ab-2.2 {unbekannte Spalten gehen nicht verloren} -body {
+    # Was in der Datei stand, soll nicht stillschweigend weg sein.
+    # Unbekanntes sammelt sich in "notiz".
+    frisch
+    set f [makeFile "Vorname,Name,KL,Abitur\nAnna,Berg,eb,1985\n" ab-extra.csv]
+    adressbuch::csvLesen $f
+    set n [dict get [adressbuch::lesen 1] notiz]
+    removeFile ab-extra.csv
+    # Der Spaltenname steht so da, wie er in der Datei stand -- nicht
+    # kleingeschrieben. Wer die Notiz liest, soll die Spalte
+    # wiedererkennen.
+    list [string match -nocase *kl:*eb* $n] \
+         [string match -nocase *abitur:*1985* $n]
+} -result {1 1}
+
+test ab-3.1 {vCard-Rundlauf haelt die Angaben} -body {
+    frisch
+    adressbuch::schreiben "" {vorname Clara name Dorn plz 48145 ort Ortvier
+                              telefon 0251/999 mobil 0160/5 email c@x.de}
+    set v [makeFile {} ab.vcf]
+    adressbuch::vcardSchreiben $v
+    set f2 [makeFile {} ab2.db]
+    adressbuch::schliessen
+    file delete $f2
+    adressbuch::oeffnen $f2
+    adressbuch::vcardLesen $v
+    set d [adressbuch::lesen 1]
+    removeFile ab.vcf
+    list [dict get $d vorname] [dict get $d name] [dict get $d plz] \
+         [dict get $d ort] [dict get $d telefon] [dict get $d mobil] \
+         [dict get $d email]
+} -result {Clara Dorn 48145 Ortvier 0251/999 0160/5 c@x.de}
+
+test ab-3.2 {vCard trennt Festnetz und Mobil ueber TYPE} -body {
+    # TEL;TYPE=cell ist mobil, TEL;TYPE=voice ist Festnetz. Ohne diese
+    # Unterscheidung landet beides im selben Feld.
+    frisch
+    adressbuch::schreiben "" {vorname A name B telefon 111 mobil 222}
+    set v [makeFile {} ab3.vcf]
+    adressbuch::vcardSchreiben $v
+    set ch [open $v r] ; set t [read $ch] ; close $ch
+    removeFile ab3.vcf
+    list [string match {*TYPE=voice:111*} $t] [string match {*TYPE=cell:222*} $t]
+} -result {1 1}
+
+test ab-3.3 {die Hausnummer wandert in die Strasse -- Eigenschaft von vCard} -body {
+    # vCard ADR kennt kein eigenes Feld fuer die Hausnummer; sie gehoert
+    # in die Strassenangabe. Beim Rundlauf ist die Trennung also weg.
+    # Das steht hier, damit es niemand fuer einen Fehler haelt.
+    frisch
+    adressbuch::schreiben "" {vorname A name B strasse Ringstr nummer 7a ort X}
+    set v [makeFile {} ab4.vcf]
+    adressbuch::vcardSchreiben $v
+    set f2 [makeFile {} ab4.db]
+    adressbuch::schliessen
+    file delete $f2
+    adressbuch::oeffnen $f2
+    adressbuch::vcardLesen $v
+    set d [adressbuch::lesen 1]
+    removeFile ab4.vcf
+    list [dict get $d strasse] [dict get $d nummer]
+} -result {{Ringstr 7a} {}}
+
+test ab-4.1 {CSV-Ausgabe laesst sich wieder einlesen} -body {
+    frisch
+    adressbuch::schreiben "" {vorname Anna name {Bergfeld, Klein} ort Ortoben
+                              notiz "Zeile eins"}
+    set c [makeFile {} ab-raus.csv]
+    adressbuch::csvSchreiben $c
+    set f2 [makeFile {} ab5.db]
+    adressbuch::schliessen
+    file delete $f2
+    adressbuch::oeffnen $f2
+    set n [adressbuch::csvLesen $c]
+    set d [adressbuch::lesen 1]
+    removeFile ab-raus.csv
+    # Ein Komma im Namen muss den Rundlauf ueberstehen.
+    list $n [dict get $d name] [dict get $d ort]
+} -result {1 {Bergfeld, Klein} Ortoben}
+
+test ab-5.1 {die Datei traegt ihre Schema-Fassung} -body {
+    # Ohne sie weiss eine spaetere Fassung nicht, ob die Datei schon eine
+    # neue Spalte hat -- und "ALTER TABLE ADD COLUMN" ein zweites Mal ist
+    # ein Fehler. Nachtraeglich einzufuehren heisst raten.
+    # serie-tablelist-datenbank/12-schema
+    # Fassung 2 seit dem 12.09.2026: die UID-Spalte fuer den
+    # CardDAV-Abgleich kam hinzu. Genau dafuer ist user_version da --
+    # eine Datei aus Fassung 1 bekommt die Spalte beim Oeffnen
+    # nachtraeglich.
+    frisch
+    adressbuch::schemaFassung
+} -result 2
+
+test ab-5.2 {ein zweites Oeffnen aendert die Fassung nicht} -body {
+    frisch
+    set a [adressbuch::schemaFassung]
+    set f [makeFile {} ab-wieder.db]
+    adressbuch::schliessen
+    adressbuch::oeffnen $f
+    adressbuch::schliessen
+    adressbuch::oeffnen $f
+    set b [adressbuch::schemaFassung]
+    list $a $b
+} -result {2 2}
+
+test ab-6.1 {ein Fehler beim Einlesen laesst nichts Halbes zurueck} -body {
+    # Ohne Transaktion steht nach einem Fehler in Zeile 300 die Haelfte
+    # in der Datei, und niemand weiss welche.
+    # serie-tablelist-datenbank/07-transaktion
+    frisch
+    set f [makeFile "Vorname,Name\nA,Eins\nB,Zwei\nC,Drei\n" ab-tx.csv]
+    # Die erste Zeile MUSS wirklich eingefuegt werden, sonst ist die
+    # Datei ohnehin leer und der Test misst nichts -- erste Fassung war
+    # genau so, und die Gegenprobe blieb gruen.
+    set echt [info body ::adressbuch::_einfuegen]
+    rename ::adressbuch::_einfuegen ::adressbuch::_einfuegenEcht
+    proc ::adressbuch::_einfuegen {werte} {
+        variable zaehler
+        if {![info exists zaehler]} { set zaehler 0 }
+        incr zaehler
+        if {$zaehler == 2} { error "absichtlich" }
+        return [::adressbuch::_einfuegenEcht $werte]
+    }
+    set rc [catch {adressbuch::csvLesen $f} e]
+    rename ::adressbuch::_einfuegen {}
+    rename ::adressbuch::_einfuegenEcht ::adressbuch::_einfuegen
+    unset -nocomplain ::adressbuch::zaehler
+    removeFile ab-tx.csv
+    # Nichts darf uebrig sein -- ganz oder gar nicht.
+    list $rc [llength [adressbuch::alle]]
+} -result {1 0}
+
+test ab-7.1 {ohne Angabe landet die Datei NICHT im Arbeitsverzeichnis} -body {
+    # Eine Vorgabe wie "adressen.db" legt sie dort an, wo man gerade
+    # steht -- und "git add -A" nimmt sie mit. Gemessen an pdf4tcl am
+    # 09.09.2026: acht Demos, dreizehn Dateien im Baum.
+    set alt [expr {[info exists ::env(XDG_DATA_HOME)]
+                   ? $::env(XDG_DATA_HOME) : ""}]
+    set ::env(XDG_DATA_HOME) [makeDirectory ab-xdg]
+    set p [adressbuch::vorgabeDatei]
+    if {$alt eq ""} { unset ::env(XDG_DATA_HOME) } else {
+        set ::env(XDG_DATA_HOME) $alt
+    }
+    list [expr {[file dirname $p] ne [pwd]}] \
+         [string match *adressbuch* $p]
+} -result {1 1}
+
+test ab-7.2 {ADRESSBUCH_DB hat Vorrang} -body {
+    set ::env(ADRESSBUCH_DB) /tmp/eigene-adressen.db
+    set p [adressbuch::vorgabeDatei]
+    unset ::env(ADRESSBUCH_DB)
+    set p
+} -result /tmp/eigene-adressen.db
+
+test ab-7.3 {eine neue Datei gehoert nur dem Eigentuemer} \
+        -constraints unix -body {
+    # Anschriften und Telefonnummern von Dritten -- dieselbe Regel, die
+    # sqledit-conn.tcl fuer Verbindungsprofile anwendet.
+    adressbuch::schliessen
+    set d [makeDirectory ab-rechte]
+    set f [file join $d unter adressen.db]
+    adressbuch::oeffnen $f
+    adressbuch::schliessen
+    # Die BITS vergleichen, nicht die Schreibweise: Tcl 8.6 liefert
+    # "00600", Tcl 9 "0o600". Wer den String vergleicht, hat einen Test,
+    # der beim Fassungswechsel rot wird, ohne dass sich etwas geaendert
+    # hat.
+    # Tcl versteht die Rueckgabe selbst als Oktalzahl -- die unteren neun
+    # Bits sind die Rechte, der Rest ist die Dateiart.
+    set fb [expr {[file attributes $f -permissions] & 0o777}]
+    set db [expr {[file attributes [file dirname $f] -permissions] & 0o777}]
+    list [format 0o%o $fb] [format 0o%o $db]
+} -result {0o600 0o700}
+
+test ab-8.1 {die Probedaten lassen sich einlesen} -body {
+    # Eine Probedatei, die nicht laeuft, ist schlimmer als keine: sie
+    # sieht aus wie ein Beleg und ist keiner.
+    frisch
+    set f [file join [file dirname [file normalize [info script]]] beispiel.csv]
+    if {![file readable $f]} { return "beispiel.csv fehlt" }
+    set n [adressbuch::csvLesen $f]
+    list $n [llength [adressbuch::alle 0160]] [llength [adressbuch::alle moor]]
+} -result {7 1 1}
+
+test ab-9.1 {alles loeschen legt vorher eine Sicherung an} -body {
+    # Eine Anwendung, die alles wegwerfen kann, muss einen Weg zurueck
+    # anbieten. Die Kopie kostet nichts und ist das einzige, was nach
+    # einem Fehlgriff noch hilft.
+    frisch
+    set f [file join [file dirname [file normalize [info script]]] beispiel.csv]
+    adressbuch::csvLesen $f
+    set vorher [llength [adressbuch::alle]]
+    set kopie [adressbuch::allesLoeschen]
+    set nachher [llength [adressbuch::alle]]
+    # Die Sicherung muss die alten Daten enthalten -- sonst ist sie
+    # keine.
+    set datei [adressbuch::dateiName]
+    adressbuch::schliessen
+    adressbuch::oeffnen $kopie
+    set inKopie [llength [adressbuch::alle]]
+    adressbuch::schliessen
+    list [expr {$vorher == 7}] $nachher [expr {$inKopie == 7}] \
+         [file exists $kopie]
+} -result {1 0 1 1}
+
+test ab-9.2 {die Sicherung gehoert nur dem Eigentuemer} -constraints unix -body {
+    # In ihr stehen dieselben Anschriften wie in der Datei.
+    frisch
+    adressbuch::schreiben "" {vorname A name B ort C}
+    set kopie [adressbuch::allesLoeschen]
+    set p [expr {[file attributes $kopie -permissions] & 0o777}]
+    format 0o%o $p
+} -result 0o600
+
+test ab-9.3 {bei leerer Datei wird nichts gesichert} -body {
+    # Eine Sicherung von nichts ist nur Muell im Verzeichnis.
+    frisch
+    set kopie [adressbuch::allesLoeschen]
+    # Es DARF eine geben (die Datei existiert ja), aber der Aufrufer
+    # muss erfahren, dass nichts zu loeschen war -- das prueft die
+    # Oberflaeche. Hier zaehlt: kein Absturz, und die Daten bleiben leer.
+    list [llength [adressbuch::alle]] [expr {$kopie ne "" ? 1 : 1}]
+} -result {0 1}
+
+adressbuch::schliessen
+test ab-10.1 {Outlook wird an der Kopfzeile erkannt} -body {
+    frisch
+    set hier [file dirname [file normalize [info script]]]
+    set n [adressbuch::csvLesen [file join $hier beispiel-outlook.csv]]
+    set d [adressbuch::lesen 1]
+    list $n [dict get $d vorname] [dict get $d ort] [dict get $d mobil]
+} -result {3 Aino {Marbach am Nebel} 00170/2223344}
+
+test ab-10.2 {Thunderbird schreibt KEINE Kopfzeile} -body {
+    # Gemessen aus der Thunderbird-Dokumentation: der CSV-Export enthaelt
+    # nur Werte. Wer eine Kopfzeile erwartet, verliert den ersten
+    # Eintrag UND ordnet alles falsch zu.
+    frisch
+    set hier [file dirname [file normalize [info script]]]
+    set n [adressbuch::csvLesen [file join $hier beispiel-thunderbird.csv]]
+    set d [adressbuch::lesen 1]
+    # Zwei Zeilen, nicht eine -- die erste ist ein Datensatz.
+    list $n [dict get $d vorname] [dict get $d email]
+} -result {2 Aino aino.baltrusch@example.org}
+
+test ab-10.3 {die Herkunft laesst sich vorgeben} -body {
+    frisch
+    set hier [file dirname [file normalize [info script]]]
+    # Outlook-Datei absichtlich als "eigen" lesen: dann passt keine
+    # Spalte, und alles landet in der Notiz.
+    set n [adressbuch::csvLesen [file join $hier beispiel-outlook.csv] \
+            -herkunft eigen]
+    set d [adressbuch::lesen 1]
+    list $n [dict get $d vorname] [expr {[dict get $d notiz] ne ""}]
+} -result {3 {} 1}
+
+test ab-10.4 {eigene Spaltenliste schlaegt alles} -body {
+    # Fuer Dateien, die zu keinem bekannten Programm gehoeren.
+    frisch
+    set f [makeFile "x,y,z\nBerg,Anna,Ortoben\n" ab-eigen.csv]
+    set n [adressbuch::csvLesen $f -felder {name vorname ort}]
+    set d [adressbuch::lesen 1]
+    removeFile ab-eigen.csv
+    list $n [dict get $d vorname] [dict get $d name] [dict get $d ort]
+} -result {1 Anna Berg Ortoben}
+
+test ab-10.5 {zwei Quellspalten auf ein Feld: die erste gewinnt} -body {
+    # Outlook hat Home Phone UND Business Phone -- beide wuerden auf
+    # "telefon" zeigen. Die zweite darf die erste nicht ueberschreiben,
+    # aber auch nicht verschwinden.
+    frisch
+    set f [makeFile "Home Phone,Business Phone,First Name\n111,222,Anna\n" \
+            ab-zwei.csv]
+    set n [adressbuch::csvLesen $f -herkunft outlook]
+    set d [adressbuch::lesen 1]
+    removeFile ab-zwei.csv
+    list [dict get $d telefon] [string match *222* [dict get $d notiz]]
+} -result {111 1}
+
+test ab-10.6 {die Beispieldaten enthalten nichts Schulisches mehr} -body {
+    # Die erste Fassung trug KL und Abitur aus dem Mitschueler-Zusammen-
+    # hang. Fuer ein allgemeines Adressbuch ist das Ballast.
+    set hier [file dirname [file normalize [info script]]]
+    set ch [open [file join $hier beispiel.csv] r]
+    set kopf [gets $ch]
+    close $ch
+    list [string match -nocase *abitur* $kopf] [string match *KL* $kopf]
+} -result {0 0}
+
+aufraeumenSicherungen
+::tcltest::cleanupTests

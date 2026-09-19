@@ -1,4 +1,6 @@
 # tkuwinico-0.1.tm -- create Windows .ico files from Tk images.
+# Description: build Windows .ico files from Tk images (SVG or photo), alpha preserved
+# Category: Tk · widgets
 #
 # Copyright (c) 2026 Gregor
 # MIT licensed.

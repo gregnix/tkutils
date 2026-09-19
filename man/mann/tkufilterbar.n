@@ -1,4 +1,4 @@
-.TH tkufilterbar n 0.1 tkutils
+.TH tkufilterbar n 0.2 tkutils
 .SH tkutils::tkufilterbar
 .PP
 Per\-column filter bar: one small labelled entry per column. Each field filters its own column; the consumer ANDs the non\-empty fields together. Complements \fBtkusearchbar\fR (a single free\-text box) for spreadsheet\-style multi\-column filtering. The set of columns is dynamic \-\- call \fBsetColumns\fR to (re)build the row, e.g. whenever a new result set is shown.

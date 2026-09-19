@@ -1,4 +1,4 @@
-.TH tkutablelist n 0.2 tkutils
+.TH tkutablelist n 0.3 tkutils
 .SH "tkutils::tkutablelist (optional)"
 .PP
 A multi\-column table built on the \fBTablelist\fR megawidget (from tklib): a rows/columns API, click\-to\-sort headers, editable cells, selection helpers, per\-column configuration, optional frozen title columns, CSV loading via tclutils \fBtucsv\fR, and display of a tclutils \fBtunotes\fR store.

@@ -1,0 +1,40 @@
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+
+set here [file dirname [file normalize [info script]]]
+tcl::tm::path add [file normalize [file join $here .. lib tm]]
+package require tkutils::tkuopts 0.1
+
+test tkuopts-1.1 {defaults stay, given options override} -body {
+    dict get [::tkutils::tkuopts::merge TKUX {-a 1 -b 2} {-b 9}] -b
+} -result 9
+
+test tkuopts-1.2 {an unknown option is an error listing the known ones} -body {
+    catch {::tkutils::tkuopts::merge TKUX {-width 0 -align left} {-widht 3}} m o
+    list $m [dict get $o -errorcode]
+} -result [list "unknown option \"-widht\"\nKnown: -align -width" {TKUTILS TKUX OPTION -widht}]
+
+test tkuopts-1.3 {a missing value is an error} -body {
+    catch {::tkutils::tkuopts::merge TKUX {-a 1} {-a}} m o
+    list $m [dict get $o -errorcode]
+} -result [list "missing value for option \"-a\"" {TKUTILS TKUX OPTION}]
+
+test tkuopts-1.4 {no options: the defaults come back unchanged} -body {
+    ::tkutils::tkuopts::merge TKUX {-a 1 -b {x y}} {}
+} -result {-a 1 -b {x y}}
+
+# Every former `array set o $args` site now goes through merge. Checked on
+# the module that had a check that could never fire (it ran after the
+# merge): tkutlfmt::column accepted -decimalz until tkutils 0.44.0.
+testConstraint tbl [expr {![catch {package require Tk}] && ![catch {package require tablelist}]}]
+test tkuopts-2.1 {tkutlfmt::column rejects a misspelt option} -constraints tbl -setup {
+    tcl::tm::path add [file normalize [file join $here .. .. tclutils lib tm]]
+    package require tkutils::tkutlfmt
+    proc fakeTbl {args} {}
+} -body {
+    catch {::tkutils::tkutlfmt::column fakeTbl 0 number -decimalz 3} m o
+    dict get $o -errorcode
+} -result {TKUTILS TKUTLFMT OPTION -decimalz}
+
+cleanupTests

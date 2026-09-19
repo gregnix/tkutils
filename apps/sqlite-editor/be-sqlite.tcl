@@ -16,6 +16,11 @@ namespace eval ::sqledit::be {
 
 # Identity + dependency check ------------------------------------------------
 proc ::sqledit::be::displayName {}      { return "SQLite" }
+# Schluessel fuer die Ablagen (Verbindungsprofile, zuletzt geoeffnet).
+# Oracle und PostgreSQL haben ihn seit jeher; hier fehlte er, und die
+# Liste der zuletzt geoeffneten Datenbanken hiess deshalb "default" --
+# also fuer alle Editoren dieselbe.
+proc ::sqledit::be::_backendKey {}      { return "sqlite" }
 proc ::sqledit::be::connectLabel {}     { return "Open" }
 proc ::sqledit::be::connectNewLabel {}  { return "New" }
 proc ::sqledit::be::requireDeps {} {

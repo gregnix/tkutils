@@ -1,0 +1,628 @@
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+
+set here [file dirname [file normalize [info script]]]
+testConstraint tk [expr {![catch {package require Tk}]}]
+testConstraint tbl [expr {![catch {package require tablelist_tile}]}]
+
+if {[testConstraint tk] && [testConstraint tbl]} {
+    set ::argv0 __gui_test__
+    set ::argv {}
+    source [file join $here adressbuch.tcl]
+    catch {wm withdraw .}
+}
+
+# ERST NACH dem Laden des Modells -- vorher gibt es
+# kannVerschluesseln nicht, und die Bedingung waere immer 0.
+testConstraint krypto [expr {
+    [llength [info procs ::adressbuch::kannVerschluesseln]]
+    && [adressbuch::kannVerschluesseln]}]
+
+# Die Sicherungen der Tests wieder wegraeumen.
+#
+# Sonst bleibt nach jedem Lauf eine ".sicherung" im Verzeichnis liegen --
+# dieselbe Unsitte, die bei den pdf4tcl-Demos dreizehn Dateien in den
+# Baum gespuelt hat.
+proc aufraeumenSicherungen {} {
+    foreach f [glob -nocomplain -directory [::tcltest::configure -tmpdir] \
+            *.sicherung *.vor-verschluesselung] {
+        file delete -force $f
+    }
+    foreach f [glob -nocomplain -directory \
+            [file dirname [file normalize [info script]]] *.sicherung *.vor-verschluesselung] {
+        file delete -force $f
+    }
+}
+
+proc frischGui {} {
+    adressbuch::schliessen
+    set f [makeFile {} gui-test.db]
+    file delete $f
+    adressbuch::oeffnen $f
+    foreach w [winfo children .] { destroy $w }
+    catch {destroy .menu}
+    ::ab::bauen
+    wm withdraw .
+    # Keine Rueckfragen im Test -- ein tk_messageBox wartet sonst auf
+    # eine Antwort, die niemand gibt, und der Lauf haengt.
+    set ::ab::fragen 0
+    set ::ab::aktuell ""
+    set ::ab::suche ""
+    ::ab::listeFuellen
+    update
+}
+
+test gui-1.1 {die Auswahl fuellt die Maske} -constraints {tk tbl} -body {
+    frischGui
+    adressbuch::schreiben "" {vorname Anna name Bergfeld ort Ortoben}
+    ::ab::listeFuellen
+    $::ab::tbl selection set 0
+    ::ab::zeileGewaehlt
+    update
+    [dict get $::ab::felder ort] get
+} -result Ortoben
+
+test gui-2.1 {die Kennung haengt nicht an der Zeilennummer} -constraints {tk tbl} -body {
+    # DER FEHLER, DEN MAN EINMAL MACHT: nach dem Sortieren zeigt dieselbe
+    # Zeilennummer auf einen anderen Datensatz. Wer sich die Nummer
+    # merkt, bearbeitet den falschen.
+    # serie-liste-maske/02-id-statt-zeile
+    frischGui
+    set idA [adressbuch::schreiben "" {vorname Anna name Zabel ort X}]
+    set idB [adressbuch::schreiben "" {vorname Bernd name Adam ort Y}]
+    ::ab::listeFuellen
+    # Nach Name sortiert steht Adam vorn, obwohl Zabel zuerst angelegt wurde.
+    set kennung0 [$::ab::tbl rowcget 0 -name]
+    list [expr {$kennung0 == $idB}] [expr {$kennung0 != 0}]
+} -result {1 1}
+
+test gui-2.2 {die Auswahl folgt der Kennung, nicht der Zeile} -constraints {tk tbl} -body {
+    # serie-liste-maske/06-auswahl-behalten
+    frischGui
+    set idA [adressbuch::schreiben "" {vorname Anna name Zabel ort Ortoben}]
+    adressbuch::schreiben "" {vorname Bernd name Adam ort Ortunten}
+    ::ab::listeFuellen $idA
+    set vorher [::ab::aktuelleId]
+    # Ein dritter Eintrag verschiebt die Zeilen.
+    adressbuch::schreiben "" {vorname Clara name Bach ort Ortdrei}
+    ::ab::listeFuellen
+    list [expr {$vorher == $idA}] [expr {[::ab::aktuelleId] == $idA}]
+} -result {1 1}
+
+test gui-3.1 {Pflichtfeld leer wird nicht gespeichert} -constraints {tk tbl} -body {
+    # serie-liste-maske/10-validierung
+    frischGui
+    ::ab::neu
+    [dict get $::ab::felder vorname] insert 0 "Ohne"
+    # "name" bleibt leer
+    set vorher [llength [adressbuch::alle]]
+    set ok [::ab::speichern]
+    list $ok [expr {[llength [adressbuch::alle]] == $vorher}]
+} -result {0 1}
+
+test gui-3.2 {mit Pflichtfeld wird gespeichert und die Liste aufgefrischt} \
+        -constraints {tk tbl} -body {
+    frischGui
+    ::ab::neu
+    [dict get $::ab::felder vorname] insert 0 Dora
+    [dict get $::ab::felder name] insert 0 Esch
+    set ok [::ab::speichern]
+    update
+    list $ok [$::ab::tbl size] [::ab::aktuelleId]
+} -result {1 1 1}
+
+test gui-4.1 {die Suche geht ueber alle Felder und haelt die Liste} \
+        -constraints {tk tbl} -body {
+    frischGui
+    adressbuch::schreiben "" {vorname Anna name Bergfeld ort Ortoben mobil 0171/9}
+    adressbuch::schreiben "" {vorname Bernd name Clemens ort Ortzwei}
+    ::ab::listeFuellen
+    set alle [$::ab::tbl size]
+    set ::ab::suche 0171
+    ::ab::suchen
+    set gefiltert [$::ab::tbl size]
+    set ::ab::suche ""
+    ::ab::suchen
+    list $alle $gefiltert [$::ab::tbl size]
+} -result {2 1 2}
+
+test gui-4.2 {faellt der ausgewaehlte Datensatz durch den Filter, leert die Maske} \
+        -constraints {tk tbl} -body {
+    # serie-liste-maske/14-filter-und-auswahl -- sonst zeigt die Maske
+    # einen Datensatz, den die Liste nicht mehr enthaelt, und Speichern
+    # schreibt in etwas Unsichtbares.
+    frischGui
+    adressbuch::schreiben "" {vorname Anna name Bergfeld ort Ortoben}
+    adressbuch::schreiben "" {vorname Bernd name Clemens ort Ortzwei}
+    ::ab::listeFuellen
+    $::ab::tbl selection set 0
+    ::ab::zeileGewaehlt
+    set vorher [[dict get $::ab::felder name] get]
+    set ::ab::suche zzz
+    ::ab::suchen
+    list $vorher [$::ab::tbl size] [[dict get $::ab::felder name] get]
+} -result {Bergfeld 0 {}}
+
+test gui-5.1 {Verwerfen stellt den gespeicherten Stand her} -constraints {tk tbl} -body {
+    frischGui
+    set id [adressbuch::schreiben "" {vorname Anna name Bergfeld ort Ortoben}]
+    ::ab::listeFuellen $id
+    set e [dict get $::ab::felder ort]
+    $e delete 0 end
+    $e insert 0 Ortunten
+    set geaendert [::ab::geaendert]
+    ::ab::verwerfen
+    list $geaendert [$e get] [::ab::geaendert]
+} -result {1 Ortoben 0}
+
+test gui-6.1 {Loeschen springt auf den naechsten, nicht ins Leere} \
+        -constraints {tk tbl} -body {
+    # serie-liste-maske/07-neu-und-loeschen
+    frischGui
+    adressbuch::schreiben "" {vorname Anna name Adam ort X}
+    set idB [adressbuch::schreiben "" {vorname Bernd name Bach ort Y}]
+    ::ab::listeFuellen
+    $::ab::tbl selection set 0
+    ::ab::zeileGewaehlt
+    # Ohne Rueckfrage loeschen: das Modell direkt, dann auffrischen wie
+    # die Oberflaeche es tut.
+    set naechste [$::ab::tbl rowcget 1 -name]
+    adressbuch::loeschen [::ab::aktuelleId]
+    set ::ab::aktuell ""
+    ::ab::listeFuellen $naechste
+    list [$::ab::tbl size] [expr {[::ab::aktuelleId] == $idB}]
+} -result {1 1}
+
+# --- die Rueckfrage bei ungespeicherten Aenderungen -------------------------
+#
+# Das ist die kniffligste Stelle der Anwendung: drei Antworten, drei
+# Verhalten, und ein Dialog dazwischen. Genau hier ist die Versuchung
+# gross, den Test bequemer einzurichten als die Wirklichkeit -- etwa
+# indem man mit "fragen 0" prueft und damit den ganzen Zweig ueberspringt.
+#
+# Stattdessen wird tk_messageBox VORUEBERGEHEND ERSETZT. Geprueft wird
+# derselbe Code, den der Benutzer ausloest.
+
+# Verschluesseln ist im Modell abgeschaltet (::adressbuch::kryptoEin 0,
+# Stand 2026-09-19). Tests, die ueber die Oberflaeche verschluesseln, laufen
+# nur, wenn die Zeile im Code auf 1 steht. Das OEFFNEN einer schon
+# verschluesselten Datei muss immer gehen und wird immer geprueft.
+testConstraint kryptoEin [adressbuch::kryptoEin]
+testConstraint kryptoAus [expr {![adressbuch::kryptoEin]}]
+
+# verschluesselteDatei pfad kennwort satz -- Ausgangsmaterial: eine
+# verschluesselte Datei. Die Funktion wird NUR dafuer eingeschaltet und
+# danach, auch nach einem Fehler, auf den Stand im Code zurueckgesetzt.
+proc verschluesselteDatei {f kennwort satz} {
+    set vorher $::adressbuch::kryptoEin
+    set ::adressbuch::kryptoEin 1
+    try {
+        file delete $f
+        adressbuch::schliessen
+        adressbuch::oeffnen $f
+        adressbuch::schreiben "" $satz
+        adressbuch::verschluesseln $kennwort
+        adressbuch::schliessen
+    } finally {
+        set ::adressbuch::kryptoEin $vorher
+    }
+}
+
+proc mitAntwort {antwort skript} {
+    rename ::tk_messageBox ::_echterDialog
+    proc ::tk_messageBox {args} [list return $antwort]
+    set rc [catch {uplevel 1 $skript} e opts]
+    rename ::tk_messageBox {}
+    rename ::_echterDialog ::tk_messageBox
+    if {$rc} { return -options $opts $e }
+    return $e
+}
+
+test gui-7.1 {ohne Aenderung wird nicht gefragt} -constraints {tk tbl} -body {
+    frischGui
+    set id [adressbuch::schreiben "" {vorname Anna name Bergfeld ort Ortoben}]
+    ::ab::listeFuellen $id
+    set ::ab::fragen 1
+    # Wuerde gefragt, bliebe der Test haengen -- es wird nicht gefragt.
+    set r [::ab::wechselErlaubt]
+    set ::ab::fragen 0
+    set r
+} -result 1
+
+test gui-7.2 {"Speichern" schreibt und laesst wechseln} -constraints {tk tbl} -body {
+    frischGui
+    set id [adressbuch::schreiben "" {vorname Anna name Bergfeld ort Ortoben}]
+    ::ab::listeFuellen $id
+    set ::ab::fragen 1
+    [dict get $::ab::felder ort] delete 0 end
+    [dict get $::ab::felder ort] insert 0 Ortunten
+    set r [mitAntwort yes {::ab::wechselErlaubt}]
+    set ::ab::fragen 0
+    list $r [dict get [adressbuch::lesen $id] ort]
+} -result {1 Ortunten}
+
+test gui-7.3 {"Nein" wechselt und verwirft} -constraints {tk tbl} -body {
+    frischGui
+    set id [adressbuch::schreiben "" {vorname Anna name Bergfeld ort Ortoben}]
+    ::ab::listeFuellen $id
+    set ::ab::fragen 1
+    [dict get $::ab::felder ort] delete 0 end
+    [dict get $::ab::felder ort] insert 0 Ortunten
+    set r [mitAntwort no {::ab::wechselErlaubt}]
+    set ::ab::fragen 0
+    # Gewechselt werden darf, aber geschrieben wurde NICHT.
+    list $r [dict get [adressbuch::lesen $id] ort]
+} -result {1 Ortoben}
+
+test gui-7.4 {"Abbrechen" verhindert den Wechsel} -constraints {tk tbl} -body {
+    frischGui
+    set id [adressbuch::schreiben "" {vorname Anna name Bergfeld ort Ortoben}]
+    ::ab::listeFuellen $id
+    set ::ab::fragen 1
+    [dict get $::ab::felder ort] delete 0 end
+    [dict get $::ab::felder ort] insert 0 Ortunten
+    set r [mitAntwort cancel {::ab::wechselErlaubt}]
+    set ::ab::fragen 0
+    # Nicht gewechselt, nicht geschrieben, und die Aenderung steht noch da.
+    list $r [dict get [adressbuch::lesen $id] ort] \
+         [[dict get $::ab::felder ort] get]
+} -result {0 Ortoben Ortunten}
+
+test gui-7.5 {ein Pflichtfeld verhindert den Wechsel trotz "Speichern"} \
+        -constraints {tk tbl} -body {
+    # Wer "Speichern" waehlt und das Pflichtfeld leer laesst, darf NICHT
+    # wechseln -- sonst ist die Aenderung weg, obwohl er sie sichern
+    # wollte.
+    frischGui
+    set id [adressbuch::schreiben "" {vorname Anna name Bergfeld ort Ortoben}]
+    ::ab::listeFuellen $id
+    set ::ab::fragen 1
+    [dict get $::ab::felder name] delete 0 end
+    set r [mitAntwort yes {::ab::wechselErlaubt}]
+    set ::ab::fragen 0
+    list $r [dict get [adressbuch::lesen $id] name]
+} -result {0 Bergfeld}
+
+# --- der echte Mausklick ---------------------------------------------------
+#
+# DIE BINDUNG MUSS AM WIDGET HAENGEN, NICHT AM KORPUS.
+#
+# "bind [$tbl bodytag] <<TablelistSelect>>" sieht richtig aus und war es
+# nicht: bei einem echten Mausklick blieb die Maske LEER, obwohl die
+# Zeile ausgewaehlt war. Gemeldet 12.09.2026 mit einem Bildschirmfoto.
+#
+# Warum kein Test es fing: ein von Hand erzeugtes
+# "event generate <<TablelistSelect>>" laeuft NACH dem Setzen der
+# Auswahl und geht auch dann gut, wenn die Bindung falsch sitzt.
+#
+# WARUM HIER NUR DIE BINDUNG GEPRUEFT WIRD und nicht der Klick:
+# ein erzeugter <Button-1> kommt unter Xvfb ohne Fenstermanager nicht
+# zuverlaessig an -- gemessen, mal ja, mal nein, auch im frischen
+# Prozess. Ein Test, der mal gruen und mal rot ist, misst nichts.
+# Geprueft wird deshalb, WORAN die Bindung haengt. Das ist schwaecher
+# als der Klick, aber es ist ehrlich, und es faengt den Rueckfall.
+test gui-8.1 {die Auswahlbindung haengt am Widget, nicht am Korpus} \
+        -constraints {tk tbl} -body {
+    frischGui
+    set t $::ab::tbl
+    set amWidget [expr {[string match *zeileGewaehlt* \
+            [bind $t <<TablelistSelect>>]]}]
+    set amKorpus [expr {[string match *zeileGewaehlt* \
+            [bind [$t bodytag] <<TablelistSelect>>]]}]
+    list $amWidget $amKorpus
+} -result {1 0}
+
+test gui-9.1 {die Bildlaufleiste ist ein Nachbar der Tabelle, kein Kind} \
+        -constraints {tk tbl} -body {
+    # Erste Fassung: "ttk::scrollbar $pfad.sb", wo $pfad die Tabelle
+    # war. Damit lag sie IN ihr, zwischen .hdr, .body und .lb -- sichtbar
+    # als winziger Stummel unten rechts. Gemeldet 12.09.2026.
+    #
+    # Ein Widget unter dem Pfad eines Megawidgets gehoert diesem; es
+    # verwaltet den Platz darin selbst und weiss von dem Fremdling
+    # nichts.
+    frischGui
+    set t $::ab::tbl
+    set sb [winfo parent $t].sb
+    # Die falsche Fassung faellt nicht nur auf, sie HAENGT: zwei
+    # Geometrieverwalter um denselben Platz kommen nicht zur Ruhe, und
+    # der Lauf lief in die Zeitsperre. Dieser Test faengt sie vorher.
+    list [expr {[winfo parent $sb] eq [winfo parent $t]}] \
+         [expr {[winfo parent $sb] ne $t}]
+} -result {1 1}
+
+test gui-9.2 {die Leiste nimmt die volle Hoehe der Tabelle ein} \
+        -constraints {tk tbl} -body {
+    # Die Verwandtschaft allein genuegt nicht -- sie muss auch den
+    # Platz bekommen. Ein "pack -side right" ohne -fill y gaebe wieder
+    # einen Stummel.
+    frischGui
+    wm deiconify .
+    update ; after 300 ; update
+    adressbuch::csvLesen [file join [file dirname [file normalize [info script]]] \
+            beispiel.csv]
+    ::ab::listeFuellen
+    update ; after 200 ; update
+    set t $::ab::tbl
+    set sb [winfo parent $t].sb
+    set ht [winfo height $t]
+    set hs [winfo height $sb]
+    wm withdraw .
+    # Gleiche Hoehe, und nicht bloss ein paar Pixel.
+    list [expr {$hs == $ht}] [expr {$hs > 50}]
+} -result {1 1}
+
+test gui-10.1 {"Alles loeschen" fragt, und Nein loescht nichts} \
+        -constraints {tk tbl} -body {
+    # Die Vorgabe der Rueckfrage ist NEIN -- wer versehentlich die
+    # Eingabetaste drueckt, loescht nichts.
+    frischGui
+    adressbuch::schreiben "" {vorname A name B ort C}
+    adressbuch::schreiben "" {vorname D name E ort F}
+    ::ab::listeFuellen
+    set ::ab::fragen 1
+    set r [mitAntwort no {::ab::allesLoeschen}]
+    set ::ab::fragen 0
+    list $r [llength [adressbuch::alle]] [$::ab::tbl size]
+} -result {0 2 2}
+
+test gui-10.2 {"Ja" loescht alles und die Liste ist leer} -constraints {tk tbl} -body {
+    frischGui
+    adressbuch::schreiben "" {vorname A name B ort C}
+    adressbuch::schreiben "" {vorname D name E ort F}
+    ::ab::listeFuellen
+    set ::ab::fragen 0
+    set r [::ab::allesLoeschen]
+    list $r [llength [adressbuch::alle]] [$::ab::tbl size] \
+         [[dict get $::ab::felder vorname] get]
+} -result {1 0 0 {}}
+
+test gui-10.3 {bei leerer Datei wird gar nicht erst gefragt} -constraints {tk tbl} -body {
+    # Sonst fragt die Anwendung, ob man nichts loeschen moechte.
+    frischGui
+    set ::ab::fragen 1
+    # Wuerde gefragt, bliebe der Test haengen.
+    set r [::ab::allesLoeschen]
+    set ::ab::fragen 0
+    # Die Statuszeile traegt seit dem 12.09.2026 den
+    # Verschluesselungszustand vorweg -- also enthalten pruefen, nicht
+    # wortgleich.
+    list $r [string match "*Nichts zu loeschen" $::ab::status]
+} -result {0 1}
+
+adressbuch::schliessen
+test gui-11.1 {CardDAV: Server und Benutzer werden gemerkt, das Kennwort NICHT} \
+        -constraints {tk tbl} -body {
+    # Ein Kennwort in einer Klartextdatei neben den Adressen waere
+    # bequem und falsch: wer sie liest, hat den Zugang zum ganzen
+    # Server. Wer es nicht jedesmal tippen will, nimmt den
+    # Schluesselbund seines Systems -- das ist ein eigener Schritt.
+    frischGui
+    array set ::ab::dav {url http://beispiel.invalid pfad /a/ \
+            user greg pass sehrgeheim}
+    # Nur das Merken pruefen, ohne Netz: die Zuweisung steht in
+    # davHolen NACH dem erfolgreichen Holen, darum hier von Hand.
+    abconf::setz dav url      $::ab::dav(url)
+    abconf::setz dav pfad     $::ab::dav(pfad)
+    abconf::setz dav benutzer $::ab::dav(user)
+    set f [makeFile {} dav-conf.conf]
+    set ::env(ADRESSBUCH_CONF) $f
+    abconf::speichern
+    set fh [open $f r] ; set t [read $fh] ; close $fh
+    unset ::env(ADRESSBUCH_CONF)
+    list [string match *beispiel.invalid* $t] [string match *greg* $t] \
+         [string match *sehrgeheim* $t]
+} -result {1 1 0}
+
+test gui-11.2 {ein nicht erreichbarer Server meldet es und aendert nichts} \
+        -constraints {tk tbl} -body {
+    frischGui
+    adressbuch::schreiben "" {vorname A name B}
+    ::ab::listeFuellen
+    array set ::ab::dav {url http://127.0.0.1:1 pfad /x/ user "" pass ""}
+    set r [::ab::davHolen]
+    list $r [llength [adressbuch::alle]] \
+         [string match "*Nicht geholt:*" $::ab::status]
+} -result {0 1 1}
+
+test gui-12.1 {die Statuszeile zeigt den Verschluesselungszustand} \
+        -constraints {tk tbl} -body {
+    # Damit man es SIEHT statt zu glauben -- bei jeder Meldung.
+    frischGui
+    ::ab::statusMelden "3 Eintraege"
+    list [string match "*offen*" $::ab::status] \
+         [string match "*3 Eintraege*" $::ab::status]
+} -result {1 1}
+
+test gui-12.2 {"Ueber" nennt Fassungen, Datei und Zustand} -constraints {tk tbl} -body {
+    frischGui
+    adressbuch::schreiben "" {vorname A name B}
+    set t [::ab::ueberText]
+    list [string match "*Tcl *" $t] [string match "*SQLite *" $t] \
+         [string match "*Schema*" $t] \
+         [string match "*NICHT verschluesselt*" $t]
+} -result {1 1 1 1}
+
+test gui-12.3 {kein Schloss-Sinnbild in der Statuszeile} -constraints {tk tbl} -body {
+    # "\u1F512" liegt jenseits der BMP und braucht "\U0001F512" --
+    # und selbst dann muss die Schrift es haben. Gemessen kam ein
+    # Ersatzzeichen heraus. Worte sind eindeutig.
+    frischGui
+    ::ab::statusMelden "x"
+    # Nur Zeichen unterhalb U+0100.
+    set hoch 0
+    foreach c [split $::ab::status ""] {
+        if {[scan $c %c n] && $n > 255} { incr hoch }
+    }
+    set hoch
+} -result 0
+
+test gui-13.1 {verschiedene Eingaben werden abgelehnt} -constraints {tk tbl} -body {
+    # Ein Tippfehler im Kennwort einer Datei, die danach nur damit zu
+    # oeffnen ist, laesst sich nicht mehr berichtigen.
+    frischGui
+    adressbuch::schreiben "" {vorname A name B}
+    array set ::ab::vs {neu eins neu2 zwei}
+    set r [::ab::verschluesselnAusfuehren]
+    list $r [string match "*verschieden*" $::ab::status] \
+         [adressbuch::istVerschluesselt]
+} -result {0 1 0}
+
+# --- Start mit verschluesselter Datei ---------------------------------------
+#
+# Ohne diesen Weg starb die Anwendung mit einem Tcl-Stapelabzug, BEVOR
+# es ein Fenster gab -- gemeldet 12.09.2026. Wer sein Adressbuch
+# verschluesselt hatte, kam nicht mehr hinein.
+
+proc mitKennwort {antworten skript} {
+    # fragen MUSS 1 sein -- sonst bricht oeffnenMitKennwort gleich ab
+    # und fragt nie. Ein frueherer Test hatte es auf 0 gelassen, und
+    # der Fall galt als "nicht geoeffnet", obwohl das Kennwort stimmte.
+    set altFragen $::ab::fragen
+    set ::ab::fragen 1
+    # Und tk_messageBox stumm schalten -- am Ende der drei Versuche
+    # wartete sonst ein Dialog auf eine Antwort, die niemand gibt.
+    rename ::tk_messageBox ::_echterDialog2
+    proc ::tk_messageBox {args} { return ok }
+    rename ::ab::kennwortFragen ::ab::_echtKennwortFragen
+    set ::testAntworten $antworten
+    proc ::ab::kennwortFragen {datei versuch} {
+        set a [lindex $::testAntworten [expr {$versuch - 1}]]
+        if {$a eq ""} { return "\u0000ABBRUCH" }
+        return $a
+    }
+    set rc [catch {uplevel 1 $skript} e opts]
+    rename ::ab::kennwortFragen {}
+    rename ::ab::_echtKennwortFragen ::ab::kennwortFragen
+    rename ::tk_messageBox {}
+    rename ::_echterDialog2 ::tk_messageBox
+    set ::ab::fragen $altFragen
+    if {$rc} { return -options $opts $e }
+    return $e
+}
+
+test gui-14.1 {verschluesselte Datei: es wird nach dem Kennwort gefragt} \
+        -constraints {tk tbl krypto} -body {
+    set f [makeFile {} start1.db]
+    verschluesselteDatei $f geheim {vorname A name Bergfeld}
+    set r [mitKennwort {geheim} {::ab::oeffnenMitKennwort $f}]
+    set n [expr {$r ? [dict get [adressbuch::lesen 1] name] : ""}]
+    adressbuch::schliessen
+    list $r $n
+} -result {1 Bergfeld}
+
+test gui-14.2 {dreimal falsch -- dann wird nicht geoeffnet} \
+        -constraints {tk tbl krypto} -body {
+    set f [makeFile {} start2.db]
+    verschluesselteDatei $f geheim {vorname A name B}
+    set r [mitKennwort {falsch1 falsch2 falsch3} {::ab::oeffnenMitKennwort $f}]
+    adressbuch::schliessen
+    set r
+} -result 0
+
+test gui-14.3 {Abbrechen oeffnet nicht} -constraints {tk tbl krypto} -body {
+    set f [makeFile {} start3.db]
+    verschluesselteDatei $f geheim {vorname A name B}
+    # Leere Antwort = Abbruch
+    set r [mitKennwort {{}} {::ab::oeffnenMitKennwort $f}]
+    adressbuch::schliessen
+    set r
+} -result 0
+
+test gui-14.4 {eine offene Datei wird ohne Frage geoeffnet} -constraints {tk tbl} -body {
+    # Wuerde gefragt, bliebe der Test haengen.
+    set f [makeFile {} start4.db]
+    file delete $f
+    adressbuch::schliessen
+    adressbuch::oeffnen $f
+    adressbuch::schreiben "" {vorname A name Bergfeld}
+    adressbuch::schliessen
+    set r [::ab::oeffnenMitKennwort $f]
+    set n [dict get [adressbuch::lesen 1] name]
+    adressbuch::schliessen
+    list $r $n
+} -result {1 Bergfeld}
+
+test gui-15.1 {Verschluesseln, Kennwort aendern, aufheben -- alle drei Wege} \
+        -constraints {tk tbl krypto kryptoEin} -body {
+    frischGui
+    adressbuch::csvLesen [file join [file dirname [file normalize [info script]]] \
+            beispiel.csv]
+    ::ab::listeFuellen
+    set schritte {}
+    array set ::ab::vs {neu geheim neu2 geheim}
+    ::ab::verschluesselnAusfuehren
+    lappend schritte [adressbuch::istVerschluesselt]
+    array set ::ab::vs {neu zweites neu2 zweites}
+    ::ab::verschluesselnAusfuehren
+    lappend schritte [adressbuch::istVerschluesselt]
+    ::ab::entschluesseln
+    lappend schritte [adressbuch::istVerschluesselt]
+    # Und die Daten sind noch da.
+    lappend schritte [llength [adressbuch::alle]]
+    set schritte
+} -result {1 1 0 7}
+
+test gui-15.2 {aufheben bei offener Datei tut nichts} -constraints {tk tbl} -body {
+    # Und meldet es, statt stillschweigend umzuschreiben.
+    frischGui
+    adressbuch::schreiben "" {vorname A name B}
+    set r [::ab::entschluesseln]
+    list $r [string match "*nicht verschluesselt*" $::ab::status]
+} -result {0 1}
+
+test gui-16.1 {der Ordner-Aufruf stuerzt ohne Dateiverwalter nicht ab} \
+        -constraints {tk tbl} -body {
+    # Wer kein xdg-open hat, bekommt den Pfad genannt -- kein Fehler.
+    frischGui
+    adressbuch::schreiben "" {vorname A name B}
+    set r [::ab::ordnerOeffnen]
+    # 0 oder 1, aber kein Absturz -- und die Statuszeile nennt den Ordner.
+    list [expr {$r in {0 1}}] \
+         [string match "*[file dirname [adressbuch::dateiName]]*" $::ab::status]
+} -result {1 1}
+
+test gui-16.2 {ohne Datei wird es gemeldet} -constraints {tk tbl} -body {
+    frischGui
+    adressbuch::schliessen
+    set r [::ab::ordnerOeffnen]
+    list $r [string match "*Keine Datei*" $::ab::status]
+} -result {0 1}
+
+aufraeumenSicherungen
+# --- Verschluesseln abgeschaltet: was die Oberflaeche zeigt -----------------
+
+proc dateiMenueEintraege {} {
+    set out {}
+    set d .menu.datei
+    if {![winfo exists $d]} { set d [lindex [lsearch -all -inline [winfo children .] *menu*] 0].datei }
+    for {set i 0} {$i <= [$d index end]} {incr i} {
+        if {[$d type $i] eq "command"} { lappend out [$d entrycget $i -label] }
+    }
+    return $out
+}
+
+test gui-16.1 {abgeschaltet: nur "aufheben" steht im Menue} \
+        -constraints {tk tbl kryptoAus} -body {
+    frischGui
+    set m [dateiMenueEintraege]
+    list [expr {"Verschluesselung aufheben..." in $m}] \
+         [expr {"Verschluesseln / Kennwort aendern..." in $m}] \
+         [expr {"Verschluesselung einrichten..." in $m}]
+} -result {1 0 0}
+
+test gui-16.2 {abgeschaltet: der Dialog verschluesselt nicht und sagt warum} \
+        -constraints {tk tbl kryptoAus} -body {
+    frischGui
+    adressbuch::schreiben "" {vorname A name B}
+    set r [::ab::verschluesselnDialog]
+    list $r [adressbuch::istVerschluesselt]
+} -result {0 0}
+
+test gui-16.3 {abgeschaltet: Hilfe -> Ueber sagt es} -constraints {tk tbl kryptoAus} -body {
+    frischGui
+    string match "*Verschluesseln: ABGESCHALTET*" [::ab::ueberText]
+} -result 1
+
+::tcltest::cleanupTests

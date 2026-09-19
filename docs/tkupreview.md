@@ -51,6 +51,14 @@ widgets when available and fall back to plain text otherwise:
 
 Each method sets the widget's `kind`, queryable with `kind`.
 
+`kind` reports what is **shown**, not what was asked for. When a method falls
+back to plain text, `kind` is `text`: `html` without `tcllitehtml` (the title
+then says so) or when rendering fails, and `json`/`xml`/`ini` when their viewer
+is missing or cannot parse the content. Measured 2026-09-19 without
+`tcllitehtml`: `html` → `text`; invalid content for `json`, `xml`, `ini` →
+`text`. A caller that needs to know whether the rich view came up compares
+`kind` with the method it called.
+
 ## Use
 
 ```tcl

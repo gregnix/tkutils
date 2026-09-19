@@ -1,0 +1,30 @@
+.TH tkuopts n 0.1 tkutils
+.SH tkutils::tkuopts
+.PP
+Option checking for tkutils widgets and procs: merge the caller's options over the defaults, and reject an option that does not exist — with the known ones in the message.
+.CS
+::tkutils::tkuopts::merge MOD defaults argv   ;# -> merged option/value list
+.CE
+.IP \(bu
+\fBMOD\fR — the upper\-case module name (\fBTKUCALC\fR), used in the errorcode.
+.IP \(bu
+\fBdefaults\fR — option/value pairs, e.g. \fB[array get o]\fR.
+.IP \(bu
+\fBargv\fR — the caller's options.
+.PP
+Errors:
+.TS
+l l.
+errorcode	message
+\fB{TKUTILS <MOD> OPTION <opt>}\fR	\fBunknown option "\-x"\fR / \fBKnown: \-a \-b\fR
+\fB{TKUTILS <MOD> OPTION}\fR	\fBmissing value for option "\-x"\fR
+.TE
+.SS Why
+.PP
+Up to tkutils 0.44.0 (first build) 24 procs in 20 modules took their options with \fBarray set o $args\fR and swallowed every unknown option — a misspelt \fB\-onresult\fR simply did nothing. \fBtkutlfmt::column\fR had a check, but it ran after the merge, when every given key already existed, so it could never fire (measured 2026\-09\-19). All 24 sites now use:
+.CS
+array set o {-onresult "" -history 0}
+array set o [::tkutils::tkuopts::merge TKUCALC [array get o] $args]
+.CE
+.PP
+Pure Tcl, no Tk. Not in the umbrella: the modules that need it require it themselves.

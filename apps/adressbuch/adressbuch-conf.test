@@ -1,0 +1,108 @@
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+
+set here [file dirname [file normalize [info script]]]
+source [file join $here adressbuch-einstellungen.tcl]
+
+proc frischConf {} {
+    set d [makeDirectory ab-conf]
+    set ::env(ADRESSBUCH_CONF) [file join $d adressbuch.conf]
+    file delete -force $::env(ADRESSBUCH_CONF)
+    abconf::zuruecksetzen
+    return $::env(ADRESSBUCH_CONF)
+}
+
+test conf-1.1 {ohne Datei gelten die Vorgaben} -body {
+    frischConf
+    abconf::laden
+    list [abconf::holZahl fenster breite] [abconf::hol allgemein letzte_datei]
+} -result {860 {}}
+
+test conf-1.2 {gespeichert und wieder geladen} -body {
+    frischConf
+    abconf::laden
+    abconf::setz fenster breite 1024
+    abconf::setz allgemein letzte_datei /tmp/x.db
+    set ok [abconf::speichern]
+    abconf::zuruecksetzen
+    abconf::laden
+    list $ok [abconf::holZahl fenster breite] [abconf::hol allgemein letzte_datei]
+} -result {1 1024 /tmp/x.db}
+
+test conf-2.1 {eine kaputte Datei verhindert den Start nicht} -body {
+    # Wer sie von Hand bearbeitet und dabei etwas zerschossen hat, soll
+    # die Anwendung noch oeffnen koennen -- sonst kommt er nicht mehr an
+    # die Stelle, an der er es richten wuerde.
+    set f [frischConf]
+    set fh [open $f w]
+    # Nicht als Literal hinschreiben -- unpaarige Klammern zerbrechen
+    # schon den Testrumpf, nicht erst die Einstellungsdatei.
+    puts $fh [string repeat "\x00" 4][format %c 91][format %c 123]
+    close $fh
+    set rc [catch {abconf::laden} e]
+    list $rc [abconf::holZahl fenster breite]
+} -result {0 860}
+
+test conf-2.2 {unbekannte Schluessel werden uebergangen} -body {
+    # Ein Tippfehler soll nicht als neue Einstellung erscheinen, die
+    # nichts tut.
+    set f [frischConf]
+    set fh [open $f w]
+    puts $fh "\[fenster\]\nbreiter = 999\nbreite = 700\n\[quatsch\]\na = 1"
+    close $fh
+    abconf::laden
+    list [abconf::holZahl fenster breite] [abconf::hol fenster breiter] \
+         [abconf::hol quatsch a]
+} -result {700 {} {}}
+
+test conf-2.3 {eine Zahl, die keine ist, faellt auf die Vorgabe zurueck} -body {
+    # Wer "breite = achthundert" hineinschreibt, bekaeme sonst ein
+    # Fenster der Groesse 0 und wuesste nicht warum.
+    set f [frischConf]
+    set fh [open $f w]
+    puts $fh "\[fenster\]\nbreite = achthundert"
+    close $fh
+    abconf::laden
+    list [abconf::hol fenster breite] [abconf::holZahl fenster breite]
+} -result {achthundert 860}
+
+test conf-3.1 {ein abgebrochenes Schreiben laesst die alte Datei stehen} -body {
+    # Erst in eine Nebendatei, dann umbenennen. Sonst steht nach einem
+    # Abbruch eine halbe Datei da, und beim naechsten Start gelten weder
+    # die alten noch die neuen Einstellungen.
+    set f [frischConf]
+    abconf::laden
+    abconf::setz fenster breite 1000
+    abconf::speichern
+    set vorher [glob -nocomplain -directory [file dirname $f] *]
+    # Keine ".neu" darf uebrig sein.
+    set reste {}
+    foreach x $vorher { if {[string match *.neu $x]} { lappend reste $x } }
+    list [abconf::holZahl fenster breite] [llength $reste]
+} -result {1000 0}
+
+test conf-4.1 {die Datei gehoert nur dem Eigentuemer} -constraints unix -body {
+    set f [frischConf]
+    abconf::laden
+    abconf::speichern
+    format 0o%o [expr {[file attributes $f -permissions] & 0o777}]
+} -result 0o600
+
+test conf-5.1 {ADRESSBUCH_CONF hat Vorrang vor allem} -body {
+    set ::env(ADRESSBUCH_CONF) /tmp/eigene.conf
+    set p [abconf::dateiname]
+    unset ::env(ADRESSBUCH_CONF)
+    set p
+} -result /tmp/eigene.conf
+
+test conf-5.2 {sonst entscheidet das Betriebssystem} -body {
+    unset -nocomplain ::env(ADRESSBUCH_CONF)
+    set p [abconf::verzeichnis]
+    # Muss unterhalb des Heimatverzeichnisses oder von APPDATA liegen --
+    # nicht im Arbeitsverzeichnis.
+    list [expr {[file tail $p] eq "adressbuch"}] \
+         [expr {[file dirname $p] ne [pwd]}]
+} -result {1 1}
+
+::tcltest::cleanupTests

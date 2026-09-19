@@ -12,6 +12,7 @@ fires a callback with its full path. Tk 8.6+ and 9.x.
 ::tkutils::tkufiletree::setRoot      path dir
 ::tkutils::tkufiletree::refresh      path
 ::tkutils::tkufiletree::refreshDir   path dir     ;# re-populate one already-open node
+::tkutils::tkufiletree::volumesRoot               ;# sentinel for -root: start at the list of volumes
 ::tkutils::tkufiletree::up           path        ;# re-root to parent dir
 ::tkutils::tkufiletree::selectedPath path        ;# full path or ""
 ::tkutils::tkufiletree::root         path        ;# current root dir or ""
@@ -27,6 +28,10 @@ was selected, else 0, and never raises. Together with `root` and `setRoot` this
 lets a host application keep the tree pointing at — and highlighting — whatever
 it just opened elsewhere. `up` re-roots to the parent directory (also bound to
 `BackSpace`) and reveals the previous root.
+
+`volumesRoot` returns the value to pass as `-root` when the tree should start
+at the list of volumes (Windows: `C:/`, `D:/`, …). It is a sentinel, not a
+real path; on single-root platforms it degenerates to the one root.
 
 `refreshDir` re-reads a single directory node that is already present in the
 tree and re-populates its children (trying both `$dir` and its normalized form),

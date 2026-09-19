@@ -1,4 +1,4 @@
-.TH tkustatus n 0.1 tkutils
+.TH tkustatus n 0.2 tkutils
 .SH tkutils::tkustatus
 .PP
 A status bar with an expanding main message, optional named fields and an optional progress bar. Pure Tk.

@@ -1,4 +1,4 @@
-.TH tkutical n 0.2 tkutils
+.TH tkutical n 0.3 tkutils
 .SH "tkutils::tkutical  (optional widget)"
 .PP
 Month calendar widget that wraps the \fBtical\fR library. OPTIONAL: not in the tkutils umbrella; require it directly once \fBtical\fR is on the module path (\fBtical::view::month\fR + \fBtical::render::canvas\fR).
@@ -18,9 +18,13 @@ set w [::tkutils::tkutical::widget .w ?-year Y? ?-month M? \
 ::tkutils::tkutical::setSelection   $w {dates / A..B ranges}
 ::tkutils::tkutical::clearSelection $w
 ::tkutils::tkutical::canvasWidget   $w            ;# underlying canvas
+::tkutils::tkutical::setView    $w month|week     ;# switch view; throws on bad view
+::tkutils::tkutical::getView    $w                ;# -> month|week
+::tkutils::tkutical::setDate    $w iso            ;# set the focused date (YYYY-MM-DD)
+::tkutils::tkutical::getDate    $w                ;# -> focused ISO date
 .CE
 .PP
-\fB\-command CMD\fR is called as \fBCMD $w $selection\fR on selection changes (selection modes only). Default \fB\-selectmode single\fR. Errorcodes: \fB{TKUTILS TKUTICAL MONTH}\fR, \fB{TKUTILS TKUTICAL SELECTMODE}\fR.
+\fB\-command CMD\fR is called as \fBCMD $w $selection\fR on selection changes (selection modes only). Default \fB\-selectmode single\fR. Errorcodes: \fB{TKUTILS TKUTICAL MONTH}\fR, \fB{TKUTILS TKUTICAL SELECTMODE}\fR, \fB{TKUTILS TKUTICAL VIEW}\fR, \fB{TKUTILS TKUTICAL DATE}\fR.
 .SS "Install / run"
 .IP \(bu
 Drop \fBlib/tm/tkutils/tkutical\-0.1.tm\fR into the tkutils tree (do NOT add it to the umbrella \-\- it is optional, like tkutablelist/tkusqlite).

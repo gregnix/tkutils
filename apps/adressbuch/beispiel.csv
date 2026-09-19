@@ -1,0 +1,8 @@
+Vorname,Name,Strasse,Nummer,PLZ,Ort,Telefon,Mobil,Email,Notiz
+Aino,Baltrusch,Ahornweg,12,00001,Marbach am Nebel,00001/1234,00170/2223344,aino.baltrusch@example.org,Kegelverein
+Boris,Cendrowski,Am Deichtor,3,00002,Oberhellingen,00002/98765,,b.cendrowski@example.org,
+Cosima,Drehwald-Vey,Ringstrasse,7a,00003,Kleinsassendorf,00003/999888,00160/5556677,cosima@example.org,Nur abends erreichbar
+Detlev,Eiserloh,Kirchplatz,1,00004,Wendisch Aue,,00171/1112233,detlev.eiserloh@example.org,
+Editha,Fangmeier,Bahnhofstrasse,22,00005,Nordwalde am Moor,00005/44556,00151/9998877,editha.f@example.org,
+Fabian,Gorczyca,Lindenweg,8,00006,Hinterbrueggen,00006/33445,,f.gorczyca@example.org,Umzug geplant
+Gesine,Hufnagel,Muehlenstrasse,15,00007,Sankt Ohlendorf,00007/22334,00176/4445566,gesine.h@example.org,

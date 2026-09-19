@@ -51,6 +51,8 @@ Text\-shaped content is passed as a string; the caller decodes bytes first (prov
 \fBmessage\fR \-\- a centered one\-line notice (empty state, errors).
 .PP
 Each method sets the widget's \fBkind\fR, queryable with \fBkind\fR.
+.PP
+\fBkind\fR reports what is \fBshown\fR, not what was asked for. When a method falls back to plain text, \fBkind\fR is \fBtext\fR: \fBhtml\fR without \fBtcllitehtml\fR (the title then says so) or when rendering fails, and \fBjson\fR/\fBxml\fR/\fBini\fR when their viewer is missing or cannot parse the content. Measured 2026\-09\-19 without \fBtcllitehtml\fR: \fBhtml\fR → \fBtext\fR; invalid content for \fBjson\fR, \fBxml\fR, \fBini\fR → \fBtext\fR. A caller that needs to know whether the rich view came up compares \fBkind\fR with the method it called.
 .SS Use
 .CS
 package require tkutils::tkupreview

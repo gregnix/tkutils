@@ -6,15 +6,34 @@ set haveTk [expr {![catch {package require Tk}]}]
 if {$haveTk} { catch {wm withdraw .} }
 
 set ok 0
+set ::loadErr ""
 if {$haveTk} {
     set here [file dirname [file normalize [info script]]]
     set tmDir [file normalize [file join $here .. lib tm]]
     catch {tcl::tm::path add $tmDir}
     if {[info exists ::env(TKUTILS_TM)]}  { catch {tcl::tm::path add $::env(TKUTILS_TM)} }
-    if {[info exists ::env(TCLUTILS_TM)]} { catch {tcl::tm::path add $::env(TCLUTILS_TM)} }
-    if {![catch {package require tkutils::tkulauncher}]} { set ok 1 }
+    # tclutils discovery (CONVENTIONS 11.2): TCLUTILS_TM, else the sibling tree
+    if {[info exists ::env(TCLUTILS_TM)]} {
+        catch {tcl::tm::path add $::env(TCLUTILS_TM)}
+    } else {
+        set _tkuRoot [file dirname [file dirname $tmDir]]
+        foreach _c [lsort -decreasing \
+                [glob -nocomplain [file join [file dirname $_tkuRoot] tclutils*/lib/tm]]] {
+            tcl::tm::path add $_c
+            break
+        }
+    }
+    if {![catch {package require tkutils::tkulauncher} ::loadErr]} { set ok 1; set ::loadErr "" }
 }
 testConstraint tk $ok
+
+# Tk is there but the module did not load: that is a failure, not a skip.
+# (Up to tkutils 0.43.0 this case switched the "tk" constraint off and the
+# file reported 86 skips, silently -- measured 2026-09-19 without TCLUTILS_TM.)
+testConstraint haveTk $haveTk
+test tkulauncher-0.0 {the module loads when Tk is available} -constraints haveTk -body {
+    set ::loadErr
+} -result {}
 set ns ::tkutils::tkulauncher
 proc viewFile {f} { set c [open $f]; set t [read $c]; close $c; return $t }
 
@@ -838,26 +857,26 @@ test tkulauncher-18.3 {_edIsPrefix guards against moving a menu into itself} -co
 
 
 # ---- tcl script entries ----------------------------------------------------
-test tkulauncher-19.1 {interpreter keys and per-platform resolution} -body {
+test tkulauncher-19.1 {interpreter keys and per-platform resolution} -constraints tk -body {
     set ns ::tkutils::tkulauncher
     list [${ns}::tclInterpreters] \
          [${ns}::resolveTclInterp wish9 linux] [${ns}::resolveTclInterp wish9 windows] \
          [${ns}::resolveTclInterp tclsh8 linux] [${ns}::resolveTclInterp tclsh8 windows]
 } -result {{wish9 wish8 tclsh9 tclsh8} wish9.0 wish90.exe tclsh8.6 tclsh86t.exe}
 
-test tkulauncher-19.2 {resolve builds an exec act for a tcl entry} -body {
+test tkulauncher-19.2 {resolve builds an exec act for a tcl entry} -constraints tk -body {
     ${ns}::resolve {type tcl target /p/app.tcl interp wish9}
 } -result {kind exec argv {wish9.0 /p/app.tcl}}
 
-test tkulauncher-19.3 {tcl entry carries TCLLIBPATH as child env} -body {
+test tkulauncher-19.3 {tcl entry carries TCLLIBPATH as child env} -constraints tk -body {
     ${ns}::resolve {type tcl target a.tcl interp tclsh9 tcllibpath /l/tcl9.0}
 } -result {kind exec argv {tclsh9.0 a.tcl} env {TCLLIBPATH /l/tcl9.0}}
 
-test tkulauncher-19.4 {tcl entry defaults to wish9 and appends args} -body {
+test tkulauncher-19.4 {tcl entry defaults to wish9 and appends args} -constraints tk -body {
     ${ns}::resolve {type tcl target a.tcl args {--x 1}}
 } -result {kind exec argv {wish9.0 a.tcl --x 1}}
 
-test tkulauncher-19.5 {setTclInterp overrides an interpreter path} -body {
+test tkulauncher-19.5 {setTclInterp overrides an interpreter path} -constraints tk -body {
     set ns ::tkutils::tkulauncher
     ${ns}::setTclInterp wish9 -linux /opt/tcl9/bin/wish9.0
     set r [${ns}::resolveTclInterp wish9 linux]
@@ -881,7 +900,7 @@ test tkulauncher-19.6 {editor round-trips a tcl entry} -constraints tk -body {
 
 
 # ---- tilde expansion (Tcl 9 no longer expands ~ in file commands) ----------
-test tkulauncher-20.1 {expandTilde handles ~ and ~/path, leaves others alone} -setup {
+test tkulauncher-20.1 {expandTilde handles ~ and ~/path, leaves others alone} -constraints tk -setup {
     set ::env(HOME) /home/testuser
 } -body {
     set ns ::tkutils::tkulauncher
@@ -889,30 +908,30 @@ test tkulauncher-20.1 {expandTilde handles ~ and ~/path, leaves others alone} -s
          [${ns}::expandTilde /abs/path] [${ns}::expandTilde rel/x]
 } -result {/home/testuser /home/testuser/projects /abs/path rel/x}
 
-test tkulauncher-20.2 {open entry expands a leading ~ in its target} -setup {
+test tkulauncher-20.2 {open entry expands a leading ~ in its target} -constraints tk -setup {
     set ::env(HOME) /home/testuser
 } -body {
     ${ns}::resolve {type open label Home target ~/Documents}
 } -result {kind open argv /home/testuser/Documents}
 
-test tkulauncher-20.3 {tcl entry expands ~ in target and each tcllibpath dir} -setup {
+test tkulauncher-20.3 {tcl entry expands ~ in target and each tcllibpath dir} -constraints tk -setup {
     set ::env(HOME) /home/testuser
 } -body {
     ${ns}::resolve {type tcl target ~/app.tcl interp wish9 tcllibpath {~/lib/tcl9.0 ~/lib/tcltk}}
 } -result {kind exec argv {wish9.0 /home/testuser/app.tcl} env {TCLLIBPATH {/home/testuser/lib/tcl9.0 /home/testuser/lib/tcltk}}}
 
-test tkulauncher-20.4 {url target is left untouched (~ may be part of the URL)} -body {
+test tkulauncher-20.4 {url target is left untouched (~ may be part of the URL)} -constraints tk -body {
     ${ns}::resolve {type url label W target https://example.com/~user}
 } -result {kind open argv https://example.com/~user}
 
 
 # ---- suggestion catalogue --------------------------------------------------
-test tkulauncher-21.1 {suggestions returns categories with entries} -body {
+test tkulauncher-21.1 {suggestions returns categories with entries} -constraints tk -body {
     set cats [dict keys [::tkutils::tkulauncher::suggestions]]
     expr {"System tools" in $cats && "Internet" in $cats && "Tcl scripts" in $cats}
 } -result 1
 
-test tkulauncher-21.2 {quickAddSet is a non-empty entry list} -body {
+test tkulauncher-21.2 {quickAddSet is a non-empty entry list} -constraints tk -body {
     expr {[llength [::tkutils::tkulauncher::quickAddSet]] > 0}
 } -result 1
 

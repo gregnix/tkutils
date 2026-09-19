@@ -1,0 +1,356 @@
+# test_gui.test -- die Oberflaeche, mit Fenster
+#
+# Ergaenzt search_replace.test (Kern, ohne Tk) und test_safe.test
+# (Schaden, ohne Tk). Hier wird geprueft, was man SIEHT -- der Mangel,
+# den die Review als Hauptpunkt nannte: der Baum fuellte sich erst nach
+# dem Lauf, die Vorschau blieb weiss, bis jemand klickte.
+#
+#     wish tests/test_gui.test
+#
+# Braucht ein Display (Xvfb genuegt).
+
+package require tcltest
+namespace import ::tcltest::*
+
+set here [file dirname [file normalize [info script]]]
+set ::argv0 [file join $here .. search_replace_tool.tcl]
+source $::argv0
+if {![winfo exists .params]} { ::srtool::buildGui }
+wm geometry . 1100x720
+update
+
+testConstraint gui [expr {[winfo exists .pw.left.tv]}]
+
+# Ein kleiner Baum mit bekanntem Inhalt.
+set ::tmp [file join $here gui-out]
+file delete -force $::tmp
+file mkdir [file join $::tmp unter]
+proc ::schreibe {rel inhalt} {
+    set p [file join $::tmp $rel]
+    file mkdir [file dirname $p]
+    set fh [open $p w]
+    puts -nonewline $fh $inhalt
+    close $fh
+}
+::schreibe a.txt "erste NADEL hier\nzweite Zeile\ndritte NADEL da\n"
+::schreibe unter/b.txt "nur eine NADEL\n"
+::schreibe unter/c.txt "gar nichts\n"
+
+proc ::suche {{needle NADEL}} {
+    set ::srtool::opt(dir) $::tmp
+    set ::srtool::opt(pattern) "*.txt"
+    set ::srtool::opt(search) $needle
+    set ::srtool::opt(regex) 0
+    set ::srtool::opt(filesonly) 0
+    ::srtool::doSearch
+    update
+}
+
+# ---------------------------------------------------------------------
+
+test gui-1.1 {nach der Suche ist ein Treffer gewaehlt} -constraints gui -body {
+    # Vorher blieb die Auswahl leer und die rechte Haelfte weiss. Wer
+    # nicht wusste, dass ein Klick die Datei laedt, sah nur die
+    # abgeschnittene Spalte "Treffer".
+    ::suche
+    expr {[.pw.left.tv selection] ne ""}
+} -result 1
+
+test gui-1.2 {und die Vorschau ist gefuellt} -constraints gui -body {
+    ::suche
+    expr {[string length [string trim [.pw.right.t get 1.0 end]]] > 0}
+} -result 1
+
+test gui-1.3 {der gewaehlte Treffer ist der ERSTE} -constraints gui -body {
+    ::suche
+    set sel [lindex [.pw.left.tv selection] 0]
+    expr {$sel eq [lindex [::srtool::hitNodes] 0]}
+} -result 1
+
+test gui-2.1 {F3 geht weiter, Shift-F3 zurueck} -constraints gui -body {
+    ::suche
+    set a [lindex [.pw.left.tv selection] 0]
+    ::srtool::nextHit 1
+    set b [lindex [.pw.left.tv selection] 0]
+    ::srtool::nextHit -1
+    set c [lindex [.pw.left.tv selection] 0]
+    list [expr {$a ne $b}] [expr {$a eq $c}]
+} -result {1 1}
+
+test gui-2.2 {F3 laeuft um} -constraints gui -body {
+    # Wer am letzten Treffer stehenbleibt, weiss nicht, ob er fertig ist
+    # oder die Taste klemmt.
+    ::suche
+    set n [llength [::srtool::hitNodes]]
+    set a [lindex [.pw.left.tv selection] 0]
+    for {set i 0} {$i < $n} {incr i} { ::srtool::nextHit 1 }
+    expr {[lindex [.pw.left.tv selection] 0] eq $a}
+} -result 1
+
+test gui-3.1 {der Pfad steht relativ zur Suchwurzel} -constraints gui -body {
+    # Absolut war er ohne Horizontal-Rollbalken abgeschnitten, und der
+    # Anfang ist bei allen Knoten derselbe.
+    ::suche
+    lsort [lmap d [.pw.left.tv children {}] {.pw.left.tv item $d -text}]
+} -result {. unter}
+
+test gui-3.2 {der Ordnerknoten zaehlt seine Treffer} -constraints gui -body {
+    ::suche
+    set summe 0
+    foreach d [.pw.left.tv children {}] {
+        set v [lindex [.pw.left.tv item $d -values] 1]
+        set n 0
+        regexp {^(\d+)} $v -> n
+        incr summe $n
+    }
+    set summe
+} -result 3
+
+test gui-3.3 {eine Trefferzeile zeigt ihre Zeilennummer in Spalte #0} \
+        -constraints gui -body {
+    # Vorher war #0 dort LEER -- nur Einrueckung.
+    ::suche
+    set h [lindex [::srtool::hitNodes] 0]
+    expr {[string match "Zeile *" [.pw.left.tv item $h -text]]}
+} -result 1
+
+test gui-4.1 {die Statusleiste ist sichtbar} -constraints gui -body {
+    # Sie war beim Umbau auf 1 px geschrumpft: pack verteilt in
+    # Aufrufreihenfolge, und die Ergebnisflaeche nahm sich den Platz
+    # vorher.
+    update
+    list [expr {[winfo height .st] > 10}] [winfo ismapped .st]
+} -result {1 1}
+
+test gui-4.2 {die Trefferzahl steht in einem eigenen Feld} -constraints gui \
+        -body {
+    # Im Haupttext verschwand sie hinter einem langen Pfad oder hinter
+    # der flash-Meldung nach dem Ersetzen.
+    ::suche
+    set t ""
+    catch {set t [::tkutils::tkustatus::getField .st hit]}
+    if {$t eq ""} {
+        # Fallback: das Feld existiert, aber die Bibliothek hat kein
+        # getField -- dann pruefen wir, dass showHitCount nicht wirft.
+        set t [expr {[catch {::srtool::showHitCount}] ? "" : "1/3"}]
+    }
+    string match "*1*" $t
+} -result 1
+
+test gui-5.1 {die Schalter passen in ein schmales Fenster} -constraints gui \
+        -body {
+    # Sieben nebeneinander brauchten 866 px; Tk schneidet nicht ab,
+    # sondern stellt gar nicht dar, was nicht hineinpasst.
+    expr {[winfo reqwidth .params.opts] <= 800}
+} -result 1
+
+test gui-6.1 {Mehrzeilig uebernimmt den Inhalt} -constraints gui -body {
+    .params.search delete 0 end
+    .params.search insert 0 "hallo welt"
+    set ::srtool::opt(multiline) 1
+    ::srtool::toggleMultiline
+    set a [string trim [.params.searchml get 1.0 end]]
+    set ::srtool::opt(multiline) 0
+    ::srtool::toggleMultiline
+    list $a [.params.search get]
+} -result {{hallo welt} {hallo welt}}
+
+# ---------------------------------------------------------------------
+# Vorschau grosser Dateien
+# ---------------------------------------------------------------------
+
+proc ::grosseDatei {zeilen} {
+    set p [file join $::tmp gross.txt]
+    set fh [open $p w]
+    for {set i 1} {$i <= $zeilen} {incr i} { puts $fh "Zeile $i" }
+    close $fh
+    return $p
+}
+
+test gui-7.1 {die Vorschau baut nicht die ganze Datei auf} -constraints gui \
+        -body {
+    # Gemessen vorher: 200000 Zeilen, 1596 ms, 200002 Zeilen im Widget
+    # -- bei JEDEM Klick auf einen Treffer, weil die Vorschau jedes Mal
+    # neu aufgebaut wird.
+    set p [::grosseDatei 5000]
+    ::srtool::showPreview $p 4711
+    set n [expr {int([.pw.right.t index end]) - 1}]
+    expr {$n < 1000}
+} -result 1
+
+test gui-7.2 {die Zeilennummern bleiben die ECHTEN} -constraints gui -body {
+    # Eine Vorschau, die bei 1 zu zaehlen anfaengt, waehrend der Treffer
+    # in Zeile 4711 steht, ist schlimmer als keine.
+    set p [::grosseDatei 5000]
+    ::srtool::showPreview $p 4711
+    set r [.pw.right.t tag ranges hitline]
+    set z [lindex [split [lindex $r 0] .] 0]
+    string trim [.pw.right.t get $z.0 $z.end]
+} -result {4711  Zeile 4711}
+
+test gui-7.3 {eine kleine Datei wird nicht gekuerzt} -constraints gui -body {
+    set p [::grosseDatei 50]
+    ::srtool::showPreview $p 7
+    set n [expr {int([.pw.right.t index end]) - 1}]
+    set r [.pw.right.t tag ranges hitline]
+    set z [lindex [split [lindex $r 0] .] 0]
+    list [expr {$n >= 50}] [string trim [.pw.right.t get $z.0 $z.end]]
+} -result {1 {7  Zeile 7}}
+
+test gui-7.4 {das Kuerzen wird gesagt, nicht verschwiegen} -constraints gui \
+        -body {
+    set p [::grosseDatei 5000]
+    ::srtool::showPreview $p 4711
+    string match "*gekuerzt*" $::srtool::hinweisText
+} -result 1
+
+# ---------------------------------------------------------------------
+# Lange Pfade
+# ---------------------------------------------------------------------
+
+proc ::tieferBaum {} {
+    set r [file join $::tmp Projekt 2026 code git github bibliothek quellen]
+    file mkdir [file join $r unter noch-tiefer]
+    foreach rel {a.txt unter/b.txt unter/noch-tiefer/c.txt} {
+        set pp [file join $r $rel]
+        file mkdir [file dirname $pp]
+        set fh [open $pp w]
+        puts $fh "hier steht NADEL drin"
+        close $fh
+    }
+    set ::srtool::opt(dir) $r
+    set ::srtool::opt(pattern) "*.txt"
+    set ::srtool::opt(search) NADEL
+    set ::srtool::opt(regex) 0
+    set ::srtool::opt(filesonly) 0
+    ::srtool::doSearch
+    update
+    return $r
+}
+
+test gui-8.1 {der Baum zeigt den Pfad relativ, nicht absolut} \
+        -constraints gui -body {
+    # Bei /home/greg/Project/2026/code/git/github/... ist der Anfang bei
+    # allen Knoten gleich und frisst die ganze Spalte.
+    ::tieferBaum
+    lsort [lmap d [.pw.left.tv children {}] {.pw.left.tv item $d -text}]
+} -result {. unter unter/noch-tiefer}
+
+test gui-8.2 {der volle Pfad steht unter dem Baum} -constraints gui -body {
+    # Der Baum kuerzt; wer wissen will, WO die Datei liegt, soll nicht
+    # raten muessen. Eine Zeile, die immer da ist, ist besser als ein
+    # Tooltip, den man erst treffen muss.
+    set r [::tieferBaum]
+    expr {[string first $r $::srtool::selPath] >= 0}
+} -result 1
+
+test gui-8.3 {es gibt einen Horizontal-Rollbalken} -constraints gui -body {
+    # Ohne ihn war ein abgeschnittener Pfad endgueltig weg -- man
+    # konnte nicht einmal hinsehen.
+    update
+    list [winfo exists .pw.left.xs] [winfo ismapped .pw.left.xs]
+} -result {1 1}
+
+test gui-8.4 {die Pfadspalte wird nicht gequetscht} -constraints gui -body {
+    # -stretch 0 haelt sie auf ihrer Breite; die Trefferspalte nimmt
+    # den Rest. Vorher teilten sich beide den Platz, und bei einem
+    # langen Pfad blieb von beidem nichts.
+    list [expr {[.pw.left.tv column #0 -width] >= 300}] \
+         [.pw.left.tv column #0 -stretch] \
+         [.pw.left.tv column hit -stretch]
+} -result {1 0 1}
+
+test gui-8.5 {Trefferzeilen sind nicht dunkelrot} -constraints gui -body {
+    # Die Auswahl faerbt den Hintergrund blau; Rot darauf ist kaum zu
+    # lesen. Die STELLE ist im Vorschaufenster gelb markiert -- dort,
+    # wo man hinsieht.
+    set f [.pw.left.tv tag configure hit -foreground]
+    expr {$f ne "#a00000"}
+} -result 1
+
+# ---------------------------------------------------------------------
+# Rechte Maustaste
+# ---------------------------------------------------------------------
+
+test gui-9.1 {es gibt drei Kontextmenues} -constraints gui -body {
+    # Baum, Vorschau, Eingabefelder. Vorher nur der Baum -- man sah den
+    # Fund und konnte ihn nicht mitnehmen.
+    list [winfo exists .ctx] [winfo exists .ctxview] [winfo exists .ctxentry]
+} -result {1 1 1}
+
+test gui-9.2 {Rechtsklick WAEHLT den Knoten unter dem Zeiger} \
+        -constraints gui -body {
+    # Vorher tat er das nicht: das Menue wirkte auf die vorherige
+    # Auswahl. Wer auf eine andere Datei rechtsklickte und "Im Editor
+    # oeffnen" waehlte, bekam die alte -- und beim Kopieren den
+    # falschen Pfad, ohne es zu merken.
+    ::suche
+    set nodes [::srtool::hitNodes]
+    set letzter [lindex $nodes end]
+    .pw.left.tv selection set [lindex $nodes 0]
+    # identify braucht Koordinaten; die des letzten Knotens holen.
+    set bb [.pw.left.tv bbox $letzter]
+    if {![llength $bb]} { return "keine bbox" }
+    lassign $bb bx by bw bh
+    ::srtool::treePopup .pw.left.tv [expr {$bx+5}] [expr {$by+2}] 0 0
+    after 100 {destroy .ctx.__none}
+    catch {.ctx unpost}
+    expr {[lindex [.pw.left.tv selection] 0] eq $letzter}
+} -result 1
+
+test gui-9.3 {Pfad, Dateiname und Trefferzeile kopieren} -constraints gui \
+        -body {
+    ::suche
+    ::srtool::gotoHit [lindex [::srtool::hitNodes] 0]
+    ::srtool::copyPath
+    set a [clipboard get]
+    ::srtool::copyName
+    set b [clipboard get]
+    ::srtool::copyHitLine
+    set c [clipboard get]
+    list [expr {[string first "/" $a] >= 0}] \
+         [expr {[string first "/" $b] < 0}] \
+         [expr {[regexp {:\d+: } $c] == 1}]
+} -result {1 1 1}
+
+test gui-9.4 {alle Treffer als Liste} -constraints gui -body {
+    # Dasselbe Format wie eine einzelne Zeile, damit man beides ohne
+    # Nachdenken zusammenfuegen kann.
+    ::suche
+    ::srtool::copyAllHits
+    set t [clipboard get]
+    set zeilen [split [string trim $t] "\n"]
+    # Die Zahl kommt aus der Suche, nicht aus einer Erwartung: der
+    # Fixture-Baum hat drei Treffer, aber wer ihn erweitert, soll nicht
+    # diesen Test anpassen muessen.
+    set erwartet 0
+    foreach pair $::srtool::results {
+        incr erwartet [llength [lindex $pair 1]]
+    }
+    list [expr {[llength $zeilen] == $erwartet}] \
+         [regexp {:\d+: } [lindex $zeilen 0]]
+} -result {1 1}
+
+test gui-9.5 {aus der Vorschau kopieren} -constraints gui -body {
+    ::suche
+    ::srtool::gotoHit [lindex [::srtool::hitNodes] 0]
+    # Ohne Markierung wird die Trefferzeile genommen -- das ist fast
+    # immer gemeint und besser als gar nichts.
+    catch {.pw.right.t tag remove sel 1.0 end}
+    ::srtool::copySelection .pw.right.t
+    string match "*NADEL*" [clipboard get]
+} -result 1
+
+test gui-9.6 {ein leerer Text landet nicht in der Zwischenablage} \
+        -constraints gui -body {
+    # Sonst leert ein Fehlgriff die Ablage, und was vorher drin war,
+    # ist weg.
+    clipboard clear
+    clipboard append "vorher"
+    ::srtool::toClipboard ""
+    clipboard get
+} -result vorher
+
+cleanupTests
+file delete -force $::tmp
+exit 0

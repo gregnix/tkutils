@@ -1,4 +1,4 @@
-.TH tkutab n 0.1 tkutils
+.TH tkutab n 0.2 tkutils
 .SH tkutils::tkutab
 .PP
 A tabbed container with the conveniences a file manager needs that a bare \fBttk::notebook\fR lacks: a "+" new\-tab button and closeable tabs (middle\-click, or a close call from the caller). Each tab is a frame the caller fills with its own content. Tk 8.6+ and 9.x.

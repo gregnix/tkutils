@@ -1,0 +1,48 @@
+.TH tkucalc n 0.2 tkutils
+.SH tkutils::tkucalc
+.PP
+A small desktop calculator widget: a display plus a button grid, with keyboard support. A namespaced, reusable replacement for ad\-hoc global\-variable calculator scripts. Pure Tk + \fBexpr\fR; nothing external. Tk 8.6+ and 9.x.
+.SS API
+.CS
+::tkutils::tkucalc::widget   path ?-onresult script?
+::tkutils::tkucalc::evaluate text     ;# the arithmetic core (no GUI)
+::tkutils::tkucalc::clear    path     ;# clear the display
+::tkutils::tkucalc::getHistory   path ;# past "expr = result" lines
+::tkutils::tkucalc::clearHistory path ;# forget the history
+.CE
+.IP \(bu
+\fB\-onresult\fR if given, is appended the result string after each successful \fB=\fR.
+.IP \(bu
+\fB\-history\fR show a history panel (a listbox of past "expr = result" lines); double\-click or Return on a line loads its result back into the display.
+.SS "The arithmetic core"
+.PP
+\fBevaluate\fR turns a display expression into a number, independent of the GUI, so it is easy to test and reuse:
+.CS
+::tkutils::tkucalc::evaluate "2+3*4"    ;# -> 14
+::tkutils::tkucalc::evaluate "10/4"     ;# -> 2.5   (division is floating-point)
+::tkutils::tkucalc::evaluate "2^10"     ;# -> 1024  (^ is power)
+::tkutils::tkucalc::evaluate "3,5 + 1"  ;# -> 4.5   (German decimal comma)
+::tkutils::tkucalc::evaluate "7 % 3"    ;# -> 1     (modulo)
+.CE
+.PP
+It accepts the on\-screen math symbols (x, /, \-) and the German decimal comma, allows only a whitelist of characters (digits, \fB+ \- * / ( ) . ^ %\fR, exponent \fBe\fR), and evaluates in a \fBsafe interpreter\fR \-\- so a hand\-typed expression can never run commands or touch the file system. Division uses floating point (\fB10/4\fR is \fB2.5\fR, not integer \fB2\fR), whole results drop a trailing \fB.0\fR, and division by zero, letters, brackets, or variable references raise an error.
+.SS Widget
+.CS
+package require tkutils::tkucalc
+::tkutils::tkucalc::widget .calc
+pack .calc
+.CE
+.PP
+Buttons: digits \fB0\fR\-\fB9\fR, \fB.\fR, operators \fB+ \- x /\fR, parentheses, \fBC\fR (clear), \fB<\fR (backspace) and \fB=\fR (evaluate). \fBKeyboard\fR works throughout: the display is a normal entry, so type digits, operators and parentheses directly; Enter evaluates, Escape clears, BackSpace deletes. Buttons do not steal keyboard focus, so you can freely mix clicking and typing. A bad expression shows \fBError\fR instead of crashing.
+.PP
+With \fB\-history 1\fR a panel below the keypad lists past calculations; double\-click a line to reuse its result:
+.CS
+::tkutils::tkucalc::widget .calc -history 1
+.CE
+.CS
+# feed each result somewhere:
+::tkutils::tkucalc::widget .calc -onresult {apply {{r} {puts "= $r"}}}
+.CE
+.SS "See also"
+.PP
+\fBtkunumentry\fR, \fBtkuvalidate\fR

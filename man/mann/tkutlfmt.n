@@ -1,10 +1,10 @@
-.TH tkutlfmt n 0.1 tkutils
+.TH tkutlfmt n 0.2 tkutils
 .SH tkutils::tkutlfmt
 .PP
 Per\-column display formatting for a \fBtablelist\fR widget, via tablelist's \fB\-formatcommand\fR. The underlying cell value stays unchanged, so sorting and filtering still operate on the raw number while the user sees a grouped / currency / percent / date string. Pairs with \fBtkutils::tkutlsort\fR. Library\-neutral.
 .SS Package
 .CS
-package require tkutils::tkutlfmt 0.1
+package require tkutils::tkutlfmt 0.2
 .CE
 .PP
 Requires \fBTk\fR and \fBtablelist\fR. Uses \fBtclutils::tunum\fR to parse raw values when present (falls back to a built\-in parser).
@@ -69,4 +69,4 @@ Store \fBraw numbers\fR in the cells (e.g. \fB1234.5\fR, not \fB"1.234,50 €"\f
 Non\-numeric / non\-date cells are passed through unchanged.
 .SS "Error codes"
 .PP
-\fB\-errorcode {TKUTILS TKUTLFMT <REASON>}\fR (\fBTYPE\fR, \fBOPTION\fR, \fBLOCALE\fR).
+\fB\-errorcode {TKUTILS TKUTLFMT <REASON>}\fR (\fBTYPE\fR, \fBOPTION\fR, \fBLOCALE\fR). An unknown option to \fBcolumn\fR raises \fB{TKUTILS TKUTLFMT OPTION <opt>}\fR and lists the known ones (0.2). Up to 0.1 the check ran after the options were merged and could never fire: a misspelt option such as \fB\-decimalz\fR was accepted silently.

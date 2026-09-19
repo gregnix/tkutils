@@ -4,8 +4,24 @@
 package require tcltest
 namespace import ::tcltest::*
 
-if {[info exists ::env(TCLUTILS_TM)]} { ::tcl::tm::path add $::env(TCLUTILS_TM) }
+# Module paths: this repo first, then tclutils (CONVENTIONS 11.2). Up to
+# tkutils 0.43.0 this file used the environment only and aborted without a
+# summary under a plain `tclsh tests/all.tcl`.
+set here  [file dirname [file normalize [info script]]]
+set tmDir [file normalize [file join $here .. lib tm]]
+tcl::tm::path add $tmDir
 if {[info exists ::env(TKUTILS_TM)]}  { ::tcl::tm::path add $::env(TKUTILS_TM) }
+# tclutils discovery (CONVENTIONS 11.2): TCLUTILS_TM, else the sibling tree
+if {[info exists ::env(TCLUTILS_TM)]} {
+    catch {tcl::tm::path add $::env(TCLUTILS_TM)}
+} else {
+    set _tkuRoot [file dirname [file dirname $tmDir]]
+    foreach _c [lsort -decreasing \
+            [glob -nocomplain [file join [file dirname $_tkuRoot] tclutils*/lib/tm]]] {
+        tcl::tm::path add $_c
+        break
+    }
+}
 
 testConstraint tk [expr {![catch {package require Tk}]}]
 if {[testConstraint tk]} {

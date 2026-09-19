@@ -7,16 +7,35 @@ if {$haveTk} { catch {wm withdraw .} }
 
 # tkufilelist needs a tclutils provider; require both, gate on availability.
 set ok 0
+set ::loadErr ""
 if {$haveTk} {
     set here [file dirname [file normalize [info script]]]
     set tmDir [file normalize [file join $here .. lib tm]]
     catch {tcl::tm::path add $tmDir}
     if {[info exists ::env(TKUTILS_TM)]}  { catch {tcl::tm::path add $::env(TKUTILS_TM)} }
-    if {[info exists ::env(TCLUTILS_TM)]} { catch {tcl::tm::path add $::env(TCLUTILS_TM)} }
-    if {![catch {package require tkutils::tkufilelist}]
-     && ![catch {package require tclutils::tuprovider}]} { set ok 1 }
+    # tclutils discovery (CONVENTIONS 11.2): TCLUTILS_TM, else the sibling tree
+    if {[info exists ::env(TCLUTILS_TM)]} {
+        catch {tcl::tm::path add $::env(TCLUTILS_TM)}
+    } else {
+        set _tkuRoot [file dirname [file dirname $tmDir]]
+        foreach _c [lsort -decreasing \
+                [glob -nocomplain [file join [file dirname $_tkuRoot] tclutils*/lib/tm]]] {
+            tcl::tm::path add $_c
+            break
+        }
+    }
+    if {![catch {package require tkutils::tkufilelist} ::loadErr]
+     && ![catch {package require tclutils::tuprovider} ::loadErr]} { set ok 1; set ::loadErr "" }
 }
 testConstraint tk $ok
+
+# Tk is there but the module did not load: that is a failure, not a skip.
+# (Up to tkutils 0.43.0 this case switched the "tk" constraint off and the
+# file reported 86 skips, silently -- measured 2026-09-19 without TCLUTILS_TM.)
+testConstraint haveTk $haveTk
+test tkufilelist-0.0 {the module loads when Tk is available} -constraints haveTk -body {
+    set ::loadErr
+} -result {}
 set ns ::tkutils::tkufilelist
 
 # a scratch directory with a known mix

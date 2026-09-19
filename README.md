@@ -1,4 +1,4 @@
-# tkutils 0.43.0
+# tkutils 0.44.0
 
 `tkutils` is a collection of Tcl/Tk GUI widgets that sit on top of the pure-Tcl
 engines in [`tclutils`](https://github.com/gregnix/tclutils). It is intentionally separate from
@@ -6,7 +6,7 @@ engines in [`tclutils`](https://github.com/gregnix/tclutils). It is intentionall
 
 - **Rule:** the engine lives in `tclutils`, the GUI in `tkutils`. Each widget is
   a package `tkutils::tk<name>` (file `lib/tm/tkutils/tk<name>-0.1.tm`).
-- **Tcl/Tk:** 8.6+ and 9.x. The umbrella package loads the **41 core widgets**;
+- **Tcl/Tk:** 8.6+ and 9.x. The umbrella package loads the **50 core widgets**;
   optional widgets that need external packages are not in the umbrella.
 
 ## Install / path setup
@@ -15,11 +15,11 @@ engines in [`tclutils`](https://github.com/gregnix/tclutils). It is intentionall
 
 ```bash
 # explicit (recommended for tests/CI)
-export TCLUTILS_TM=/path/to/tclutils-0.62.0/lib/tm
-export TKUTILS_TM=/path/to/tkutils-0.43.0/lib/tm
+export TCLUTILS_TM=/path/to/tclutils-0.63.0/lib/tm
+export TKUTILS_TM=/path/to/tkutils-0.44.0/lib/tm
 
 # or source the bootstrap (adds both libs, finds the highest version)
-tclsh -e 'source /path/to/tkutils-0.43.0/tools/setup.tcl'
+tclsh -e 'source /path/to/tkutils-0.44.0/tools/setup.tcl'
 ```
 
 Then:
@@ -76,6 +76,16 @@ package require tkutils::tkunotes   ;# or a single widget
 | `tkutodo`    | tuical    | iCalendar VTODO task list (toggle done, due/priority/%) |
 | `tkudavbrowser` | tudav  | read-only CalDAV/CardDAV collection browser (grouped, selection callback) |
 | `tkudavaccount`| tudav   | DAV account form + connection test (PROPFIND) |
+| `tkufilelist` | tuprovider | Detail file list filled from a storage provider (Explorer) |
+| `tkupath`     | —          | Breadcrumb path bar with clickable segments (Explorer) |
+| `tkupreview`  | —          | Content preview, policy-free: the caller decides the kind (Explorer) |
+| `tkutab`      | —          | Tabbed container with "+" and closeable tabs (Explorer) |
+| `tkulauncher` | tuini, tujson, tuopen | Application launcher as a menu or a list |
+| `tkucalc`     | —          | Desktop calculator widget with keyboard support |
+| `tkucalendar` | —          | Clickable month calendar with navigation |
+| `tkudhash`    | tudhash    | Image-file front end for the perceptual dHash |
+| `tkuwheel`    | —          | Forward mouse-wheel events to a scrollable target |
+| `tkuwinico`   | tuico      | Build Windows `.ico` files from Tk images: each size rendered from SVG, or scaled from a photo; transparency preserved. Pure Tcl engine, hence in the umbrella; the SVG path needs Tk 9 or tksvg |
 
 `tkuical`, `tkuldif`, `tkuini`, `tkuvcard` accept `-editable 0` for a read-only view.
 
@@ -84,9 +94,9 @@ package require tkutils::tkunotes   ;# or a single widget
 | Widget | Needs | Notes |
 |--------|-------|-------|
 | `tkutils::tkutablelist` | **Tablelist** (tklib) | Full editable/sortable table; CSV import/export; tests skip without Tablelist |
+| `tkutils::tkutltools` + `tkutlclip` `tkutlfind` `tkutlfmt` `tkutlfooter` `tkutlsort` `tkutlstate` `tkutltree` | **Tablelist** | Helpers for a tablelist: copy rows as TSV/CSV, incremental find, column formats, a footer row, type-aware sorting, column layout save/restore, nested data to a tablelist tree. `tkutltools` loads all of them except `tkutltree` |
 | `tkutils::tkuxml`       | **tDOM**     | XML tree |
 | `tkutils::tkusqlite`    | **sqlite3**  | Lightweight DB browser |
-| `tkutils::tkuwinico` | `tclutils::tuico` | Build Windows `.ico` files from Tk images: each size rendered from SVG, or scaled from a photo; transparency preserved |
 | `tkutils::tkucanvaspng` | `tclutils::tupngdraw` (Glyphs for `-fontmap`) | Export a live Tk canvas to PNG: lines (arrows/dashes), shapes, elliptical arcs, text, images |
 | `tkutils::tkutical` | **tical** (`tical::view::month` + `tical::render::canvas`) | Month calendar on a canvas: prev/next/today, week numbers, day selection (none/single/multiple, Shift-click ranges), `-command` |
 | `tkutils::tkumonthcanvas` | **tical** | Canvas calendar (month/quarter/year): themes, week numbers, weekday header, today/weekend/holiday/note states, day selection (none/single/multiple) |
@@ -114,7 +124,7 @@ Each `tests/*.test` runs in its own interpreter; `tests/all.tcl` runs the suite.
 several widgets against their engines.
 
 ```bash
-export TCLUTILS_TM=/path/to/tclutils-0.62.0/lib/tm
+export TCLUTILS_TM=/path/to/tclutils-0.63.0/lib/tm
 xvfb-run -a tclsh tests/all.tcl       # GUI tests need a display (Xvfb)
 ```
 
@@ -123,10 +133,10 @@ skip cleanly when those packages are absent.
 
 ## Dependency summary
 
-`tkutils 0.43.0` pairs with `tclutils 0.62.0`. The editing helpers
+`tkutils 0.44.0` pairs with `tclutils 0.63.0`. The editing helpers
 (`tkuini`/`tkuvcard`/`tkuical`/`tkuldif`) and `tkunotes` subtree/tags build on the
 `tclutils` engines, so a current `tclutils` is required alongside. The recommended
-pairing is **tclutils 0.62.0 + tkutils 0.43.0**.
+pairing is **tclutils 0.63.0 + tkutils 0.44.0**.
 
 `tkuwinico` in particular needs **tclutils 0.61.0 or newer**: it builds on
 `tclutils::tuico`, which arrived with that release. An older tclutils on the

@@ -15,6 +15,7 @@ files. Tk 8.6+ and 9.x.
 ::tkutils::tkufilelist::refresh       path         ;# re-read the directory
 ::tkutils::tkufilelist::setFilter     path glob    ;# filter files by glob ("" = all)
 ::tkutils::tkufilelist::selectedEntry path         ;# entry dict of the selection, or ""
+::tkutils::tkufilelist::selectedEntries path       ;# all selected entry dicts, in row order
 ```
 
 ## Options

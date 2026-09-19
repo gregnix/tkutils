@@ -1,0 +1,226 @@
+.TH tkulauncher n 0.2 tkutils
+.SH tkutils::tkulauncher
+.PP
+An application launcher widget, in two shapes from one widget: a \fBmenu\fR (a ttk::menubutton with nested cascades \-\- a "Start" menu) or a \fBlist\fR (a vertical column of ttk::buttons \-\- a launcher panel). Entries start a program, open a URL, or open a file/folder. \fBCross\-platform\fR: URLs and files are opened with the OS default through \fBtclutils::tuopen\fR (xdg\-open / open / cmd start), so nothing is tied to a desktop environment \-\- the same launcher works on Windows and Linux. Tk 8.6+ and 9.x.
+.SS API
+.CS
+::tkutils::tkulauncher::widget  path ?options?
+::tkutils::tkulauncher::load    file       ;# parse a .json/.ini spec -> items
+::tkutils::tkulauncher::resolve entry      ;# what an entry would launch (no side effect)
+
+::tkutils::tkulauncher::reload       path  ;# re-read the -file spec and rebuild
+::tkutils::tkulauncher::editConfig   path  ;# open the config file in an editor
+::tkutils::tkulauncher::openLocation path  ;# open the folder holding the config
+::tkutils::tkulauncher::showCalendar   path  ;# open the built-in calendar window
+::tkutils::tkulauncher::showCalculator path  ;# open the built-in calculator window
+::tkutils::tkulauncher::editEntries   path  ;# open the form-based entry editor
+::tkutils::tkulauncher::saveEntries   items file  ;# write entries (JSON or INI by extension)
+::tkutils::tkulauncher::systemIds            ;# all known system ids (for pickers)
+.CE
+.SS Options
+.IP \(bu
+\fB\-mode\fR     \fBmenu\fR or \fBlist\fR (default \fBlist\fR).
+.IP \(bu
+\fB\-text\fR     menubutton label in menu mode (default \fBStart\fR).
+.IP \(bu
+\fB\-items\fR    the entry spec (a Tcl list of dicts).
+.IP \(bu
+\fB\-file\fR     load the spec from a \fB.json\fR or \fB.ini\fR file instead.
+.IP \(bu
+\fB\-onlaunch\fR optional script, appended \fB{kind argv}\fR just before launching. A false return suppresses the actual launch \-\- useful for logging, confirmation, or testing.
+.IP \(bu
+\fB\-system\fR when true, append a \fBSystem\fR group of environment\-aware tools (terminal, file manager, task manager, printers, autostart, ...) that resolve to the right command for the running platform / desktop.
+.IP \(bu
+\fB\-columns\fR (list mode) lay the buttons out in N columns instead of one, so a small panel of important entries stays compact. Section headers and separators span all columns. Combine with \fB\-scroll\fR if needed.
+.IP \(bu
+\fB\-tooltips\fR show a tooltip on each list button: an entry's explicit \fBtooltip\fR field, or (when on) one derived from what the entry would launch (the command, URL, or resolved system command). Handy when labels are short.
+.IP \(bu
+\fB\-scroll\fR (list mode) put the buttons in a scrollable frame with a scrollbar, so a long list stays usable; \fB\-height\fR sets its pixel height (default 400). The \fBmouse wheel\fR scrolls the panel from anywhere in it (via \fBtkuwheel\fR), and keeps working after a reload.
+.IP \(bu
+\fB\-settings\fR when true and a \fB\-file\fR is in use, append a \fBSettings\fR group (submenu in menu mode, section in list mode) with \fIEdit menu...\fR, \fIOpen file\fR\fI \fR\fIlocation\fR, and \fIReload\fR.
+.SS "Entry spec"
+.PP
+A list of dicts, each with a \fBtype\fR:
+.CS
+{type app  label "Firefox" cmd {firefox} icon path dir path tooltip text}  ;# run a program
+{type url       label "Manual"   target https://tcl.tk}  ;# open a URL
+{type open      label "Home"     target /home/greg}      ;# open a file/folder
+{type separator}                                          ;# a divider
+{type menu      label "Internet" items {...}}            ;# a submenu / section
+{type system    id taskmanager}                         ;# an environment-aware system tool
+{type calendar}                                         ;# open a built-in calendar window
+{type calc}                                             ;# open a built-in calculator window
+.CE
+.IP \(bu
+\fBapp\fR \-\- \fBcmd\fR is a program and its arguments; run in the background.
+.IP \(bu
+\fBurl\fR / \fBopen\fR \-\- \fBtarget\fR is opened with the OS default application.
+.IP \(bu
+\fBseparator\fR \-\- a divider.
+.IP \(bu
+\fBmenu\fR \-\- in \fBmenu\fR mode a cascade (submenu); in \fBlist\fR mode a section header (a bold label) followed by its items.
+.SS "Two shapes"
+.CS
+package require tkutils::tkulauncher
+
+set spec {
+    {type menu label Internet items {
+        {type app label Firefox cmd firefox}
+        {type url label "Tcl Manual" target https://www.tcl.tk/man/tcl9.0/}
+    }}
+    {type separator}
+    {type app label Terminal cmd xterm}
+}
+
+# a Start menu:
+::tkutils::tkulauncher::widget .start -mode menu -text Start -items $spec
+pack .start
+
+# or a launcher panel:
+::tkutils::tkulauncher::widget .panel -mode list -items $spec
+pack .panel -fill both -expand 1
+.CE
+.SS "From a file"
+.CS
+::tkutils::tkulauncher::widget .l -mode list -file ~/.config/mylauncher.json
+.CE
+.PP
+\fBJSON\fR \-\- an object \fB{"items":[...]}\fR or a bare array of entries:
+.CS
+{ "items": [
+    { "type": "menu", "label": "Internet", "items": [
+        { "type": "app", "label": "Firefox", "cmd": ["firefox"] },
+        { "type": "url", "label": "Manual", "target": "https://tcl.tk" }
+    ]},
+    { "type": "app", "label": "Terminal", "cmd": ["xterm"] }
+]}
+.CE
+.PP
+\fBINI\fR \-\- each \fB[section]\fR is a submenu; each \fBkey = value\fR is an entry, with a \fBtype:\fR prefix picking the type (default \fBapp\fR):
+.CS
+[Internet]
+Firefox = app: firefox
+Manual  = url: https://tcl.tk
+
+[System]
+Terminal = xterm
+Home     = open: /home/greg
+TaskMgr  = system: taskmanager
+.CE
+.PP
+JSON is parsed through \fBtclutils::tujson\fR, INI through \fBtclutils::tuini\fR.
+.SS "Settings: edit, locate, reload"
+.PP
+A launcher built from a file can manage its own configuration. Either turn on \fB\-settings\fR for a ready\-made Settings group, or wire these to your own buttons / menu entries:
+.CS
+::tkutils::tkulauncher::editConfig   .l   ;# open the config in $EDITOR / notepad
+::tkutils::tkulauncher::openLocation .l   ;# open the folder it lives in
+::tkutils::tkulauncher::reload       .l   ;# re-read it and rebuild in place
+.CE
+.PP
+The usual flow is \fIEdit menu...\fR (opens the file), make changes, \fIReload\fR (the launcher rebuilds without a restart). Editing and locating go through \fBtclutils::tuopen\fR, so they use the OS editor and file manager on both Windows and Linux. Without a \fB\-file\fR, these report that there is nothing to edit.
+.SS "Long menus"
+.PP
+In \fBlist\fR mode, a long button column can overflow the window; pass \fB\-scroll 1\fR (optionally with \fB\-height\fR) to put it in a scrollable frame with a scrollbar. In \fBmenu\fR mode, Tk scrolls an over\-long menu natively (arrows); the better fix there is to group entries into submenus with \fBtype menu\fR.
+.SS "Icons, working directory, availability"
+.PP
+App and other entries take a few optional fields:
+.IP \(bu
+\fBicon\fR \-\- a path to an image file (png/gif/...) or the name of an existing Tk image; shown next to the label in both modes. A missing/unreadable icon is ignored (the entry just shows text).
+.IP \(bu
+\fBdir\fR \-\- a working directory the program is launched in (app entries).
+.IP \(bu
+\fBterminal\fR \-\- run a CLI program inside a terminal window (app entries): on Windows a new console (\fBcmd /k\fR), on Linux the desktop terminal with \fB\-e\fR (or \fB\-\-\fR for gnome\-terminal). Use for htop, less, a REPL, etc.
+.PP
+On \fBWindows\fR, app entries are launched through \fBstart\fR, so a program that is registered under \fIApp Paths\fR (Firefox, Chrome, ...) works even though it is not on \fBPATH\fR \-\- you do not need to give a full path. A working directory is passed via \fBstart /D\fR. On \fBLinux/macOS\fR the program is run directly (it must be on \fBPATH\fR or given as a full path).
+.PP
+App entries whose program is \fBnot found\fR are shown \fBgreyed out\fR (disabled), so a menu never offers something that would fail. On Windows a bare name is assumed launchable (start resolves it); only an explicit path that does not exist is greyed out. \fBavailable $entry\fR reports this (url/open/system entries are always available, since they go through the OS opener).
+.CS
+{type app label "Editor" cmd {code} icon ~/.icons/code.png dir ~/projects}
+::tkutils::tkulauncher::available {type app label X cmd firefox}   ;# 1 or 0
+.CE
+.SS "Editing the menu with a form"
+.PP
+When a launcher is built with \fB\-file\fR and \fB\-settings 1\fR, the Settings submenu offers "Edit menu (form)..." next to the plain text editor. A launcher built with \fB\-editable 1\fR (even from \fB\-items\fR, with no Settings group) can also be edited by right\-clicking it and choosing "Edit..." \-\- handy for a list\-mode panel. The Type field is a dropdown, and for \fBsystem\fR entries the System id field is a dropdown of every known system id (sound, bluetooth, display, ...), so you pick instead of type. It opens a form\-based editor (needs \fBtkutils::tkuform\fR): a list of entries on the left, a form on the right. New/Delete manage the list, and a "New in:" dropdown chooses which menu a new entry is created in. Up/Down reorder the selected entry within its menu, and "Move to..." moves it into another menu (top level or any submenu). Apply copies the form into the selected entry; "Update launcher" applies the changes to the live launcher; and "Save to file..." writes them back \-\- as JSON (full fidelity) or INI (flat prefix form) chosen by the file extension \-\- then reloads the launcher.
+.CS
+::tkutils::tkulauncher::editEntries .launcher    ;# open the editor
+::tkutils::tkulauncher::saveEntries $items menu.json  ;# or menu.ini
+.CE
+.PP
+Saving is symmetric with loading: \fBmenu.json\fR round\-trips every field including nested submenus; \fBmenu.ini\fR maps top\-level menus to sections and entries to \fBlabel = prefix: value\fR lines (\fBapp:\fR, \fBurl:\fR, \fBopen:\fR, \fBfile:\fR, \fBsystem:\fR).
+.SS "Calendar and calculator"
+.PP
+A \fBcalendar\fR entry opens a small calendar window, and a \fBcalc\fR entry opens the built\-in calculator (\fBtkucalc\fR, with keyboard input and history) \-\- both in a reusable window that stays above the launcher (a transient satellite of it) and minimizes with it.
+.PP
+The calendar picks the richest widget available: if the \fBtical\fR engine is on the auto_path it uses \fBtkutical\fR (month view with week numbers and German holidays), otherwise the dependency\-free clickable \fBtkucalendar\fR, then the text \fBtkucal\fR, then a built\-in month grid. So a launcher works with no external programs, and gets more when tical is present.
+.CS
+{type calendar}   ;# label defaults to "Calendar"
+{type calc}       ;# label defaults to "Calculator"
+.CE
+.SS Calendar
+.PP
+A \fBcalendar\fR entry opens a small calendar window (month view with previous/next/today). It uses the tkutils \fBtkucal\fR widget when available and falls back to a dependency\-free month grid otherwise \-\- so it works everywhere, like the rest of the launcher.
+.CS
+{type calendar}                 ;# label defaults to "Calendar"
+{type calendar label "Kalender"}
+.CE
+.SS "System tools (environment\-aware)"
+.PP
+A \fBsystem\fR entry names a well\-known tool by \fBid\fR, and the launcher chooses the right command for the running platform and desktop \-\- so one menu does the right thing on Windows 11, XFCE, GNOME or KDE:
+.CS
+{type system id terminal}      ;# xfce4-terminal / gnome-terminal / konsole / wt.exe
+{type system id taskmanager}   ;# xfce4-taskmanager / gnome-system-monitor / taskmgr.exe
+{type system id printers}      ;# system-config-printer / ms-settings:printers
+{type system id autostart}     ;# xfce4-session-settings / shell:startup / ~/.config/autostart
+.CE
+.PP
+Known ids: \fBterminal\fR, \fBcmd\fR (Windows), \fBpowershell\fR, \fBfilemanager\fR, \fBtaskmanager\fR, \fBsettings\fR, \fBprinters\fR, \fBautostart\fR, \fBdisplay\fR, \fBnetwork\fR, \fBsound\fR, \fBbluetooth\fR, \fBpower\fR, \fBkeyboard\fR, \fBmouse\fR, \fBappearance\fR, \fBdatetime\fR, \fBusers\fR, \fBabout\fR, \fBcalculator\fR, \fBeditor\fR, \fBscreenshot\fR, \fBlock\fR, \fBdiskmanager\fR, \fBcontrolpanel\fR (Windows), \fBdevicemanager\fR (Windows), \fBservices\fR (Windows), \fBsoftware\fR, \fBprintjobs\fR, \fBsysteminfo, logout, restart, shutdown, suspend, brightness, wifi, updates, firewall, fonts, notifications, colorpicker, magnifier, onscreenkeyboard, clipboard, environment\fR. An entry with no \fBlabel\fR gets a built\-in title. Ids that have no command on the current platform (e.g. \fBcmd\fR on Linux) are simply omitted by \fB\-system\fR / \fBsystemItems\fR.
+.CS
+# ready-made group of the tools available here (default set: terminal,
+# filemanager, taskmanager, settings, printers, printjobs, network, sound,
+# bluetooth, power, display, autostart, systeminfo -- unavailable ones omitted):
+::tkutils::tkulauncher::widget .l -mode list -items $spec -system 1
+
+# or build the spec yourself and embed it:
+set sys [::tkutils::tkulauncher::systemItems -ids {terminal taskmanager printers}]
+
+# resolve one id to a command without launching (override platform for testing):
+::tkutils::tkulauncher::resolveSystem taskmanager -platform windows
+# -> kind exec argv {taskmgr.exe}
+
+# the display title for a system id (used when an entry gives no label):
+::tkutils::tkulauncher::systemTitle taskmanager     ;# -> "Task Manager"
+.CE
+.PP
+The commands are sensible defaults; adjust the \fBsysCat\fR catalogue for site specifics. \fBresolveSystem\fR takes \fB\-platform\fR / \fB\-os\fR / \fB\-desktop\fR overrides.
+.SS resolve
+.PP
+\fBresolve\fR turns an entry into an action dict \fB{kind exec|open argv {...}}\fR without performing it, so a caller (or a test) can see what a click would do:
+.CS
+::tkutils::tkulauncher::resolve {type url label X target https://tcl.tk}
+# -> kind open argv https://tcl.tk
+.CE
+.SS "See also"
+.PP
+\fBtclutils::tuopen\fR, \fBtclutils::tujson\fR, \fBtclutils::tuini\fR, \fBtkumenu\fR
+.SS "Launching Tcl/Tk scripts (\fBtcl\fR entries)"
+.PP
+A \fBtcl\fR entry runs a Tcl/Tk script with a chosen interpreter, cross\-platform. Fields: \fBtarget\fR (the script path), \fBinterp\fR (one of \fBwish9\fR, \fBwish8\fR, \fBtclsh9\fR, \fBtclsh8\fR; default \fBwish9\fR), optional \fBtcllibpath\fR (set as \fBTCLLIBPATH\fR for the child \-\- the essence of a tcl8env/tcl9env setup), optional \fBargs\fR, \fBdir\fR, and \fBterminal\fR (for \fBtclsh\fR scripts). Interpreter keys map per platform:
+.TS
+l l l.
+key	Linux	Windows
+wish9	wish9.0	wish90.exe
+wish8	wish8.6	wish86t.exe
+tclsh9	tclsh9.0	tclsh90.exe
+tclsh8	tclsh8.6	tclsh86t.exe
+.TE
+.PP
+The command \fBtclInterpreters\fR returns the available interpreter keys (used by the editor dropdown), \fBresolveTclInterp key ?platform?\fR maps a key to the executable for a platform, and \fBsetTclInterp\fR overrides a mapping.
+.PP
+Override a mapping (e.g. an absolute path) with \fB::tkutils::tkulauncher::setTclInterp wish9 \-linux /opt/tcl9/bin/wish9.0 \-windows C:/Tcl/bin/wish90.exe\fR. Example entry: \fB{type tcl label "My App" target ~/app.tcl interp wish9 tcllibpath "~/lib/tcl9.0 ~/lib/tcltk"}\fR.
+.SS "Home directory and \fB~\fR (Tcl 9)"
+.PP
+Tcl 9 no longer expands a leading \fB~\fR in file commands, so the launcher expands it itself for path fields (\fBopen\fR/\fBfile\fR targets, \fBtcl\fR script/dir, each \fBtcllibpath\fR entry, and system paths like autostart). \fBhomeDir\fR returns the user's home on both Tcl 8.6 and 9 (via \fBfile home\fR, then \fBHOME\fR/\fBUSERPROFILE\fR), and \fBexpandTilde path\fR turns a leading \fB~\fR or \fB~/...\fR into an absolute path, leaving everything else (including URLs) untouched. So \fB~\fR in a config keeps working under Tcl 9.
+.SS "Suggestions (not sure what to add?)"
+.PP
+If you are not sure which entries a menu should have, the editor can suggest some. \fBQuick add\fR inserts a sensible default set (terminal, file manager, calculator, calendar, Home). \fBSuggest...\fR opens a checklist grouped by category \-\- System tools, Power, Internet, Tcl scripts, Basics \-\- where you tick what you want and press Insert. Both add into the menu chosen in the "New in:" dropdown. The catalogue is \fBsuggestions\fR (returns \fB{category {entry ...} ...}\fR) and \fBquickAddSet\fR (the default set); both are plain data you can reuse.

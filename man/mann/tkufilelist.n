@@ -1,4 +1,4 @@
-.TH tkufilelist n 0.1 tkutils
+.TH tkufilelist n 0.2 tkutils
 .SH tkutils::tkufilelist
 .PP
 A detail file list, filled from a storage provider. The list counterpart to \fBtkufiletree\fR: where the tree shows the hierarchy, the list shows the contents of one directory in columns (name, size, type). Directories and files are sorted separately, hidden files can be shown or hidden, and a glob filter narrows the files. Tk 8.6+ and 9.x.
@@ -10,6 +10,7 @@ A detail file list, filled from a storage provider. The list counterpart to \fBt
 ::tkutils::tkufilelist::refresh       path         ;# re-read the directory
 ::tkutils::tkufilelist::setFilter     path glob    ;# filter files by glob ("" = all)
 ::tkutils::tkufilelist::selectedEntry path         ;# entry dict of the selection, or ""
+::tkutils::tkufilelist::selectedEntries path       ;# all selected entry dicts, in row order
 .CE
 .SS Options
 .IP \(bu

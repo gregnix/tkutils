@@ -1,4 +1,4 @@
-.TH tkuvcard n 0.1 tkutils
+.TH tkuvcard n 0.2 tkutils
 .SH tkutils::tkuvcard
 .PP
 vCard contact viewer. Each card is a tree node labelled with its FN; each property is a child row (Value + a Type hint from any TYPE parameter). Built on tclutils::tuvcard (requires tclutils 0.32.0+).

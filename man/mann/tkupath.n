@@ -1,4 +1,4 @@
-.TH tkupath n 0.1 tkutils
+.TH tkupath n 0.2 tkutils
 .SH tkutils::tkupath
 .PP
 A breadcrumb path bar. Shows a path as a row of clickable segments: \fB/home/greg/docs\fR becomes \fB[/] [home] [greg] [docs]\fR. Clicking a segment fires a callback with the path up to and including that segment, so a file manager can navigate to any ancestor in one click. Tk 8.6+ and 9.x.

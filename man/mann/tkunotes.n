@@ -1,4 +1,4 @@
-.TH tkunotes n 0.1 tkutils
+.TH tkunotes n 0.2 tkutils
 .SH tkutils::tkunotes
 .PP
 A hierarchical notes widget: a tree of notes on the left, a title/tags/content editor on the right, an action bar (New Root, New Child, Delete, Save) and a search box. All note logic and JSON persistence come from the tclutils engine \fBtunotes\fR (requires tclutils 0.30.0+); this widget only renders and edits.

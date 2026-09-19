@@ -1,4 +1,4 @@
-.TH tkuldif n 0.1 tkutils
+.TH tkuldif n 0.2 tkutils
 .SH tkutils::tkuldif
 .PP
 LDIF entry viewer. Each entry is a tree node labelled with its dn, with one child row per attribute value. Built on tclutils::tuldif (requires tclutils 0.31.0+).

@@ -1,4 +1,4 @@
-.TH tkuini n 0.1 tkutils
+.TH tkuini n 0.2 tkutils
 .SH tkutils::tkuini
 .PP
 Two\-pane INI viewer: sections on the left, key/value pairs of the selected section on the right. The global section "" is shown as "(global)". Built on tclutils::tuini (requires tclutils 0.32.0+).

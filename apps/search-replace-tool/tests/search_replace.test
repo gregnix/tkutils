@@ -83,7 +83,14 @@ test sr-11 {encoding fallback: invalid utf-8 does not throw} -body {
     expr {[catch {::srtool::readFileEnc $f utf-8} d] == 0 && [string length $d] > 0}
 } -result 1
 
-test sr-11 {backup: off by default, on writes .bak with the original} -setup {
+# Hiess bis heute ebenfalls sr-11. tcltest zaehlt zwei gleichnamige
+# Tests beide, aber "-match sr-11" trifft dann zwei verschiedene Faelle,
+# und ein Fehlschlag nennt nicht, welcher es war.
+#
+# Beim ersten Anlauf hiess dieser hier sr-12 -- und den Namen gab es
+# schon zwei Tests weiter unten. Doppelte Namen entstehen leicht; ein
+# Lauf, der sie zaehlt, waere billig.
+test sr-11b {backup: on writes .bak with the original} -setup {
     set bf [file join $root bak.txt]
     put $bf "alpha beta alpha\n"
 } -body {

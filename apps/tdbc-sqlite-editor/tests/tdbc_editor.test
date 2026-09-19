@@ -25,7 +25,9 @@ set ::here [file dirname [file normalize [info script]]]
 # be-tdbc.tcl beside this test, or one level up (tests/ subdir)
 set ::td $::here
 if {![file exists [file join $::td be-tdbc.tcl]]} { set ::td [file dirname $::here] }
-set ::sq [file normalize [file join $::td .. sqlite-editor]]
+# Der geteilte Kern liegt seit 2026-09-11 in _lib/sqledit, nicht mehr
+# in der Anwendung sqlite-editor.
+set ::sq [file normalize [file join $::td .. _lib sqledit]]
 set ::argv {}
 
 set haveGui [expr {![catch {package require Tk}]

@@ -1,4 +1,4 @@
-.TH tkudialog n 0.1 tkutils
+.TH tkudialog n 0.2 tkutils
 .SH tkutils::tkudialog
 .PP
 Dialogs whose \fBmessage text is selectable and copyable\fR (Ctrl\-C or the Copy button) \-\- unlike \fBtk_messageBox\fR. A generic, extensible builder plus ready\-made variants. Pure Tk; no tclutils engine required.
@@ -6,7 +6,8 @@ Dialogs whose \fBmessage text is selectable and copyable\fR (Ctrl\-C or the Copy
 .CS
 # non-modal toplevel (embed or drive yourself)
 ::tkutils::tkudialog::build  $win ?-title t? ?-message m? ?-icon info|warning|error|question? \
-                                 ?-detail d? ?-buttons {labels...}? ?-entry 0|1? ?-initial s?
+                                 ?-detail d? ?-buttons {labels...}? ?-entry 0|1? ?-initial s? \
+                                 ?-parent w?
 # modal: builds, grabs, waits, returns the clicked button label
 ::tkutils::tkudialog::show    $win ?same options?
 ::tkutils::tkudialog::getText $win          ;# message text
@@ -21,17 +22,39 @@ Dialogs whose \fBmessage text is selectable and copyable\fR (Ctrl\-C or the Copy
 ::tkutils::tkudialog::showWarning message ?options?
 ::tkutils::tkudialog::showError   message ?-detail d?
 ::tkutils::tkudialog::confirm     message ?options?   ;# 1 for Yes, else 0
-::tkutils::tkudialog::input       ?-message m? ?-initial s?   ;# entered text or ""
+::tkutils::tkudialog::input       ?-title t? ?-message m? ?-initial s? ?-parent w?   ;# entered text or ""
 .CE
 .PP
-Extend by passing your own \fB\-buttons\fR and \fB\-detail\fR, or build a non\-modal dialog with \fBbuild\fR and wire it up yourself.
+Extend by passing your own \fB\-buttons\fR and \fB\-detail\fR, or build a non\-modal dialog with \fBbuild\fR and wire it up yourself. The ready\-made variants pass any further options (such as \fB\-parent\fR) through to \fBshow\fR.
+.SS "Parent and placement (0.2)"
+.PP
+\fB\-parent w\fR makes the dialog belong to the toplevel of \fBw\fR: it is transient to it and opens centred over it. Without \fB\-parent\fR the parent is the toplevel that has the keyboard focus, else \fB.\fR — as with \fBtk_messageBox\fR. Pass \fB\-parent\fR whenever the calling window is known; it is the only reliable answer on a machine with several monitors.
+.PP
+Up to 0.1 \fB\-parent\fR was accepted but not used: no \fBwm transient\fR, and every modal dialog opened in the middle of the screen (measured 2026\-09\-19: parent at 900,600, dialog at 431,466). With the application on a second monitor, the dialog appeared on the other one.
+.PP
+Details of the placement:
+.IP \(bu
+The dialog is made transient only to a \fBviewable\fR parent — a dialog transient to a withdrawn toplevel stays invisible under some window managers.
+.IP \(bu
+A \fB\-parent\fR that does not exist is an error, \fB{TKUTILS TKUDIALOG PARENT <w>}\fR.
+.IP \(bu
+The dialog is kept on the screen (all four sides) only when the parent lies completely on the screen Tk reports. \fBTk reports one screen\fR: on Windows that is the primary monitor, so a parent on a second monitor lies outside it. Clamping there would pull the dialog back to the primary monitor, so it is centred over the parent without clamping; a dialog wider than its parent may then overhang that monitor. The rule is \fB_geometry\fR and is tested for this case with made\-up coordinates — two real monitors were not measured.
+.SS "Options are checked (0.2)"
+.PP
+An unknown option is an error that lists the known ones, with \fB{TKUTILS TKUDIALOG OPTION <opt>}\fR:
+.CS
+unknown option "-parnet"
+Known: -title -message -icon -detail -buttons -entry -initial -parent
+.CE
+.PP
+Up to 0.1 \fBarray set\fR swallowed it — \fBbuild .d \-parnet .p\fR built the dialog without a parent, and \fBform\fR with a typo opened and waited as if nothing were wrong.
 .SS Launcher
 .CS
 tclsh bin/tkudialog.tcl
 .CE
 .SS "Form dialog"
 .CS
-set vals [::tkutils::tkudialog::form $fieldspec ?-title T? ?-parent .?]
+set vals [::tkutils::tkudialog::form $fieldspec ?-title T? ?-parent w?]
 # -> values dict on OK, "" on Cancel
 .CE
 .PP

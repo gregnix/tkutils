@@ -1,4 +1,4 @@
-.TH tkuical n 0.1 tkutils
+.TH tkuical n 0.2 tkutils
 .SH tkutils::tkuical
 .PP
 iCalendar event viewer. Shows the VEVENTs of an iCalendar document in a table (Summary, Start, End, Location). Built on tclutils::tuical (requires tclutils 0.31.0+).

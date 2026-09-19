@@ -1,0 +1,157 @@
+# test_safe.test -- die Stellen, an denen das Werkzeug Dateien beschaedigen konnte
+#
+# Alle vier Faelle waren still: die Suche sah aus, als gaebe es nichts,
+# oder das Ersetzen tat mehr, als jemand wollte. Keiner davon war in der
+# bestehenden Suite.
+#
+#     tclsh tests/test_safe.test
+
+package require tcltest
+namespace import ::tcltest::*
+
+set here [file dirname [file normalize [info script]]]
+source [file join $here .. search_replace_tool.tcl]
+
+set ::tmp [file join $here safe-out]
+file delete -force $::tmp
+file mkdir $::tmp
+
+proc ::opts {args} {
+    set d [dict create case 1 regex 0 multiline 0 encoding utf-8 \
+        backup 0 filesonly 0 binary 0 recursive 1 datefrom {} dateto {}]
+    foreach {k v} $args { dict set d $k $v }
+    return $d
+}
+
+proc ::schreibe {name inhalt {trans lf}} {
+    set p [file join $::tmp $name]
+    file mkdir [file dirname $p]
+    set fh [open $p wb]
+    fconfigure $fh -translation $trans
+    puts -nonewline $fh $inhalt
+    close $fh
+    return $p
+}
+
+# ---------------------------------------------------------------------
+# Binaerdateien
+# ---------------------------------------------------------------------
+
+test safe-1.1 {eine Binaerdatei wird nicht durchsucht} -body {
+    # Gemessen vor der Aenderung: eine Datei mit Nullbytes lieferte
+    # einen Treffer -- und stand damit in der Liste, die "Alle
+    # ersetzen" ueberschreibt.
+    set p [::schreibe bin.dat "ABC\x00\x01ABC"]
+    llength [::srtool::searchFile $p ABC [::opts]]
+} -result 0
+
+test safe-1.2 {ausdruecklich einbezogen wird sie doch durchsucht} -body {
+    # Suchen ist lesend. Wer es will, bekommt es -- dann ist es eine
+    # Entscheidung und kein Versehen.
+    set p [::schreibe bin2.dat "ABC\x00ABC"]
+    expr {[llength [::srtool::searchFile $p ABC [::opts binary 1]]] > 0}
+} -result 1
+
+test safe-1.3 {in eine Binaerdatei wird NIE geschrieben} -body {
+    # Auch nicht mit binary 1: Suchen ist lesend, Ersetzen nicht, und
+    # der Schaden laesst sich nicht zuruecknehmen.
+    set p [::schreibe bin3.dat "ABC\x00ABC"]
+    set vorher [file size $p]
+    set n [::srtool::replaceInFile $p ABC XYZ [::opts binary 1]]
+    list $n [expr {[file size $p] == $vorher}]
+} -result {0 1}
+
+test safe-1.4 {isBinary entscheidet am Nullbyte} -body {
+    list [::srtool::isBinary "reiner Text\nmit Umlaut ä"] \
+         [::srtool::isBinary "Text\x00mehr"]
+} -result {0 1}
+
+# ---------------------------------------------------------------------
+# Zeilenenden
+# ---------------------------------------------------------------------
+
+test safe-2.1 {eine CRLF-Datei bleibt CRLF} -body {
+    # writeFileEnc setzte immer -translation lf. Eine Datei mit
+    # Windows-Zeilenenden kam als LF zurueck -- eine Aenderung an jeder
+    # Zeile, die niemand angefordert hat, und in einem Versionssystem
+    # sieht sie aus wie eine komplett neue Datei.
+    set p [::schreibe win.txt "alpha\r\nbeta\r\ngamma\r\n" binary]
+    ::srtool::replaceInFile $p beta BETA [::opts]
+    set fh [open $p rb]
+    set d [read $fh]
+    close $fh
+    list [regexp -all {\r\n} $d] [regexp {BETA} $d]
+} -result {3 1}
+
+test safe-2.2 {eine LF-Datei bleibt LF} -body {
+    set p [::schreibe unix.txt "alpha\nbeta\ngamma\n" binary]
+    ::srtool::replaceInFile $p beta BETA [::opts]
+    set fh [open $p rb]
+    set d [read $fh]
+    close $fh
+    list [regexp -all {\r} $d] [regexp {BETA} $d]
+} -result {0 1}
+
+# ---------------------------------------------------------------------
+# Encoding
+# ---------------------------------------------------------------------
+
+test safe-3.1 {was nur als iso8859-1 lesbar war, wird so zurueckgeschrieben} \
+        -body {
+    # Vorher wurde mit dem GEWAEHLTEN Encoding geschrieben, also
+    # womoeglich mit einem anderen als dem gelesenen. Die Datei war
+    # danach kaputt.
+    set p [::schreibe latin.txt "Gr\xfc\xdfe alpha\n" binary]
+    set n [::srtool::replaceInFile $p alpha beta [::opts encoding utf-8]]
+    set fh [open $p rb]
+    set d [read $fh]
+    close $fh
+    # Das Latin-1-Byte 0xFC steht unveraendert da, nicht als UTF-8-Paar.
+    list $n [expr {[string first "\xfc" $d] >= 0}] [regexp {beta} $d]
+} -result {1 1 1}
+
+test safe-3.2 {der Rueckfall wird gemeldet, nicht geschluckt} -body {
+    set p [::schreibe latin2.txt "Gr\xfc\xdfe\n" binary]
+    ::srtool::readFileEnc $p utf-8
+    dict get $::srtool::lastRead fallback
+} -result 1
+
+# ---------------------------------------------------------------------
+# Verzeichnisse
+# ---------------------------------------------------------------------
+
+test safe-4.1 {node_modules und Verwandte werden uebersprungen} -body {
+    # Gemessen vor der Aenderung: node_modules lief voll mit. Bei einem
+    # Muster wie * ueber einen Quellbaum sind das zehntausende Dateien,
+    # die niemand durchsuchen will -- und die "Alle ersetzen" anfasst.
+    ::schreibe tree/a.txt "hallo\n"
+    ::schreibe tree/sub/b.txt "hallo\n"
+    ::schreibe tree/sub/node_modules/c.txt "hallo\n"
+    ::schreibe tree/build/d.txt "hallo\n"
+    ::schreibe tree/.git/e.txt "hallo\n"
+    set f [::srtool::collectFiles [file join $::tmp tree] * 1]
+    lsort [lmap x $f {file tail $x}]
+} -result {a.txt b.txt}
+
+test safe-4.2 {ein Punktverzeichnis bleibt uebersprungen} -body {
+    list [::srtool::_skipDir .git] [::srtool::_skipDir node_modules] \
+         [::srtool::_skipDir src]
+} -result {1 1 0}
+
+# ---------------------------------------------------------------------
+# Ungueltiger regulaerer Ausdruck
+# ---------------------------------------------------------------------
+
+test safe-5.1 {ein ungueltiger Ausdruck wirft, statt 0 Treffer zu liefern} \
+        -body {
+    # searchFile MUSS werfen -- der Aufrufer faengt es und meldet es.
+    # Vorher fing er es und setzte die Treffer auf leer: die Suche sah
+    # aus, als gaebe es nichts zu finden.
+    set p [::schreibe re.txt "hallo\n"]
+    catch {::srtool::searchFile $p {[unbalanced} [::opts regex 1]} e
+    expr {$e ne "" && ![string is list $e]
+          || [string match "*brack*" $e] || [string match "*regular*" $e]}
+} -result 1
+
+cleanupTests
+file delete -force $::tmp

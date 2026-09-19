@@ -12,6 +12,8 @@ Standalone programs built on tkutils/tclutils. Each app has its own folder
 | `postgresql-editor/`  | PostgreSQL browser/editor (sqledit family; direct SQL via tdbc::postgres) |
 | `oracle-editor/`      | Oracle browser/editor (sqledit family; via Oratcl / Instant Client) |
 | `search-replace-tool/`| search/replace across files |
+| `launcher/`          | standalone start menu / launcher panel on the `tkulauncher` widget, loaded from JSON (examples included) |
+| `tdbc-sqlite-editor/` | SQLite browser/editor over TDBC (sqledit family; same backend contract as `sqlite-editor/`) |
 | `tkdevtools/`| Tcl/Tk developer toolbox: colors, characters, fonts, units, timezones, cursors, relief/anchor, keysym probe, ttk theme & style browser, regexp & format/scan testers, encodings, virtual events, bitmaps, widget explorer, pack/grid playgrounds, clock-format codes |
 
 ## Module paths

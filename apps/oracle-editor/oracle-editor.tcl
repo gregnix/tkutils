@@ -17,7 +17,8 @@ package require Tcl 8.6-
 source [file join [file dirname [file normalize [info script]]] .. _lib paths.tcl]
 
 set ::oraedit_dir [file dirname [file normalize [info script]]]
-set ::sqledit_dir [file normalize [file join $::oraedit_dir .. sqlite-editor]]
+# Der geteilte Kern liegt in _lib/sqledit (Trennung vom 2026-09-11).
+set ::sqledit_dir [file normalize [file join $::oraedit_dir .. _lib sqledit]]
 
 # --- Oracle Instant-Client bootstrap (must run before Oratcl is loaded) ---
 source [file join $::oraedit_dir oratcl-bootstrap.tcl]
@@ -42,6 +43,11 @@ set ::_connFile [file join $::sqledit_dir sqledit-conn.tcl]
 if {[file exists $::_connFile]} { source $::_connFile }
 source [file join $::oraedit_dir  be-oracle.tcl]
 source [file join $::sqledit_dir sqledit-form.tcl]
+# Zuletzt geoeffnete Datenbanken -- optional wie sqledit-conn.tcl:
+# fehlt die Datei, startet der Editor, und das Menue zeigt den Eintrag
+# nicht.
+set ::_recentFile [file join $::sqledit_dir sqledit-recent.tcl]
+if {[file exists $::_recentFile]} { source $::_recentFile }
 source [file join $::sqledit_dir sqledit-sheet.tcl]
 
 # --- main --------------------------------------------------------------------

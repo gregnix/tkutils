@@ -72,6 +72,11 @@ Module package versions stay `0.1`; the release version is carried by the umbrel
   leaks after the widget is destroyed. See §11.1.
 - Errors use `return -code error -errorcode {TKUTILS <MOD> <REASON>} "message"`,
   where `<MOD>` is the upper-case widget name (e.g. `TKHEXEDIT`).
+- Options: never `array set o $args` alone -- it swallows misspelt options.
+  Merge through `tkutils::tkuopts`, which rejects an unknown option and lists
+  the known ones:
+  `array set o {-a 1}` then
+  `array set o [::tkutils::tkuopts::merge TKU<N> [array get o] $args]`.
 - No `global`; all state is per-widget.
 
 ## 6. TclOO — where it earns its place

@@ -1,4 +1,6 @@
 # tkutils::tkupreview -- a content preview widget.
+# Description: a content preview widget, policy-free (the caller picks the kind)
+# Category: Tk · widgets
 #
 # Policy-free by design: it knows how to *display* a few kinds of content
 # (plain text, rendered Markdown, or a centered message), but nothing about

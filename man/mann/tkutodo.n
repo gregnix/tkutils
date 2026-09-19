@@ -1,4 +1,4 @@
-.TH tkutodo n 0.1 tkutils
+.TH tkutodo n 0.2 tkutils
 .SH tkutils::tkutodo
 .PP
 A task\-list widget for iCalendar \fBVTODO\fR components, built on \fBtclutils::tuical\fR. Shows summary, due date, priority and percent\-complete in a \fBttk::treeview\fR; in editable mode the done state of a task can be toggled.

@@ -9,7 +9,7 @@ Library-neutral.
 ## Package
 
 ```tcl
-package require tkutils::tkutlfmt 0.1
+package require tkutils::tkutlfmt 0.2
 ```
 
 Requires `Tk` and `tablelist`. Uses `tclutils::tunum` to parse raw values when
@@ -83,3 +83,7 @@ Bulk form (optional brace-grouped options per column):
 ## Error codes
 
 `-errorcode {TKUTILS TKUTLFMT <REASON>}` (`TYPE`, `OPTION`, `LOCALE`).
+An unknown option to `column` raises `{TKUTILS TKUTLFMT OPTION <opt>}` and
+lists the known ones (0.2). Up to 0.1 the check ran after the options were
+merged and could never fire: a misspelt option such as `-decimalz` was
+accepted silently.

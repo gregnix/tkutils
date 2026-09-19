@@ -1,4 +1,4 @@
-.TH tkufiletree n 0.1 tkutils
+.TH tkufiletree n 0.2 tkutils
 .SH tkutils::tkufiletree
 .PP
 A lazy file\-system tree built on \fBtkutils::tkutree\fR. Shows a directory hierarchy under a root; subdirectories are read from disk only when expanded (no full walk). Files can be filtered by glob patterns, and activating a file fires a callback with its full path. Tk 8.6+ and 9.x.
@@ -7,6 +7,8 @@ A lazy file\-system tree built on \fBtkutils::tkutree\fR. Shows a directory hier
 ::tkutils::tkufiletree::widget       path ?options?
 ::tkutils::tkufiletree::setRoot      path dir
 ::tkutils::tkufiletree::refresh      path
+::tkutils::tkufiletree::refreshDir   path dir     ;# re-populate one already-open node
+::tkutils::tkufiletree::volumesRoot               ;# sentinel for -root: start at the list of volumes
 ::tkutils::tkufiletree::up           path        ;# re-root to parent dir
 ::tkutils::tkufiletree::selectedPath path        ;# full path or ""
 ::tkutils::tkufiletree::root         path        ;# current root dir or ""
@@ -15,6 +17,10 @@ A lazy file\-system tree built on \fBtkutils::tkutree\fR. Shows a directory hier
 .CE
 .PP
 \fBreveal\fR expands the directory chain down to \fBtarget\fR (a path under the root), selects it and scrolls it into view, populating ancestors as needed. If the exact target is not a node (e.g. excluded by the filter), the deepest existing ancestor — its folder — is selected instead. It returns 1 when the exact target was selected, else 0, and never raises. Together with \fBroot\fR and \fBsetRoot\fR this lets a host application keep the tree pointing at — and highlighting — whatever it just opened elsewhere. \fBup\fR re\-roots to the parent directory (also bound to \fBBackSpace\fR) and reveals the previous root.
+.PP
+\fBvolumesRoot\fR returns the value to pass as \fB\-root\fR when the tree should start at the list of volumes (Windows: \fBC:/\fR, \fBD:/\fR, …). It is a sentinel, not a real path; on single\-root platforms it degenerates to the one root.
+.PP
+\fBrefreshDir\fR re\-reads a single directory node that is already present in the tree and re\-populates its children (trying both \fB$dir\fR and its normalized form), leaving it open. Use it after the contents of one directory change on disk \-\- e.g. a paste that creates a new subfolder \-\- so the new child appears as a navigable node without rebuilding the whole tree. It returns 1 if the node existed and was refreshed, 0 otherwise, and never raises. \fBrefresh\fR (no dir) rebuilds from the root instead.
 .SS "Options (widget)"
 .IP \(bu
 \fB\-root dir\fR — starting directory (default: current directory).

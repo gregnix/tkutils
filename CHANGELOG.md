@@ -1,5 +1,176 @@
 # Changelog
 
+## 0.44.0
+
+Recommended pairing: tclutils 0.63.0 + tkutils 0.44.0 + ctrlutils 0.2.
+
+### `tkudialog` 0.2 — dialogs open over their window
+
+Measured 2026-09-19: with the parent at 900,600, `show -parent .p` opened the
+dialog at 431,466 — the middle of the screen — and `wm transient` was empty.
+`-parent` was accepted but never used. On a second monitor that is the wrong
+screen.
+
+- `-parent w` now makes the dialog transient to the toplevel of `w` and centres
+  it over that window (`build`, `show`, the ready-made variants, `input`,
+  `form`). Without `-parent` the parent is the toplevel with the keyboard
+  focus, else `.` — as with `tk_messageBox`.
+- Transient only to a viewable parent (a dialog transient to a withdrawn
+  toplevel stays invisible under some window managers). A `-parent` that does
+  not exist is an error, `{TKUTILS TKUDIALOG PARENT <w>}`.
+- Kept on the screen only when the parent lies completely on the screen Tk
+  reports. Tk reports one screen — on Windows the primary monitor — so a
+  parent on a second monitor lies outside it, and clamping would pull the
+  dialog back to the primary one. The rule (`_geometry`) is tested for that
+  case with made-up coordinates; two real monitors were not measured.
+- Unknown options are an error listing the known ones,
+  `{TKUTILS TKUDIALOG OPTION <opt>}`. Up to 0.1 `array set` swallowed them:
+  `build -parnet .p` built the dialog without a parent, and `form` with a typo
+  opened and waited.
+- 12 new tests; against 0.1 nine fail (and `form` hangs on the typo). The
+  placement tests compare the dialog with where the parent's content really
+  is, measured at the same moment — not with the requested `+x+y`. A first
+  draft did the latter: green under Xvfb without a window manager, red on a
+  real desktop (reported from lxpro; reproduced with openbox, whose border and
+  title bar put the content at +1+20). The placement itself was right in both.
+  Measured under openbox, xfwm4 and without a window manager, Tcl/Tk 9.0.4 and
+  8.6.14.
+
+**Window-manager decoration (found in the third review, lxpro).** Most window
+managers put a toplevel's *frame* at the position given to `wm geometry
++x+y`, so the content lands lower right by border and title bar. The dialog
+computed where its content should be and passed that as `+x+y` — under such
+window managers it sat off-centre. Measured with the dialog content centre
+against the parent's content centre:
+
+| window manager | before | after |
+|---|---|---|
+| icewm | +5, +23 | 0, −1 |
+| fluxbox | +1, +22 | 0, −1 |
+| metacity | 0, +36 | 0, −1 |
+| openbox | 0, −1 | 0, −1 |
+| xfwm4 (undecorated here), none | 0, −1 | 0, −1 |
+
+(lxpro reported +5, +28.) The offset cannot be computed in advance — openbox
+places transient dialogs by their content but other toplevels by their
+frame — so `tkudialog` now measures the dialog once it is mapped and moves it
+by the difference, once. Offsets of 100 px or more are left alone: then the
+window manager placed the dialog on purpose. Note from the measurement: the
+`update idletasks` in `_place` already maps the new toplevel, so a `<Map>`
+binding set afterwards never fired; the check is scheduled directly in that
+case. Tests (`tkudialog.test`, and `cufileops.test` in ctrlutils) pass under
+icewm, fluxbox, metacity, openbox, xfwm4 and without a window manager, on Tcl/Tk
+9.0.4 and 8.6.14; without the correction, icewm shows the three failures
+reported from lxpro. The test waits until the parent's position has settled
+(at most 1 s): under fluxbox with Tk 8.6 the first dialog was otherwise placed
+against the parent's pre-decoration position. `tkwait visibility` hung there
+and is not used.
+
+ctrlutils 0.2 passes `-parent` from its file operations; with the old
+`cufileops` the Explorer's prompts stayed on the wrong monitor even with this
+`tkudialog`.
+
+### Tests independent of the environment
+
+Without `TCLUTILS_TM` in the environment, `tkulauncher.test` reported 86 skips
+and 11 failures, `tkufilelist.test` 6 skips, and `tkudhash.test` aborted —
+the files looked for tclutils through the environment only. They now use the
+sibling discovery of CONVENTIONS §11.2. Where the old code turned a failed
+module load into a skipped "tk" constraint, a new unconstrained test
+(`tkulauncher-0.0`, `tkufilelist-0.0`) fails instead when Tk is present but
+the module does not load; against an unreachable `TCLUTILS_TM` it is red, not
+silent. The 11 `tkulauncher` cases that need the module now carry its
+constraint, so a run without a display skips them instead of failing.
+
+Measured 2026-09-19 without any module path in the environment, under
+`xvfb-run` without a window manager and again under icewm (75 test files,
+each with a summary): Tcl/Tk 9.0.4 — 752 passed, 31 skipped; Tcl/Tk 8.6.14 —
+736 passed, 47 skipped; 0 failed, `all.tcl` exit 0 in all four runs. Before, 8.6 ended with exit 1: `stack.test` could not load the
+tclutils umbrella without tcllib (fixed in tclutils 0.63.0).
+
+### Unknown options are errors everywhere (`tkuopts` 0.1)
+
+24 procs in 20 modules took their options with `array set o $args` and
+swallowed every unknown option -- a misspelt `-onresult` simply did nothing.
+`tkutlfmt::column` had a check, but it ran AFTER the merge, when every given
+key already existed, so it could never fire (measured: `column $t 0 number
+-decimalz 3` returned without error). The new helper module `tkuopts` merges
+the options and rejects an unknown one with `{TKUTILS <MOD> OPTION <opt>}` and
+`Known: ...`; all 24 sites use it. CONVENTIONS.md §5 now says so.
+
+The modules changed behaviour (a call with a wrong option that used to pass
+now raises), so each is counted up once:
+`tkucalc` 0.2, `tkucalendar` 0.2, `tkudavbrowser` 0.2, `tkufilelist` 0.2, `tkufiletree` 0.2, `tkufilterbar` 0.2, `tkuical` 0.2, `tkuini` 0.2, `tkulauncher` 0.2, `tkuldif` 0.2, `tkunotes` 0.2, `tkupath` 0.2, `tkustatus` 0.2, `tkutab` 0.2, `tkutablelist` 0.3, `tkutical` 0.3, `tkutlfmt` 0.2, `tkutodo` 0.2, `tkutree` 0.2, `tkuvcard` 0.2.
+
+Before the change every call site in tkutils and ctrlutils (apps, examples,
+`bin/`, other modules, the Explorer, the address book) was checked against
+the options the procs know: 274 calls, none with an unknown option.
+
+### `tests/all.tcl` says where the modules come from
+
+Before the tests run, the runner prints which file each library resolves to
+(tkutils, tclutils) -- found without loading anything -- and which module-path
+variables are set. An old file beside a new one shows as `(also: <version>)`.
+(Idea 5; on 2026-09-19 a green run depended on a `TCL9_0_TM_PATH` in the
+shell, and old `.tm` files lay beside new ones after unpacking a zip.)
+
+Own trees first: when the tree is already listed in `TCL8_6_TM_PATH` /
+`TCL9_0_TM_PATH` behind a directory with an installed copy of the same version
+(e.g. `site-tcl`), `tcl::tm::path add` does nothing and the installed copy
+wins -- the suite then tests that copy, not the tree (reproduced with Tcl 8.6:
+`TCL8_6_TM_PATH=<tree>:<site-tcl>`). The runner now removes its own trees from
+those variables for the test processes and puts them in front in its own
+interpreter, so the banner shows what the tests load. A test file started
+directly, without the runner, is still exposed to this.
+
+### `tests/all.tcl` fails when a test fails
+
+The runner looked only at each file's exit code, and tcltest exits 0 even when
+tests fail — the suite reported success with red tests in it (review of
+2026-09-19). It now reads every file's `Total … Failed N` line and exits 1 for
+failed tests, a missing summary, or an error. Counter-checked with a file that
+has a failing test and one that writes no summary.
+
+### Every module has a description and a category
+
+8 modules had neither a `# Description:` nor a `# Category:` header line, so
+`tools/check-modules.tcl` and its GUI showed empty columns for them (`tkucalc`, `tkucalendar`, `tkufilelist`, `tkulauncher`, `tkupath`, `tkupreview`, `tkutab`, `tkuwinico`).
+Added, with categories from the existing list. `tests/headers.test` (new)
+fails when a module lacks either line (counter-checked by removing one).
+
+`tools/md2man.tcl` is the same file as in tclutils (it now finds sub-modules;
+no change for tkutils; 72 pages with `tkuopts`). `tools/check-modules.tcl` is now the same file as in tclutils (it gained the
+sub-module handling there); for tkutils, which has no sub-modules, report and
+manifest are unchanged.
+
+### One version per module
+
+`tests/versions.test` (new, also in tclutils and ctrlutils) checks that the
+version in the file name, in `package provide` and in `variable version`
+agree. `tkuimage` said `variable version 0.1` in `tkuimage-0.2.tm`; aligned.
+Nothing reads the variable, so only the information was wrong. Old files next
+to new ones (e.g. `tkudialog-0.1.tm` beside `-0.2.tm`) are what
+`tools/check-modules.tcl` reports as multi-version; this test does not look
+for them.
+
+### Documentation
+
+- `tkupreview.md`: `kind` reports what is shown. After a fallback to plain
+  text — `html` without `tcllitehtml`, or `json`/`xml`/`ini` whose viewer
+  cannot show the content — it is `text` (measured).
+- README: the optional table lists the tablelist helpers `tkutl*`;
+  `tkutltools` loads all of them except `tkutltree` (read from its source).
+- README: the core table lists the 50 widgets the umbrella loads (it said 41
+  and missed `tkufilelist`, `tkupath`, `tkupreview`, `tkutab`, `tkulauncher`,
+  `tkucalc`, `tkucalendar`, `tkudhash`, `tkuwheel`). `tkuwinico` moved from
+  "optional" to the core table — the umbrella has loaded it since 0.43.0.
+- `docs/guide/tkutils-modules.md` regenerated with
+  `check-modules -manifest md` (71 modules).
+- `tkufilelist.md` documents `selectedEntries`, `tkufiletree.md`
+  `volumesRoot` (both reported by `check-docman`).
+- `apps/apps.md` lists `launcher/` and `tdbc-sqlite-editor/`. Apps that are
+  not committed yet (e.g. `adressbuch/`) are not listed.
+
 ## 0.43.0
 
 - `tkuwinico` 0.1 — build Windows `.ico` files from Tk images. The module renders

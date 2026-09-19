@@ -14,9 +14,12 @@ apply {{} {
         }
     }
 }}
-set ::root [file dirname [file normalize [info script]]]
+set ::appdir [file dirname [file normalize [info script]]]
+# Der geteilte Kern liegt seit 2026-09-11 in _lib/sqledit, das Backend
+# weiterhin hier. Zwei Wurzeln, weil es zwei Dinge sind.
+set ::root [file normalize [file join $::appdir .. _lib sqledit]]
 source [file join $::root sqledit-core.tcl]
-source [file join $::root be-sqlite.tcl]
+source [file join $::appdir be-sqlite.tcl]
 
 set DB [file join [tcltest::temporaryDirectory] sqledit_[pid].db]
 file delete -force $DB

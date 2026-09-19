@@ -13,10 +13,13 @@ apply {{} {
         }
     }
 }}
-set ::root [file dirname [file normalize [info script]]]
+set ::appdir [file dirname [file normalize [info script]]]
+# Der geteilte Kern liegt seit 2026-09-11 in _lib/sqledit, das Backend
+# weiterhin hier. Zwei Wurzeln, weil es zwei Dinge sind.
+set ::root [file normalize [file join $::appdir .. _lib sqledit]]
 set ::argv {}
 source [file join $::root sqledit-core.tcl]
-source [file join $::root be-sqlite.tcl]
+source [file join $::appdir be-sqlite.tcl]
 source [file join $::root sqledit-form.tcl]
 
 package require Tk
@@ -73,7 +76,7 @@ test form-text {TEXT column becomes a multiline text widget} -body {
 } -result {Text}
 
 test form-update-null {clearing a nullable FK stores SQL NULL, not ''} -body {
-    ::tkutils::tkuform::set $::sqledit::F(form) dept_id ""
+    ::tkutils::tkuform::setField $::sqledit::F(form) dept_id ""
     ::sqledit::_formSave
     update idletasks
     dbval $DB {SELECT count(*) FROM emp WHERE name='Alice' AND dept_id IS NULL}
@@ -82,7 +85,7 @@ test form-update-null {clearing a nullable FK stores SQL NULL, not ''} -body {
 test form-notnull-block {empty NOT NULL field blocks the insert} -body {
     set before [dbval $DB {SELECT count(*) FROM emp}]
     ::sqledit::_formNew
-    ::tkutils::tkuform::set $::sqledit::F(form) name ""
+    ::tkutils::tkuform::setField $::sqledit::F(form) name ""
     ::sqledit::_formSave
     update idletasks
     expr {[dbval $DB {SELECT count(*) FROM emp}] == $before}
@@ -90,8 +93,8 @@ test form-notnull-block {empty NOT NULL field blocks the insert} -body {
 
 test form-insert-ok {valid new record inserts with the chosen FK value} -body {
     ::sqledit::_formNew
-    ::tkutils::tkuform::set $::sqledit::F(form) name "Dave"
-    ::tkutils::tkuform::set $::sqledit::F(form) dept_id 2
+    ::tkutils::tkuform::setField $::sqledit::F(form) name "Dave"
+    ::tkutils::tkuform::setField $::sqledit::F(form) dept_id 2
     ::sqledit::_formSave
     update idletasks
     dbval $DB {SELECT dept_id FROM emp WHERE name='Dave'}

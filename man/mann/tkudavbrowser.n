@@ -1,4 +1,4 @@
-.TH tkudavbrowser n 0.1 tkutils
+.TH tkudavbrowser n 0.2 tkutils
 .SH tkutils::tkudavbrowser
 .PP
 A read\-only navigation pane for a CalDAV/CardDAV server, built on \fBtclutils::tudav\fR. It lists the server's collections grouped by kind (Calendars / Address Books / Other) in a \fBttk::treeview\fR; selecting a collection fires \fB\-oncollection\fR so an app can load its contents into \fBtkuvcard\fR / \fBtkutodo\fR.

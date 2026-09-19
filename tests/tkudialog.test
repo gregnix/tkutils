@@ -115,4 +115,138 @@ test tkudialog-3.2 {form dialog returns empty on Cancel} -constraints haveTk -bo
     ::tkutils::tkudialog::form {{name name label "Name" default "x"}}
 } -result {}
 
+# --- 0.2: placement over the parent, transient, option check ----------------
+# _geometry is the pure rule; the live tests below measure the real window.
+test tkudialog-5.1 {rule: centred over a parent that lies on the screen} -constraints haveTk -body {
+    ::tkutils::tkudialog::_geometry 100 50 1280 1024  900 600 300 200 1
+} -result {1000 675}
+
+test tkudialog-5.2 {rule: clamped at the right and bottom edge} -constraints haveTk -body {
+    ::tkutils::tkudialog::_geometry 400 300 1280 1024  1000 800 280 224 1
+} -result {880 724}
+
+test tkudialog-5.3 {rule: clamped at the left and top edge} -constraints haveTk -body {
+    ::tkutils::tkudialog::_geometry 400 300 1280 1024  0 0 100 100 1
+} -result {0 0}
+
+test tkudialog-5.4 {rule: parent beyond the reported screen (second monitor on Windows) is NOT pulled back} -constraints haveTk -body {
+    # Tk reports only the primary monitor (1920 wide); the parent sits at
+    # x=2200 on the second one. Clamping to 1920 would move the dialog back to
+    # the primary monitor -- the very bug this version fixes.
+    ::tkutils::tkudialog::_geometry 400 300 1920 1080  2200 100 800 600 1
+} -result {2400 250}
+
+test tkudialog-5.5 {rule: no viewable parent -> centre of the screen} -constraints haveTk -body {
+    ::tkutils::tkudialog::_geometry 100 50 1280 1024  0 0 0 0 0
+} -result {590 487}
+
+# The parent must be where the window manager finally puts it BEFORE the
+# dialog computes its position -- in an application it exists long before any
+# dialog. Right after `toplevel` a window manager may still reparent and move
+# it: under fluxbox with Tk 8.6 the first dialog of this file was placed
+# against the parent's pre-decoration position (measured). So wait until its
+# position has settled (same value twice, 50 ms apart).
+proc mkParent {w x y} {
+    catch {destroy $w}
+    toplevel $w
+    wm geometry $w 300x200+$x+$y
+    update
+    # bounded: at most 20 x 50 ms. (`tkwait visibility` hung here under Xvfb
+    # with fluxbox -- a test must never wait without a limit.)
+    set last {}
+    for {set i 0} {$i < 20} {incr i} {
+        after 50 {set ::mkParentTick 1}; vwait ::mkParentTick
+        set now [list [winfo rootx $w] [winfo rooty $w]]
+        if {$now eq $last} break
+        set last $now
+    }
+    return $w
+}
+# run a modal call; ms later measure the open dialog AND its parent, then
+# press the dialog's button. The parent is measured at the same moment, where
+# it really is: under a window manager its content does not sit at the
+# requested +x+y (openbox: +1+20 for border and title bar). Up to the first
+# 0.2 draft this test compared against the requested position and failed
+# under every window manager that decorates -- measured with openbox; Xvfb
+# without a window manager hid it.
+proc measureModal {parent script} {
+    set ::meas {}
+    after 500 [list apply {{parent} {
+        set d [findDialog]
+        set ::meas [list \
+            [expr {[winfo rootx $d] + [winfo width $d] / 2}] \
+            [expr {[winfo rooty $d] + [winfo height $d] / 2}] \
+            [expr {[winfo rootx $parent] + [winfo width $parent] / 2}] \
+            [expr {[winfo rooty $parent] + [winfo height $parent] / 2}] \
+            [wm transient $d]]
+        ::tkutils::tkudialog::choose $d OK
+    }} $parent]
+    uplevel #0 $script
+    return $::meas
+}
+# centre of the dialog within 2 px of the centre of the parent's content
+proc overParent {meas} {
+    lassign $meas dx dy px py
+    expr {abs($dx - $px) <= 2 && abs($dy - $py) <= 2}
+}
+
+test tkudialog-6.1 {show -parent: centred over the parent and transient to it} -constraints haveTk -setup {
+    mkParent .p 900 600
+} -body {
+    set m [measureModal .p {::tkutils::tkudialog::show .tkudialog_t1 -message hallo -parent .p}]
+    list [overParent $m] [lindex $m 4]
+} -cleanup { destroy .p } -result {1 .p}
+
+test tkudialog-6.2 {showError without -parent follows the focus toplevel} -constraints haveTk -setup {
+    mkParent .p 850 550
+    focus -force .p
+    update
+} -body {
+    set m [measureModal .p {::tkutils::tkudialog::showError "kaputt"}]
+    list [overParent $m] [lindex $m 4]
+} -cleanup { destroy .p } -result {1 .p}
+
+test tkudialog-6.3 {input passes -parent on} -constraints haveTk -setup {
+    mkParent .p 820 500
+} -body {
+    set m [measureModal .p {::tkutils::tkudialog::input -message name -parent .p}]
+    list [overParent $m] [lindex $m 4]
+} -cleanup { destroy .p } -result {1 .p}
+
+test tkudialog-6.4 {a withdrawn parent gets no transient (dialog would stay invisible)} -constraints haveTk -setup {
+    mkParent .p 100 100
+    wm withdraw .p
+} -body {
+    ::tkutils::tkudialog::build .d6 -message x -parent .p
+    wm transient .d6
+} -cleanup { destroy .d6 .p } -result {}
+
+test tkudialog-6.5 {_correct leaves an offset of 100 px or more alone (window manager placed it on purpose)} -constraints haveTk -setup {
+    ::tkutils::tkudialog::build .d65 -message x
+    wm geometry .d65 +300+300
+    update
+} -body {
+    set before [wm geometry .d65]
+    set ::tkutils::tkudialog::state(.d65,target) \
+        [list [expr {[winfo rootx .d65] - 150}] [winfo rooty .d65]]
+    ::tkutils::tkudialog::_correct .d65
+    update
+    expr {[wm geometry .d65] eq $before}
+} -cleanup { destroy .d65 } -result 1
+
+test tkudialog-7.1 {unknown option is an error that lists the known ones} -constraints haveTk -body {
+    catch {::tkutils::tkudialog::build .d7 -message a -parnet .} m o
+    list [winfo exists .d7] [dict get $o -errorcode] [string match "*Known:*-parent*" $m]
+} -result {0 {TKUTILS TKUDIALOG OPTION -parnet} 1}
+
+test tkudialog-7.2 {input and form check their options too} -constraints haveTk -body {
+    list [catch {::tkutils::tkudialog::input -titel x} m1] [string match "*Known:*-title*" $m1] \
+         [catch {::tkutils::tkudialog::form {} -parnet .} m2] [string match "*Known:*-parent*" $m2]
+} -result {1 1 1 1}
+
+test tkudialog-7.3 {a -parent that does not exist is an error} -constraints haveTk -body {
+    catch {::tkutils::tkudialog::build .d7 -message a -parent .gibtsnicht} m o
+    list [winfo exists .d7] [lrange [dict get $o -errorcode] 0 2]
+} -result {0 {TKUTILS TKUDIALOG PARENT}}
+
 cleanupTests

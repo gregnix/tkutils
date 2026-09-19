@@ -19,7 +19,7 @@ namespace eval ::tkutils::tkuimage {
         zoomIn zoomOut zoom1 fitView getImage zoomLevel
     variable state
     array set state {}
-    variable version 0.1
+    variable version 0.2
 }
 
 # --- pure fit math (no Tk needed) --------------------------------------

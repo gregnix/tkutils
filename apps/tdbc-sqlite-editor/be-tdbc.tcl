@@ -23,6 +23,10 @@ namespace eval ::sqledit::be {
 
 # Identity + dependency check ------------------------------------------------
 proc ::sqledit::be::displayName {}      { return "SQLite (TDBC)" }
+# Eigener Schluessel, nicht "sqlite": es ist dasselbe Dateiformat, aber
+# ein anderer Treiber -- und wer beide benutzt, will nicht eine
+# gemeinsame Liste.
+proc ::sqledit::be::_backendKey {}      { return "tdbc-sqlite" }
 proc ::sqledit::be::connectLabel {}     { return "Open" }
 proc ::sqledit::be::connectNewLabel {}  { return "New" }
 proc ::sqledit::be::requireDeps {} {
