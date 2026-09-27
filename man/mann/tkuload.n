@@ -1,4 +1,4 @@
-.TH tkuload n 0.1 tkutils
+.TH tkuload n 0.2 tkutils
 .SH tkutils::tkuload
 .PP
 Build a live Tk UI from a \fB.tkd\fR design (as produced by tkudesigner) and bind values to its named widgets. Pure Tk; namespace \fB::tkuload\fR. Loads the render engine \fBtkutils::tkurender\fR on demand.
@@ -18,14 +18,17 @@ Address controls by their designer name:
 ::tkuload::getValue     $ui name              ;# -> value ("" if none)
 ::tkuload::fill         $ui {name value ...}  ;# set many (unknown skipped)
 ::tkuload::collect      $ui ?{name ...}?      ;# -> dict; default = all named
+::tkuload::slot         $ui name              ;# empty a named placeholder frame
 .CE
 .PP
 \fBsetValue\fR/\fBgetValue\fR dispatch on the resolved control class \-\- entry, ttk entry/combobox/spinbox, text, listbox, tablelist, checkbutton, and tkutils megawidgets (e.g. \fBtkunumentry\fR) through their inner entry \-\- neutralising \fB\-state\fR/\fB\-validate\fR around the write so readonly and key\-validated fields round\-trip.
 .SS Embedding
 .PP
-A loaded UI is just widgets under \fB$parent\fR; no editor is attached, so no selection or designer bindings are installed. Host code wires its own behaviour, e.g.:
+A loaded UI is just widgets under \fB$parent\fR; no editor is attached, so no selection or designer bindings are installed. Host code wires its own behaviour. Named \fBPlaceholder\fR nodes are empty frames after \fBslot\fR:
 .CS
-bind [$tbl bodypath] <Double-1> {...}
+set box [::tkuload::slot $ui preview]
+::tkutils::tkupreview::widget $box.v
+pack $box.v -fill both -expand 1
 .CE
 .SS Errors
 .PP

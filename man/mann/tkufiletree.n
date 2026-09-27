@@ -31,6 +31,8 @@ A lazy file\-system tree built on \fBtkutils::tkutree\fR. Shows a directory hier
 .IP \(bu
 \fB\-showhidden 0|1\fR — include dot\-entries (default 0).
 .IP \(bu
+\fB\-provider obj\fR — a \fBtclutils::tuprovider\fR object (0.2). Directories are listed and tested through it (\fBlist\fR, \fBstat\fR), so a ZIP or WebDAV tree shows the provider's content. Without it the local filesystem is used. Provider paths are taken as they are (no \fBfile normalize\fR). Up to 0.1 this option did not exist and was silently ignored, so such trees showed the local disk.
+.IP \(bu
 \fB\-onactivate cmd\fR — called with the full path when a file is activated (double\-click or Return).
 .IP \(bu
 \fB\-onselect cmd\fR — called with the full path on selection change.

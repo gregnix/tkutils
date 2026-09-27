@@ -1,7 +1,7 @@
-# tkuload 0.1 -- instantiate a tkudesigner ".tkd" layout as a live Tk widget
+# tkuload 0.2 -- instantiate a tkudesigner ".tkd" layout as a live Tk widget
 # Description: instantiate a tkudesigner `.tkd` layout as a live Tk widget tree (no code export)
 # Category: Tk · widgets
-# tree inside a host application (e.g. lieferschein), without code export.
+# tree inside a host application, without code export.
 #
 # It does NOT reimplement rendering: it evaluates tkudesigner.tcl's body
 # (the procs + widget catalogue, WITHOUT launching the editor) and drives the
@@ -31,7 +31,7 @@ namespace eval ::tkuload {
     # our own directory, captured at source time (info script is unreliable
     # later -- it would reflect whichever script is calling us)
     variable selfDir [file dirname [file normalize [info script]]]
-    namespace export build buildFromFile
+    namespace export build buildFromFile slot
 }
 
 # Load the shared render engine once: the package tkutils::tkurender (procs +
@@ -107,7 +107,15 @@ proc ::tkuload::_collect {parent} {
     return [dict create root $parent byId $byId byType $byType byName $byName]
 }
 
-package provide tkutils::tkuload 0.1
+# Empty a named placeholder frame so the host can pack a real widget into it.
+# Returns the frame. Unknown name is the same error as widgetByName.
+proc ::tkuload::slot {ui name} {
+    set w [widgetByName $ui $name]
+    foreach c [winfo children $w] { destroy $c }
+    return $w
+}
+
+package provide tkutils::tkuload 0.2
 
 # ---------------------------------------------------------------------------
 # Value binding helpers -- wire a loaded design to host data by widget name.

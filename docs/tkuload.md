@@ -22,6 +22,7 @@ Address controls by their designer name:
 ::tkuload::getValue     $ui name              ;# -> value ("" if none)
 ::tkuload::fill         $ui {name value ...}  ;# set many (unknown skipped)
 ::tkuload::collect      $ui ?{name ...}?      ;# -> dict; default = all named
+::tkuload::slot         $ui name              ;# empty a named placeholder frame
 ```
 `setValue`/`getValue` dispatch on the resolved control class -- entry, ttk
 entry/combobox/spinbox, text, listbox, tablelist, checkbutton, and tkutils
@@ -32,9 +33,11 @@ round-trip.
 ## Embedding
 A loaded UI is just widgets under `$parent`; no editor is attached, so no
 selection or designer bindings are installed. Host code wires its own
-behaviour, e.g.:
+behaviour. Named **Placeholder** nodes are empty frames after `slot`:
 ```tcl
-bind [$tbl bodypath] <Double-1> {...}
+set box [::tkuload::slot $ui preview]
+::tkutils::tkupreview::widget $box.v
+pack $box.v -fill both -expand 1
 ```
 
 ## Errors

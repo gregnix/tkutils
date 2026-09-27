@@ -12,6 +12,8 @@ if {$haveTk} {
 testConstraint tablelist [expr {$haveTk && $haveTbl}]
 set here [file dirname [file normalize [info script]]]
 set tmDir [file normalize [file join $here .. lib tm]]
+if {[info exists ::env(TKUTILS_TM)]} { catch {tcl::tm::path add $::env(TKUTILS_TM)} }
+catch {tcl::tm::path remove $tmDir}
 tcl::tm::path add $tmDir
 # locate the tclutils dependency for in-tree/dev use
 # (installed systems already have tclutils on the module path)
@@ -58,6 +60,13 @@ test tkutablelist-1.4 {loadCsv sets columns from header and rows} -constraints t
     set n [::tkutils::tkutablelist::loadCsv $w $csv]
     list $n [::tkutils::tkutablelist::columns $w] [::tkutils::tkutablelist::rows $w]
 } -result {2 {name age} {{Bob 25} {Alice 30}}}
+
+test tkutablelist-1.4b {loadCsv -header 0 keeps the first row} -constraints tablelist -body {
+    catch {destroy .t}
+    set w [::tkutils::tkutablelist::widget .t]
+    set n [::tkutils::tkutablelist::loadCsv $w "a,b\n1,2\n" -header 0]
+    list $n [::tkutils::tkutablelist::columns $w] [::tkutils::tkutablelist::rows $w]
+} -result {2 {1 2} {{a b} {1 2}}}
 
 test tkutablelist-1.5 {sortBy reorders ascending} -constraints tablelist -body {
     catch {destroy .t}

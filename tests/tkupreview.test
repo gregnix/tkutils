@@ -6,13 +6,12 @@ set haveTk [expr {![catch {package require Tk}]}]
 if {$haveTk} { catch {wm withdraw .} }
 testConstraint tk $haveTk
 
-if {$haveTk} {
-    set here [file dirname [file normalize [info script]]]
-    set tmDir [file normalize [file join $here .. lib tm]]
-    catch {tcl::tm::path add $tmDir}
-    if {[info exists ::env(TKUTILS_TM)]} { catch {tcl::tm::path add $::env(TKUTILS_TM)} }
-    package require tkutils::tkupreview
-}
+set here [file dirname [file normalize [info script]]]
+set tmDir [file normalize [file join $here .. lib tm]]
+if {[info exists ::env(TKUTILS_TM)]} { catch {tcl::tm::path add $::env(TKUTILS_TM)} }
+catch {tcl::tm::path remove $tmDir}
+tcl::tm::path add $tmDir
+if {$haveTk} { package require tkutils::tkupreview }
 set ns ::tkutils::tkupreview
 
 # The preview is policy-free: each display method sets the widget's kind. We
@@ -84,5 +83,20 @@ test tkupreview-1.8 {csv accepts a delimiter and reports kind csv (or text fallb
     destroy .v8
     expr {$k in {csv text}}
 } -result 1
+
+test tkupreview-1.9 {csv prefers tablelist when available} -constraints tk -body {
+    ${ns}::widget .v9
+    ${ns}::csv .v9 "d.csv" "a,b\n1,2"
+    set k [${ns}::kind .v9]
+    set used text
+    if {[winfo exists .v9.body.csv.tbl]} {
+        set used tablelist
+    } elseif {[winfo exists .v9.body.csv.tv]} {
+        set used treeview
+    }
+    destroy .v9
+    list $k [expr {$used in {tablelist treeview text}}] \
+         [expr {$k ne "csv" || $used ne "text"}]
+} -result {csv 1 1}
 
 cleanupTests

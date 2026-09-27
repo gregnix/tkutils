@@ -78,4 +78,25 @@ test tkurender-2.1 {renderChildren creates real Tk widgets} -constraints haveTk 
     set ok
 } -result 1
 
+test tkurender-1.5 {placeholder is a named leaf in the catalogue} -constraints haveTk -body {
+    expr {![::tkurender::isContainer placeholder]
+       && [::tkurender::labelOf placeholder] eq "Placeholder"}
+} -result 1
+
+test tkurender-2.2 {placeholder renders as a frame slot} -constraints haveTk -body {
+    ::tkurender::newModel
+    set p [::tkurender::addNode placeholder $::tkurender::D(root)]
+    ::tkurender::setName $p filetree
+    ::tkurender::setOpt $p role filetree
+    set top [toplevel .rt[incr ::seq]]
+    set ::tkurender::D(embedded) 1
+    array unset ::tkurender::D wpath,*
+    ::tkurender::renderChildren $::tkurender::D(root) $top $top
+    set w $::tkurender::D(wpath,$p)
+    set cls [winfo class $w]
+    set kids [winfo children $w]
+    destroy $top
+    list $cls [llength $kids] [::tkurender::nodeOpt $p role]
+} -result {TFrame 1 filetree}
+
 cleanupTests

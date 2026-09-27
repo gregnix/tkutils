@@ -42,6 +42,9 @@ Leaf types whose widget lives in another package (e.g. `tkunumentry`,
 `tablelist`) report it via `pkgFor`; the renderer substitutes a labelled
 placeholder when the package is missing instead of failing.
 
+Type `placeholder` is an explicit named slot (options `text`, `role`, `width`,
+`height`): a `ttk::frame` the host fills after `tkuload::slot`.
+
 ## Render
 ```tcl
 ::tkurender::renderChildren $::tkurender::D(root) $parentW $pv

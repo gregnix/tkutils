@@ -176,28 +176,47 @@ proc ::tkutils::tkupreview::_viewer {path title content pkg buildcmd setcmd kind
     return
 }
 
-# Show CSV content as a table, using tkucsv (which parses text via setData, so
-# no file path is needed). Falls back to plain text if tkucsv is unavailable.
+# Show CSV content as a table. Prefers tkutablelist (tablelist_tile) when
+# Tablelist is installed, else tkucsv (ttk::treeview), else plain text.
+# Extra args go to the parser (e.g. -delimiter \t for TSV). `-header 0|1`
+# is the table heading, not a tucsv parse option.
 proc ::tkutils::tkupreview::csv {path title content args} {
     variable state
     $path.hdr configure -text $title
     _clear $path
-    if {[catch {package require tkutils::tkucsv}]} {
-        text $path $title $content
-        return
-    }
-    if {[catch {
-        ::tkutils::tkucsv::widget $path.body.csv
-        # args are passed through to the parser (e.g. -delimiter \t for TSV);
-        # the widget stays policy-free, it is just told the separator.
-        ::tkutils::tkucsv::setData $path.body.csv $content {*}$args
+    if {[_csvTable $path.body.csv $content {*}$args]} {
         pack $path.body.csv -fill both -expand 1
-    }]} {
-        text $path $title $content
+        set state($path,kind) csv
         return
     }
-    set state($path,kind) csv
-    return
+    text $path $title $content
+}
+
+proc ::tkutils::tkupreview::_csvTable {w content args} {
+    set header 1
+    if {[dict exists $args -header]} {
+        set header [dict get $args -header]
+        dict unset args -header
+    }
+    if {![catch {package require tkutils::tkutablelist}]} {
+        if {![catch {
+            ::tkutils::tkutablelist::widget $w -columns _
+            ::tkutils::tkutablelist::loadCsv $w $content -header $header {*}$args
+        }]} {
+            return 1
+        }
+        catch {destroy $w}
+    }
+    if {![catch {package require tkutils::tkucsv}]} {
+        if {![catch {
+            ::tkutils::tkucsv::widget $w -header $header
+            ::tkutils::tkucsv::setData $w $content {*}$args
+        }]} {
+            return 1
+        }
+        catch {destroy $w}
+    }
+    return 0
 }
 
 # Show an already-created Tk photo image (e.g. a page rendered by a PDF

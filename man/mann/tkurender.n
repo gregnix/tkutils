@@ -1,4 +1,4 @@
-.TH tkurender n 0.1 tkutils
+.TH tkurender n 0.2 tkutils
 .SH tkutils::tkurender
 .PP
 Shared render core for the tkudesigner GUI designer and the tkuload spec loader: a widget catalogue, an in\-memory design model, \fBdeserialize\fR, and a live ttk render engine. Pure Tk/ttk; namespace \fB::tkurender\fR. This is not a widget \-\- it is the engine both frontends build on.
@@ -35,6 +35,8 @@ The model lives in the array \fB::tkurender::D\fR (keys \fBroot\fR, \fBnodes\fR,
 .CE
 .PP
 Leaf types whose widget lives in another package (e.g. \fBtkunumentry\fR, \fBtablelist\fR) report it via \fBpkgFor\fR; the renderer substitutes a labelled placeholder when the package is missing instead of failing.
+.PP
+Type \fBplaceholder\fR is an explicit named slot (options \fBtext\fR, \fBrole\fR, \fBwidth\fR, \fBheight\fR): a \fBttk::frame\fR the host fills after \fBtkuload::slot\fR.
 .SS Render
 .CS
 ::tkurender::renderChildren $::tkurender::D(root) $parentW $pv

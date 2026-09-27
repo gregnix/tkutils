@@ -6,8 +6,9 @@ if {[catch {package require Tk 8.6-}]} { set haveTk 0 }
 testConstraint haveTk $haveTk
 set here [file dirname [file normalize [info script]]]
 set tmDir [file normalize [file join $here .. lib tm]]
-catch {tcl::tm::path add $tmDir}
 if {[info exists ::env(TKUTILS_TM)]} { catch {tcl::tm::path add $::env(TKUTILS_TM)} }
+catch {tcl::tm::path remove $tmDir}
+tcl::tm::path add $tmDir
 if {$haveTk} { package require tkutils::tkuaction }
 
 set ns ::tkutils::tkuaction
@@ -96,6 +97,57 @@ test tkuaction-3.3 {unregister stops propagation} -constraints haveTk -body {
     .b cget -state
 } -result normal
 
+test tkuaction-3.4 {setEnabled with a window greys only that toplevel} -constraints haveTk -body {
+    $::ns\::reset
+    catch {destroy .wa .wb}
+    toplevel .wa
+    toplevel .wb
+    ttk::button .wa.b -text Save
+    ttk::button .wb.b -text Save
+    $::ns\::define save
+    $::ns\::register save .wa.b
+    $::ns\::register save .wb.b
+    $::ns\::setEnabled save 0 .wa
+    list [.wa.b cget -state] [.wb.b cget -state] \
+         [$::ns\::getEnabled save] [$::ns\::getEnabled save .wa]
+} -cleanup { catch {destroy .wa .wb} } -result {disabled normal 1 0}
+
+test tkuaction-3.5 {two-argument setEnabled clears a window override} -constraints haveTk -body {
+    $::ns\::reset
+    catch {destroy .wa .wb}
+    toplevel .wa
+    toplevel .wb
+    ttk::button .wa.b -text Save
+    ttk::button .wb.b -text Save
+    $::ns\::define save
+    $::ns\::register save .wa.b
+    $::ns\::register save .wb.b
+    $::ns\::setEnabled save 0 .wa
+    $::ns\::setEnabled save 1
+    list [.wa.b cget -state] [.wb.b cget -state] [$::ns\::getEnabled save .wa]
+} -cleanup { catch {destroy .wa .wb} } -result {normal normal 1}
+
+test tkuaction-3.6 {setEnabled unknown window is an error} -constraints haveTk -body {
+    $::ns\::reset
+    $::ns\::define save
+    catch {$::ns\::setEnabled save 0 .gone} m o
+    dict get $o -errorcode
+} -result {TKUTILS TKUACTION WINDOW}
+
+test tkuaction-3.7 {setEnabled accepts a child of the toplevel} -constraints haveTk -body {
+    $::ns\::reset
+    catch {destroy .wa .wb}
+    toplevel .wa
+    toplevel .wb
+    ttk::button .wa.b -text Save
+    ttk::button .wb.b -text Save
+    $::ns\::define save
+    $::ns\::register save .wa.b
+    $::ns\::register save .wb.b
+    $::ns\::setEnabled save 0 .wa.b
+    list [.wa.b cget -state] [.wb.b cget -state]
+} -cleanup { catch {destroy .wa .wb} } -result {disabled normal}
+
 # --- groups ----------------------------------------------------------------
 
 test tkuaction-4.1 {groupSet enables/disables all members} -constraints haveTk -body {
@@ -112,6 +164,22 @@ test tkuaction-4.2 {groupSet on unknown group errors} -constraints haveTk -body 
     dict get $o -errorcode
 } -result {TKUTILS TKUACTION NOGROUP}
 
+test tkuaction-4.3 {groupSet with a window scopes every member} -constraints haveTk -body {
+    $::ns\::reset
+    catch {destroy .wa .wb}
+    toplevel .wa
+    toplevel .wb
+    ttk::button .wa.a; ttk::button .wa.b
+    ttk::button .wb.a; ttk::button .wb.b
+    $::ns\::define a; $::ns\::define b
+    $::ns\::register a .wa.a; $::ns\::register a .wb.a
+    $::ns\::register b .wa.b; $::ns\::register b .wb.b
+    $::ns\::groupDefine edit {a b}
+    $::ns\::groupSet edit 0 .wa
+    list [.wa.a cget -state] [.wa.b cget -state] \
+         [.wb.a cget -state] [.wb.b cget -state]
+} -cleanup { catch {destroy .wa .wb} } -result {disabled disabled normal normal}
+
 # --- toolbar integration ---------------------------------------------------
 
 test tkuaction-5.1 {tkutoolbar addAction builds and binds a button} -constraints haveTk -body {
@@ -126,5 +194,70 @@ test tkuaction-5.1 {tkutoolbar addAction builds and binds a button} -constraints
     $::ns\::setEnabled open 0
     list $::opened [$btn cget -state]
 } -result {1 disabled}
+
+# --- menu entries ----------------------------------------------------------
+
+test tkuaction-6.1 {addMenuItem greys the command row} -constraints haveTk -body {
+    $::ns\::reset
+    catch {destroy .mfile}
+    menu .mfile -tearoff 0
+    $::ns\::define save -label Save -accelerator Ctrl+S
+    set idx [$::ns\::addMenuItem .mfile save]
+    $::ns\::setEnabled save 0
+    .mfile entrycget $idx -state
+} -cleanup { catch {destroy .mfile} } -result disabled
+
+test tkuaction-6.2 {setEnabled with a window greys only that menu} -constraints haveTk -body {
+    $::ns\::reset
+    catch {destroy .wa .wb}
+    toplevel .wa
+    toplevel .wb
+    menu .wa.mf -tearoff 0
+    menu .wb.mf -tearoff 0
+    $::ns\::define save -label Save
+    set ia [$::ns\::addMenuItem .wa.mf save]
+    set ib [$::ns\::addMenuItem .wb.mf save]
+    $::ns\::setEnabled save 0 .wa
+    list [.wa.mf entrycget $ia -state] [.wb.mf entrycget $ib -state]
+} -cleanup { catch {destroy .wa .wb} } -result {disabled normal}
+
+test tkuaction-6.3 {addMenuItem on unknown action errors} -constraints haveTk -body {
+    $::ns\::reset
+    catch {destroy .mfile}
+    menu .mfile -tearoff 0
+    catch {$::ns\::addMenuItem .mfile nope} m o
+    dict get $o -errorcode
+} -cleanup { catch {destroy .mfile} } -result {TKUTILS TKUACTION NOACTION}
+
+test tkuaction-6.4 {unregisterMenu stops propagation} -constraints haveTk -body {
+    $::ns\::reset
+    catch {destroy .mfile}
+    menu .mfile -tearoff 0
+    $::ns\::define save -label Save
+    set idx [$::ns\::addMenuItem .mfile save]
+    $::ns\::unregisterMenu save .mfile
+    $::ns\::setEnabled save 0
+    .mfile entrycget $idx -state
+} -cleanup { catch {destroy .mfile} } -result normal
+
+test tkuaction-6.5 {cascade under menubar follows the owner window} -constraints haveTk -body {
+    $::ns\::reset
+    catch {destroy .wa .wb}
+    toplevel .wa
+    toplevel .wb
+    menu .wa.m -tearoff 0
+    .wa configure -menu .wa.m
+    menu .wa.m.file -tearoff 0
+    .wa.m add cascade -label File -menu .wa.m.file
+    menu .wb.m -tearoff 0
+    .wb configure -menu .wb.m
+    menu .wb.m.file -tearoff 0
+    .wb.m add cascade -label File -menu .wb.m.file
+    $::ns\::define save -label Save
+    set ia [$::ns\::addMenuItem .wa.m.file save]
+    set ib [$::ns\::addMenuItem .wb.m.file save]
+    $::ns\::setEnabled save 0 .wa
+    list [.wa.m.file entrycget $ia -state] [.wb.m.file entrycget $ib -state]
+} -cleanup { catch {destroy .wa .wb} } -result {disabled normal}
 
 cleanupTests

@@ -41,7 +41,9 @@ widgets when available and fall back to plain text otherwise:
 - **markdown** -- rendered via `tkumdview`.
 - **html** -- rendered via `tcllitehtml` (a limited HTML/CSS engine).
 - **json / xml / ini** -- structured viewers (`tkujson`, `tkuxml`, `tkuini`).
-- **csv** -- a table via `tkucsv`; pass `-delimiter \t` for TSV.
+- **csv** -- a table via `tkutablelist` (Tablelist) when installed, else
+  `tkucsv` (ttk::treeview); pass `-delimiter \t` for TSV and `-header 0|1`
+  for whether the first row is column titles.
 - **hex** -- a hex dump of raw bytes.
 - **image** -- PNG/GIF/JPEG/TIFF/BMP/ICO from a file path, in a zoomable canvas.
 - **photo** -- a Tk photo the caller already built.
@@ -82,4 +84,4 @@ very different applications unchanged.
 
 ## See also
 
-`tkumdview`, `tkujson`, `tkucsv`, `tkusqlite`, `tkuimage`
+`tkumdview`, `tkujson`, `tkucsv`, `tkutablelist`, `tkusqlite`, `tkuimage`

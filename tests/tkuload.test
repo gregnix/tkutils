@@ -89,4 +89,17 @@ test tkuload-3.1 {tkunumentry value is accepted} -constraints {haveTk haveNument
     expr {[::tkuload::getValue $ui numX] ne ""}
 } -result 1
 
+test tkuload-4.1 {slot empties a named placeholder} -constraints haveTk -body {
+    ::tkurender::newModel
+    set p [::tkurender::addNode placeholder $::tkurender::D(root)]
+    ::tkurender::setName $p filelist
+    ::tkurender::setOpt $p role filelist
+    set ui [::tkuload::build [host] [::tkurender::serialize]]
+    set box [::tkuload::slot $ui filelist]
+    ttk::label $box.host -text ok
+    pack $box.host
+    list [winfo class $box] [llength [winfo children $box]] \
+         [string match *host [lindex [winfo children $box] 0]]
+} -result {TFrame 1 1}
+
 cleanupTests

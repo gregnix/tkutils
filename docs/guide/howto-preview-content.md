@@ -71,7 +71,8 @@ set fh [open $tmp wb] ; puts -nonewline $fh [$prov get $path] ; close $fh
 
 Structured kinds (markdown, json, html, csv, sqlite, ...) render through sibling
 widgets when those are available and fall back to plain text otherwise, so the
-preview never errors just because an optional renderer is missing. Query the
+preview never errors just because an optional renderer is missing. CSV prefers
+`tkutablelist` (Tablelist) when installed, else `tkucsv` (ttk::treeview). Query the
 result with `::tkutils::tkupreview::kind $pv`.
 
 ## See also

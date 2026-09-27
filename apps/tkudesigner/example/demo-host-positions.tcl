@@ -1,5 +1,5 @@
 #!/usr/bin/env wish
-# Host-side wiring patterns for a loaded .tkd (as lieferschein would do).
+# Host-side wiring patterns for a loaded .tkd.
 # Loads line_items_editor.tkd and connects, purely via byName handles:
 #   * click / select a position row  -> fill the edit fields
 #   * "Uebernehmen"                   -> write the edit fields back into the row

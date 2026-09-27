@@ -81,7 +81,7 @@ Jede Änderung baut die Vorschau sofort neu auf.
 |--------|----------|
 | **Container** | Frame, LabelFrame, PanedWindow, Notebook |
 | **Chrome** | Menubar → Menu → Menu item, Toolbar → Tool button, Statusbar |
-| **Widget** (ttk) | Label, Button, Entry, Checkbutton, Radiobutton, Combobox, Spinbox, Scale, Progressbar, Separator, Listbox, Treeview, Text, Canvas |
+| **Widget** (ttk) | Label, Button, Entry, Checkbutton, Radiobutton, Combobox, Spinbox, Scale, Progressbar, Separator, Listbox, Treeview, Text, Canvas, **Placeholder** |
 | **Advanced** | Scrollarea, Scrollableframe, ScrolledNotebook, PlainNotebook, PagesMan, Tablelist |
 | **tkutils** | TkuToolbar, Labeled, Form, NumEntry, DateEntry, TimeEntry, Tags, SearchBar, Status |
 
@@ -94,6 +94,18 @@ scrollbar (Mausrad oder Scrollbalken), falls ein Widget viele Felder hat.
 `Canvas` ist eine klassische Tk-Zeichenfläche (Optionen `width`, `height`,
 `background`) — als Platzhalter für Seiten-/Skizzenflächen, z. B. die
 A4-Fläche eines Layout-Editors.
+
+**Placeholder** ist ein benannter Slot: ein Frame mit Beschriftung (`text`,
+`role`, z. B. `filetree` / `filelist` / `preview`). Die Host-Anwendung lädt
+das `.tkd` mit `tkuload` und füllt den Slot:
+
+```tcl
+set box [::tkuload::slot $ui filelist]
+::tkutils::tkufilelist::widget $box.l -provider $prov -dir $dir
+pack $box.l -fill both -expand 1
+```
+
+Der Designer zeigt nur die Markierung. Die Host-Anwendung füllt den Slot nach dem Laden.
 
 **Aussehen / erweiterte Optionen.** Wo das jeweilige Widget sie unterstützt,
 bietet das Panel zusätzlich:

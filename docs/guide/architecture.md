@@ -51,7 +51,7 @@ tkutils::mdview
 - tkuballoon -> shared override-redirect popup, backend: pure Tk (tooltips for any widget)
 - tkucontextmenu -> tk menu + tk_popup, backend: pure Tk (command/check/radio/cascade, spec builder)
 - tkubind -> wrappers over bind, backend: pure Tk (platform Mod key, accelerators, isEditing guard, groups)
-- tkuaction -> action registry/model, backend: pure Tk (register widgets; setEnabled/setChecked/invoke propagate)
+- tkuaction -> action registry/model, backend: pure Tk (register widgets, addMenuItem for menu rows; setEnabled/setChecked/invoke propagate)
 - tkukeynav -> wrappers over bind + tk_focusNext/Prev, backend: pure Tk (Tab/Shift-Tab traversal, Return-to-next-field form helper)
 - tkulabeled -> ttk::frame + label + control composite, backend: pure Tk (types entry/combo/spin/check/text; `value` get/set)
 - tkuvalidate -> per-widget validation feedback, backend: pure Tk; predicates from tclutils::tuvalidate, message via tkutils::tkuballoon

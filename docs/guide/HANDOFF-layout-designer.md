@@ -26,7 +26,7 @@ Both follow the usual utils conventions: `lib/tm/...`, `tests/*.test`, `docs/*.m
    (use `xvfb-run` when headless).
 6. **Demo** — `wish examples/demo-tkulayoutcanvas.tcl`.
 
-No change to lieferschein or other host apps is required for a utils release.
+No change to host applications is required for a utils release.
 
 ## Two-stage workflow (recommended)
 
@@ -113,15 +113,15 @@ proc openLayoutDesigner {parent blocksVar defs onSave} {
 ### 4. Preset storage
 
 Store a **blocks** dict (or full layout with `blocks` key) under an app-specific
-settings key, e.g. `layout_preset_lieferschein`.
+settings key, e.g. `layout_preset`.
 
 ```tcl
 # Save preset from designer
 set preset [dict create blocks [tkutils::tkulayoutcanvas::getBlocks .lc]]
-$store settingSet $db layout_preset_lieferschein $preset
+$store settingSet $db layout_preset $preset
 
 # New document — merge preset into defaults
-set preset [$store settingGet $db layout_preset_lieferschein ""]
+set preset [$store settingGet $db layout_preset ""]
 if {$preset ne ""} {
     set doc [tclutils::tulayout::mergeLayout $doc $preset]
 }

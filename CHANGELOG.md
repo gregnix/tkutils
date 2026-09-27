@@ -4,6 +4,39 @@
 
 Recommended pairing: tclutils 0.63.0 + tkutils 0.44.0 + ctrlutils 0.2.
 
+### `tkupreview` 0.1 — CSV via Tablelist (2026-09-24)
+
+`csv` shows a `tkutablelist` when Tablelist is installed (`tablelist_tile`),
+else `tkucsv` (ttk::treeview), else plain text. Kind stays `csv` for the
+table views. Extra parser args (`-delimiter`) are unchanged. `-header 0|1`
+is taken by the table (headings), not by `tucsv`.
+
+`tkutablelist::loadCsv -header 0` names columns 1..n and keeps the first
+row as data.
+
+### `tkuaction` 0.2 — Enable per window and menu entries (2026-09-24)
+
+`setEnabled save 0 $w` greys registered widgets in that toplevel only.
+Without `$w` every bound widget, as in 0.1; a global call also clears
+window overrides so the two-argument form stays the default. A child
+widget is resolved with `winfo toplevel`. `getEnabled` and `groupSet`
+take the same optional window. Unknown window:
+`{TKUTILS TKUACTION WINDOW}`. `invoke` still uses the global flag.
+
+Menu command entries follow the same Enable: `addMenuItem $menu save`
+creates the row and registers its index; `setEnabled` greys it (also
+per window). `registerMenu` / `unregisterMenu` cover an existing row.
+Menu widgets are themselves toplevels; Enable uses the first non-Menu
+ancestor so a menubar cascade follows the window.
+
+### `tkurender` 0.2 / `tkuload` 0.2 — Placeholder slot (2026-09-23)
+
+New catalogue type `placeholder` (options `text`, `role`, `width`, `height`):
+a named frame the host fills after `tkuload::slot`. Public API, therefore a
+minor bump of both modules. tkudesigner shows the type in the Widget group.
+
+72 man pages (was written as 71 in an earlier note).
+
 ### `tkudialog` 0.2 — dialogs open over their window
 
 Measured 2026-09-19: with the parent at 900,600, `show -parent .p` opened the
@@ -31,12 +64,12 @@ screen.
   placement tests compare the dialog with where the parent's content really
   is, measured at the same moment — not with the requested `+x+y`. A first
   draft did the latter: green under Xvfb without a window manager, red on a
-  real desktop (reported from lxpro; reproduced with openbox, whose border and
+  real desktop (reproduced with openbox, whose border and
   title bar put the content at +1+20). The placement itself was right in both.
   Measured under openbox, xfwm4 and without a window manager, Tcl/Tk 9.0.4 and
   8.6.14.
 
-**Window-manager decoration (found in the third review, lxpro).** Most window
+**Window-manager decoration (found in the third review).** Most window
 managers put a toplevel's *frame* at the position given to `wm geometry
 +x+y`, so the content lands lower right by border and title bar. The dialog
 computed where its content should be and passed that as `+x+y` — under such
@@ -51,7 +84,7 @@ against the parent's content centre:
 | openbox | 0, −1 | 0, −1 |
 | xfwm4 (undecorated here), none | 0, −1 | 0, −1 |
 
-(lxpro reported +5, +28.) The offset cannot be computed in advance — openbox
+A decorated desktop measured +5, +28. The offset cannot be computed in advance — openbox
 places transient dialogs by their content but other toplevels by their
 frame — so `tkudialog` now measures the dialog once it is mapped and moves it
 by the difference, once. Offsets of 100 px or more are left alone: then the
@@ -60,14 +93,14 @@ window manager placed the dialog on purpose. Note from the measurement: the
 binding set afterwards never fired; the check is scheduled directly in that
 case. Tests (`tkudialog.test`, and `cufileops.test` in ctrlutils) pass under
 icewm, fluxbox, metacity, openbox, xfwm4 and without a window manager, on Tcl/Tk
-9.0.4 and 8.6.14; without the correction, icewm shows the three failures
-reported from lxpro. The test waits until the parent's position has settled
+9.0.4 and 8.6.14; without the correction, icewm shows the three failures.
+The test waits until the parent's position has settled
 (at most 1 s): under fluxbox with Tk 8.6 the first dialog was otherwise placed
 against the parent's pre-decoration position. `tkwait visibility` hung there
 and is not used.
 
 ctrlutils 0.2 passes `-parent` from its file operations; with the old
-`cufileops` the Explorer's prompts stayed on the wrong monitor even with this
+`cufileops` those prompts stayed on the wrong monitor even with this
 `tkudialog`.
 
 ### Tests independent of the environment
@@ -103,16 +136,15 @@ now raises), so each is counted up once:
 `tkucalc` 0.2, `tkucalendar` 0.2, `tkudavbrowser` 0.2, `tkufilelist` 0.2, `tkufiletree` 0.2, `tkufilterbar` 0.2, `tkuical` 0.2, `tkuini` 0.2, `tkulauncher` 0.2, `tkuldif` 0.2, `tkunotes` 0.2, `tkupath` 0.2, `tkustatus` 0.2, `tkutab` 0.2, `tkutablelist` 0.3, `tkutical` 0.3, `tkutlfmt` 0.2, `tkutodo` 0.2, `tkutree` 0.2, `tkuvcard` 0.2.
 
 Before the change every call site in tkutils and ctrlutils (apps, examples,
-`bin/`, other modules, the Explorer, the address book) was checked against
+`bin/`, other modules) was checked against
 the options the procs know: 274 calls, none with an unknown option.
 
 ### `tkufiletree`: `-provider` (found through the stricter options)
 
-The Explorer always created its tree with `-provider $prov`. `tkufiletree`
-had no such option: up to 0.1 `array set` swallowed it, and a ZIP or WebDAV
+A tree created with `-provider $prov` hit an option `tkufiletree`
+did not have: up to 0.1 `array set` swallowed it, and a ZIP or WebDAV
 tab showed the **local** filesystem in its tree. With the option check the
-call failed instead, and the Explorer did not start (reported from lxpro,
-2026-09-19). `tkufiletree` 0.2 now takes `-provider` and lists and tests
+call failed instead (2026-09-19). `tkufiletree` 0.2 now takes `-provider` and lists and tests
 directories through it; without it, nothing changes. Provider paths are not
 passed through `file normalize` (that would make "/x" into "C:/x" on
 Windows). New tests with a provider whose paths do not exist locally

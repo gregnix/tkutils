@@ -388,6 +388,11 @@ proc ::tkutils::tkutablelist::loadCsv {path csv args} {
     if {$header && [llength $parsed]} {
         setColumns $path [lindex $parsed 0]
         set parsed [lrange $parsed 1 end]
+    } elseif {[llength $parsed]} {
+        set n [llength [lindex $parsed 0]]
+        set titles {}
+        for {set i 1} {$i <= $n} {incr i} { lappend titles $i }
+        setColumns $path $titles
     }
     return [setRows $path $parsed]
 }

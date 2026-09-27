@@ -5,7 +5,7 @@ Sie hat **zwei Ebenen**, die bewusst getrennt sind:
 
 - **A — `.tkd`-Konventionen:** wie ein gutes Design aufgebaut, benannt und
   strukturiert ist. *Das ist der unmittelbar nützliche Teil*, weil `.tkd` über
-  `tkuload` zur Quelle echter Fenster in lieferschein wird.
+  `tkuload` zur Quelle echter Fenster in der Host-Anwendung wird.
 - **B — Werkzeug-Prinzipien:** wie der Editor selbst aufgebaut ist.
 
 Jeder Punkt ist als **[implementiert]**, **[Konvention]** (Regel, kein Code)

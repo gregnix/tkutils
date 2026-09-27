@@ -24,6 +24,14 @@ $act\::define print -label "Print" -command {.out configure -text "Print"}
 $act\::define wrap  -label "Wrap"  -checkable 1 \
     -command {.out configure -text "Wrap = [::tkutils::tkuaction::getChecked wrap]"}
 
+# Menubar: same actions, so Print greys here too when disabled.
+menu .m -tearoff 0
+. configure -menu .m
+menu .m.file -tearoff 0
+.m add cascade -label File -menu .m.file
+::tkutils::tkuaction::addMenuItem .m.file save
+::tkutils::tkuaction::addMenuItem .m.file print
+
 # A toolbar built from those actions.
 set tb [::tkutils::tkutoolbar::widget .tb]
 pack $tb -side top -fill x

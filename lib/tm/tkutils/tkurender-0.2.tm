@@ -58,6 +58,8 @@ namespace eval ::tkurender {
     defType scale       Widget    "Scale"         leaf {{orient choice horizontal horizontal vertical} {state choice normal normal disabled}}
     defType progressbar Widget    "Progressbar"   leaf {{value int 40}}
     defType separator   Widget    "Separator"     leaf {{orient choice horizontal horizontal vertical}}
+    # named slot for host apps (filetree, filelist, preview) — frame, no children
+    defType placeholder Widget    "Placeholder"   leaf {{text string "Platzhalter"} {role string ""} {width int 200} {height int 120}}
     # advanced (need external packages -- themed variants only)
     defType tablelist        Advanced "Tablelist"       leaf      {{columns string "Name City"} {height int 6}}
     defType scrollarea       Advanced "Scrollarea"      container {}
@@ -154,6 +156,10 @@ proc ::tkurender::addNode {type parent {internal 0}} {
     set geom [dict create manager pack side top fill none expand 0 padx 2 pady 2 \
                           x 10 y 10 anchor nw \
                           row 0 column 0 sticky "" columnspan 1 rowspan 1]
+    if {$type eq "placeholder"} {
+        dict set geom fill both
+        dict set geom expand 1
+    }
     dict set D(nodes) $id [dict create type $type opts $opts geom $geom \
                                layout pack colstretch {} rowstretch {} name ""]
     dict set D(kids) $id [list]
@@ -296,6 +302,23 @@ proc ::tkurender::renderNode {id tkparent pv} {
         scale       { ttk::scale $w -from 0 -to 100 -value 40 -orient [nodeOpt $id orient] }
         progressbar { ttk::progressbar $w -mode determinate -value [nodeOpt $id value] -length 140 }
         separator   { ttk::separator $w -orient [nodeOpt $id orient] }
+        placeholder {
+            ttk::frame $w -relief solid -borderwidth 1 \
+                -width [nodeOpt $id width] -height [nodeOpt $id height]
+            set txt [nodeOpt $id text]
+            set role ""
+            catch {set role [nodeOpt $id role]}
+            if {$role ne ""} {
+                if {$txt eq "" || $txt eq "Platzhalter"} {
+                    set txt $role
+                } else {
+                    set txt "$txt  ($role)"
+                }
+            }
+            ttk::label $w.ph -text $txt -anchor center -justify center
+            pack $w.ph -fill both -expand 1
+            pack propagate $w 0
+        }
         tablelist {
             if {[pkgAvail tablelist]} {
                 set titles [nodeOpt $id columns]
@@ -523,4 +546,4 @@ proc ::tkurender::deserialize {spec} {
 }
 proc ::tkurender::refreshStatus {msg} { variable D; set D(status) $msg }
 
-package provide tkutils::tkurender 0.1
+package provide tkutils::tkurender 0.2

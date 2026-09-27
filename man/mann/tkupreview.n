@@ -36,7 +36,7 @@ Text\-shaped content is passed as a string; the caller decodes bytes first (prov
 .IP \(bu
 \fBjson / xml / ini\fR \-\- structured viewers (\fBtkujson\fR, \fBtkuxml\fR, \fBtkuini\fR).
 .IP \(bu
-\fBcsv\fR \-\- a table via \fBtkucsv\fR; pass \fB\-delimiter \et\fR for TSV.
+\fBcsv\fR \-\- a table via \fBtkutablelist\fR (Tablelist) when installed, else \fBtkucsv\fR (ttk::treeview); pass \fB\-delimiter \et\fR for TSV and \fB\-header 0|1\fR for whether the first row is column titles.
 .IP \(bu
 \fBhex\fR \-\- a hex dump of raw bytes.
 .IP \(bu

@@ -1,6 +1,6 @@
 | package | version | description | category | test | doc | man | repo | path | deps |
 |---|---|---|---|---|---|---|---|---|---|
-| `tkutils::tkuaction` | 0.1 | action abstraction (one action, many widgets) | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuaction-0.1.tm` |  |
+| `tkutils::tkuaction` | 0.2 | action abstraction (one action, many widgets) | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuaction-0.2.tm` |  |
 | `tkutils::tkuballoon` | 0.1 | balloon help / tooltips for any widget | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuballoon-0.1.tm` |  |
 | `tkutils::tkubase64` | 0.1 | Base64 encode/decode panel | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkubase64-0.1.tm` | tclutils::tubase64 |
 | `tkutils::tkubind` | 0.1 | platform key/context bindings (from uitoolkit uibindings) | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkubind-0.1.tm` |  |
@@ -33,7 +33,7 @@
 | `tkutils::tkulauncher` | 0.2 | an application launcher widget, as a menu or a list | Tk · widgets | Y | Y | N | tkutils | `lib/tm/tkutils/tkulauncher-0.2.tm` | tkutils::tkuopts,tclutils::tuopen,tkutils::tkuscrolledframe,tkutils::tkuwheel,tkutils::tkuballoon,tclutils::tujson,tclutils::tuini,tkutils::tkutical,tkutils::tkucalendar,tkutils::tkucal,tkutils::tkucalc,tkutils::tkuform |
 | `tkutils::tkulayoutcanvas` | 0.1 | visual block layout designer on a Tk canvas | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkulayoutcanvas-0.1.tm` | tclutils::tulayout |
 | `tkutils::tkuldif` | 0.2 | LDIF entry viewer/editor | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuldif-0.2.tm` | tkutils::tkuopts,tclutils::tuldif |
-| `tkutils::tkuload` | 0.1 | instantiate a tkudesigner `.tkd` layout as a live Tk widget tree (no code export) | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuload-0.1.tm` | tkutils::tkurender |
+| `tkutils::tkuload` | 0.2 | instantiate a tkudesigner `.tkd` layout as a live Tk widget tree (no code export) | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuload-0.2.tm` | tkutils::tkurender |
 | `tkutils::tkumarquee` | 0.1 | rubber-band (marquee) rectangle selection on a canvas | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkumarquee-0.1.tm` |  |
 | `tkutils::tkumd` | 0.1 | Markdown outline viewer | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkumd-0.1.tm` | tclutils::tumd,tclutils::common |
 | `tkutils::tkumdview` | 0.1 | Markdown viewer (headings outline + rendered preview) | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkumdview-0.1.tm` | tclutils::tumd |
@@ -43,8 +43,8 @@
 | `tkutils::tkuopts` | 0.1 | merge options over defaults; an unknown option is an error that lists the known ones | System · runtime | Y | Y | N | tkutils | `lib/tm/tkutils/tkuopts-0.1.tm` |  |
 | `tkutils::tkupath` | 0.2 | a breadcrumb path bar with clickable segments | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkupath-0.2.tm` | tkutils::tkuopts |
 | `tkutils::tkupdfinspect` | 0.1 | PDF structure inspector (read-only) | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkupdfinspect-0.1.tm` | tclutils::tupdf |
-| `tkutils::tkupreview` | 0.1 | a content preview widget, policy-free (the caller picks the kind) | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkupreview-0.1.tm` | tkutils::tkumdview,tcllitehtml,tkutils::tkucsv,tkutils::tkusqlite,tkutils::tkuimage,tkutils::tkupdfinspect |
-| `tkutils::tkurender` | 0.1 | shared render core for tkudesigner / tkuload. | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkurender-0.1.tm` |  |
+| `tkutils::tkupreview` | 0.1 | a content preview widget, policy-free (the caller picks the kind) | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkupreview-0.1.tm` | tkutils::tkumdview,tcllitehtml,tkutils::tkutablelist,tkutils::tkucsv,tkutils::tkusqlite,tkutils::tkuimage,tkutils::tkupdfinspect |
+| `tkutils::tkurender` | 0.2 | shared render core for tkudesigner / tkuload. | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkurender-0.2.tm` |  |
 | `tkutils::tkuscrolledframe` | 0.1 | scrollable frame container (thin scrollutil wrapper) | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuscrolledframe-0.1.tm` | scrollutil |
 | `tkutils::tkusearchbar` | 0.1 | a search bar: entry with debounced change callback, a clear button, and an optional filter drop-down. | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkusearchbar-0.1.tm` |  |
 | `tkutils::tkusqlite` | 0.1 | SQLite table browser | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkusqlite-0.1.tm` | sqlite3 |

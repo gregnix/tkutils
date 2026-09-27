@@ -39,7 +39,7 @@ package require tkutils::tkuimage 0.2
 package require tkutils::tkudhash 0.1
 package require tkutils::tkutodo 0.2
 package require tkutils::tkudavbrowser 0.2
-package require tkutils::tkuaction 0.1
+package require tkutils::tkuaction 0.2
 package require tkutils::tkukeynav 0.1
 package require tkutils::tkumarquee 0.1
 package require tkutils::tkulabeled 0.1
