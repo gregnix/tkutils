@@ -1,14 +1,16 @@
 #!/usr/bin/env wish
 # ===========================================================================
 # Tcl/Tk Developer Toolbox -- a single app that bundles reference / helper
-# views a Tk programmer reaches for: named colors, a codepage / Unicode char
-# map, font families, screen-unit conversion, world time zones, mouse cursors,
-# a relief / anchor / sticky cheat sheet, a keysym probe and a ttk theme/style
-# browser. Each view is a notebook tab; data is shown as tables, and the theme
-# browser uses a tree. Belongs to tkutils.
+# views a Tk programmer reaches for: runtime (Tcl/Tk, OS, packages, paths,
+# display, env), named colors, Unicode / graphemes, fonts, units, timezones,
+# cursors, relief/anchor, keysym probe, ttk theme/style browser, widget
+# explorer, pack/grid playgrounds, regexp and format/scan, package copies,
+# path / glob / program / encoding-profile probes, font aliases and number
+# formatting. Navigation tree
+# on the left; tables / trees on the right. Belongs to tkutils.
 #
 #   wish tkdevtools.tcl
-#   tclsh tkdevtools.tcl --shot out.png ?toolKey?   (e.g. themes, regexp)
+#   tclsh tkdevtools.tcl --shot out.png ?toolKey?   (e.g. tcltk, themes)
 # ===========================================================================
 
 # locate tkutils / tclutils via the shared bootstrap (as the other apps do):
@@ -19,29 +21,33 @@ source [file join [file dirname [file normalize [info script]]] .. _lib paths.tc
 package require Tk
 package require tablelist
 package require tclutils::tucolor
+package require tclutils::tustr 0.2       ;# graphemes, isPrintable
+package require tclutils::tudate 0.2      ;# zones
+package require tclutils::tupkgfinder 0.2 ;# package sources, copies, search paths
+package require tclutils::tupath          ;# clean (Paths)
+package require tclutils::tunum 0.4       ;# format, half away from zero
+package require tclutils::tuappinfo       ;# "Copy report"
+package require tkutils::tkutablelist 0.4 ;# scrolled, sortable tables
+package require tkutils::tkuunits 0.1     ;# px/pt/mm/cm/inch
 catch {package require tkutils::tkutlsort}
 catch {package require tkutils::tkutlfind}
 catch {package require tkutils::tkutlclip}
 
 # ----------------------------------------------------------------------------
-# helper: a tablelist with vertical + horizontal scrollbars, wrapped in a frame
-# (so the caller can pack it). Returns the tablelist path.
+# helper: a scrolled, sortable table from tkutils::tkutablelist (frame with
+# scrollbars, stripes, -exportselection 0), packed into PARENT. COLS are
+# tablelist triples {width title align ...}; ARGS go to the tablelist
+# itself (-height). Returns the tablelist path.
 # ----------------------------------------------------------------------------
 proc scrolledTable {parent cols args} {
-    set fr $parent.tf
-    frame $fr
-    set t $fr.t
-    tablelist::tablelist $t -columns $cols -stretch all \
-        -stripebackground #f4f4f4 -labelcommand tablelist::sortByColumn \
-        -yscrollcommand [list $fr.vsb set] -xscrollcommand [list $fr.hsb set] \
-        {*}$args
-    ttk::scrollbar $fr.vsb -orient vertical   -command [list $t yview]
-    ttk::scrollbar $fr.hsb -orient horizontal -command [list $t xview]
-    grid $t        -row 0 -column 0 -sticky nsew
-    grid $fr.vsb   -row 0 -column 1 -sticky ns
-    grid $fr.hsb   -row 1 -column 0 -sticky ew
-    grid rowconfigure    $fr 0 -weight 1
-    grid columnconfigure $fr 0 -weight 1
+    set spec {}
+    foreach {w title align} $cols {
+        lappend spec [list $title -width $w -align $align]
+    }
+    set fr [::tkutils::tkutablelist::widget $parent.tf -columns $spec \
+        -stripes #f4f4f4]
+    set t $fr.tbl
+    if {[llength $args]} { $t configure {*}$args }
     pack $fr -fill both -expand 1
     return $t
 }
@@ -83,11 +89,6 @@ set ::charPresets [dict create \
     "Currency (incl. euro)"       {0x20A0 0x20BF} \
     "Box drawing"                 {0x2500 0x257F} \
     "Arrows"                      {0x2190 0x21FF}]
-proc charPrintable {cp} {
-    if {$cp < 0x20} { return 0 }
-    if {$cp >= 0x7F && $cp <= 0xA0} { return 0 }
-    return 1
-}
 proc buildChars {f} {
     set bar [frame $f.bar]
     label $bar.l -text "Range:"
@@ -112,7 +113,7 @@ proc charFill {} {
     foreach {first last} [dict get $::charPresets $::charPreset] {
         set first [expr {$first}]; set last [expr {$last}]
         for {set cp $first} {$cp <= $last} {incr cp} {
-            if {![charPrintable $cp]} continue
+            if {![::tclutils::tustr::isPrintable [format %c $cp]]} continue
             $t insert end [list [format %c $cp] [format {\u%04x} $cp] \
                 [format {U+%04X} $cp] $cp [format %X $cp]]
             incr n
@@ -195,13 +196,7 @@ proc fontApply {} {
 }
 
 # ============================ Units =========================================
-set ::unitSuffix {px "" pt p mm m cm c inch i}
-proc unitToPixels {val unit} { winfo fpixels . "$val[dict get $::unitSuffix $unit]" }
-proc unitFromPixels {px} {
-    set ppi [winfo fpixels . 1i]; set ppm [winfo fpixels . 1m]
-    dict create px $px pt [expr {$px/($ppi/72.0)}] mm [expr {$px/$ppm}] \
-        cm [expr {$px/($ppm*10.0)}] inch [expr {$px/$ppi}]
-}
+# conversions: tkutils::tkuunits
 proc buildUnits {f} {
     label $f.dpi -fg #336 \
         -text "Display: [format %.1f [winfo fpixels . 1i]] px/inch   (winfo fpixels . 1i)"
@@ -224,7 +219,7 @@ proc buildUnits {f} {
     foreach col {1 2 3 4 5} { $t columnconfigure $col -formatcommand {format %.2f} }
     foreach {val unit spec} {1 px 1  10 px 10  1 pt 1p  12 pt 12p  1 mm 1m \
                              2 mm 2m  1 cm 1c  1 inch 1i  0.5 inch 0.5i} {
-        set d [unitFromPixels [unitToPixels $val $unit]]
+        set d [::tkutils::tkuunits::fromPixels [::tkutils::tkuunits::toPixels $val $unit]]
         $t insert end [list $spec [dict get $d px] [dict get $d pt] \
             [dict get $d mm] [dict get $d cm] [dict get $d inch]]
     }
@@ -233,31 +228,18 @@ proc buildUnits {f} {
 }
 proc unitConvert {args} {
     if {![string is double -strict $::unitVal]} { set ::unitOut "(enter a number)"; return }
-    set d [unitFromPixels [unitToPixels $::unitVal $::unitU]]
+    set d [::tkutils::tkuunits::fromPixels [::tkutils::tkuunits::toPixels $::unitVal $::unitU]]
     set ::unitOut [format "%.1f px  |  %.2f pt  |  %.2f mm  |  %.3f cm  |  %.4f inch" \
         [dict get $d px] [dict get $d pt] [dict get $d mm] [dict get $d cm] [dict get $d inch]]
 }
 
 # ============================ Timezones =====================================
 proc tzList {} {
-    set zones {}; set dirs {}
-    lappend dirs [file join [info library] tzdata]
-    # ::tcl_pkgPath is not defined on every Tcl build (notably some
-    # Windows installations), so guard the access before iterating it.
-    if {[info exists ::tcl_pkgPath]} {
-        foreach p $::tcl_pkgPath { lappend dirs [file join $p tzdata] }
-    }
-    lappend dirs /usr/share/zoneinfo
-    foreach base $dirs {
-        if {![file isdirectory $base]} continue
-        foreach z [glob -nocomplain -directory $base -tails -type f */* */*/*] {
-            if {[regexp {^[A-Z][A-Za-z_]+/[A-Za-z0-9_+/-]+$} $z]} { lappend zones $z }
-        }
-        if {[llength $zones]} break
-    }
-    if {![llength $zones]} {
-        set zones {UTC Europe/Berlin Europe/London America/New_York America/Los_Angeles
-            Asia/Tokyo Asia/Shanghai Asia/Kolkata Australia/Sydney Pacific/Auckland}
+    set zones [::tclutils::tudate::zones]
+    if {[llength $zones] <= 1} {         ;# no zone database found: a few common ones
+        lappend zones Europe/Berlin Europe/London America/New_York \
+            America/Los_Angeles Asia/Tokyo Asia/Shanghai Asia/Kolkata \
+            Australia/Sydney Pacific/Auckland
     }
     return [lsort -unique $zones]
 }
@@ -996,42 +978,7 @@ proc formatScanRun {} {
 # A grapheme cluster is what a user perceives as one character; it may span
 # several code points (combining marks, emoji skin-tone / ZWJ sequences, flags).
 # Tcl works on code points, so [string length] counts code points, not clusters.
-# This is a SIMPLIFIED UAX #29 segmenter covering the common cases. When a future
-# Tcl core gains a native grapheme command, prefer it in graphemeClusters, e.g.:
-#   if {![catch {set out [string ?grapheme? $s]}]} { return $out }   ;# name TBD
-proc graphExtend {cp} {
-    expr {
-        ($cp >= 0x0300 && $cp <= 0x036F) || ($cp >= 0x0483 && $cp <= 0x0489) ||
-        ($cp >= 0x0591 && $cp <= 0x05BD) || ($cp >= 0x0610 && $cp <= 0x061A) ||
-        ($cp >= 0x064B && $cp <= 0x065F) || ($cp >= 0x1AB0 && $cp <= 0x1AFF) ||
-        ($cp >= 0x1DC0 && $cp <= 0x1DFF) || ($cp >= 0x20D0 && $cp <= 0x20FF) ||
-        ($cp >= 0xFE00 && $cp <= 0xFE0F) || ($cp >= 0x1F3FB && $cp <= 0x1F3FF) ||
-        $cp == 0x200C
-    }
-}
-proc graphRI {cp} { expr {$cp >= 0x1F1E6 && $cp <= 0x1F1FF} }
-proc graphemeClusters {s} {
-    set chars [split $s ""]; set n [llength $chars]; set out {}; set i 0
-    while {$i < $n} {
-        set cl [lindex $chars $i]; incr i
-        set ri [expr {[graphRI [scan $cl %c]] ? 1 : 0}]
-        while {$i < $n} {
-            set cp [scan [lindex $chars $i] %c]
-            if {[graphExtend $cp]} { append cl [lindex $chars $i]; incr i; continue }
-            if {$cp == 0x200D} {                       ;# ZWJ: joins the next base
-                append cl [lindex $chars $i]; incr i
-                if {$i < $n} { append cl [lindex $chars $i]; incr i }
-                continue
-            }
-            if {$ri == 1 && [graphRI $cp]} {            ;# regional-indicator pair (flag)
-                append cl [lindex $chars $i]; incr i; set ri 2; continue
-            }
-            break
-        }
-        lappend out $cl
-    }
-    return $out
-}
+# Segmentation: tclutils::tustr::graphemes (simplified UAX #29).
 proc buildGraphemes {f} {
     set bar [frame $f.bar]
     label $bar.l -text "Text:"
@@ -1053,7 +1000,7 @@ proc buildGraphemes {f} {
 proc graphFill {} {
     set t $::graphTable
     $t delete 0 end
-    set clusters [graphemeClusters $::graphInput]
+    set clusters [::tclutils::tustr::graphemes $::graphInput]
     set i 1
     foreach cl $clusters {
         set cps {}
@@ -1063,6 +1010,1222 @@ proc graphFill {} {
     }
     set ::graphStatus "[llength $clusters] clusters  /  [string length $::graphInput] code points\
                        (string length)  --  simplified UAX #29"
+}
+
+# ============================ Runtime: Tcl / Tk ============================
+proc runtimeAddRow {t key value} {
+    $t insert end [list $key $value]
+}
+# Full runtime report (Tcl/Tk, environment, packages, tm paths, loaded
+# modules) from tclutils::tuappinfo onto the clipboard -- for bug reports.
+proc copyReport {} {
+    set r [::tclutils::tuappinfo::buildReport -title "tkdevtools"]
+    clipboard clear
+    clipboard append $r
+    set ::tcltkStatus "report copied ([llength [split $r \n]] lines)"
+}
+proc buildTclTk {f} {
+    set bar [frame $f.bar]
+    ttk::button $bar.refresh -text "Refresh" -command tclTkFill
+    ttk::button $bar.report -text "Copy report" -command copyReport
+    label $bar.n -textvariable ::tcltkStatus -fg #555
+    pack $bar.refresh $bar.report $bar.n -side left -padx 4
+    pack $bar -fill x -pady 3
+    set t [scrolledTable $f {22 Key left 72 Value left} -height 22]
+    set ::tcltkTable $t
+    catch {::tkutils::tkutlclip::installBindings $t}
+    tclTkFill
+}
+proc tclTkFill {} {
+    set t $::tcltkTable
+    if {![winfo exists $t]} return
+    $t delete 0 end
+    runtimeAddRow $t "Tcl patchlevel"    [info patchlevel]
+    runtimeAddRow $t "tcl_version"       $::tcl_version
+    runtimeAddRow $t "Tk patchLevel"     $::tk_patchLevel
+    runtimeAddRow $t "tk_version"        $::tk_version
+    runtimeAddRow $t "windowingsystem"   [tk windowingsystem]
+    runtimeAddRow $t "nameofexecutable"  [info nameofexecutable]
+    runtimeAddRow $t "info library"      [info library]
+    runtimeAddRow $t "tcl_library"       $::tcl_library
+    runtimeAddRow $t "tk_library"        $::tk_library
+    runtimeAddRow $t "encoding system"   [encoding system]
+    runtimeAddRow $t "sharedlibextension" [info sharedlibextension]
+    runtimeAddRow $t "tcl_platform(os)"  $::tcl_platform(os)
+    runtimeAddRow $t "tcl_platform(osVersion)" $::tcl_platform(osVersion)
+    runtimeAddRow $t "tcl_platform(machine)"   $::tcl_platform(machine)
+    runtimeAddRow $t "tcl_platform(platform)"  $::tcl_platform(platform)
+    runtimeAddRow $t "tcl_platform(byteOrder)" $::tcl_platform(byteOrder)
+    runtimeAddRow $t "tcl_platform(wordSize)"  $::tcl_platform(wordSize)
+    if {[info exists ::tcl_platform(pointerSize)]} {
+        runtimeAddRow $t "tcl_platform(pointerSize)" $::tcl_platform(pointerSize)
+    }
+    if {[info exists ::tcl_platform(threaded)]} {
+        runtimeAddRow $t "tcl_platform(threaded)" $::tcl_platform(threaded)
+    }
+    runtimeAddRow $t "tcl_interactive"   $::tcl_interactive
+    if {[info exists ::tcl_precision]} {    ;# not set by default in Tcl 9
+        runtimeAddRow $t "tcl_precision" $::tcl_precision
+    }
+    runtimeAddRow $t "argv0"             $::argv0
+    runtimeAddRow $t "argc / argv"       [list $::argc $::argv]
+    if {![catch {set z [zipfs mount]}]} {
+        runtimeAddRow $t "zipfs mount" $z
+    }
+    if {![catch {package require Thread}]} {
+        runtimeAddRow $t "Thread package" [package present Thread]
+    }
+    set themes [ttk::style theme names]
+    runtimeAddRow $t "ttk themes"        [join [lsort $themes] {, }]
+    runtimeAddRow $t "ttk theme use"     [ttk::style theme use]
+    set ::tcltkStatus "[$t size] fields  \u00b7  [clock format [clock seconds] -format {%Y-%m-%d %H:%M:%S}]"
+}
+
+# ============================ Runtime: OS / platform =======================
+proc buildOs {f} {
+    set bar [frame $f.bar]
+    ttk::button $bar.refresh -text "Refresh" -command osFill
+    label $bar.n -textvariable ::osStatus -fg #555
+    pack $bar.refresh $bar.n -side left -padx 4
+    pack $bar -fill x -pady 3
+    set t [scrolledTable $f {22 Key left 72 Value left} -height 22]
+    set ::osTable $t
+    catch {::tkutils::tkutlclip::installBindings $t}
+    osFill
+}
+proc osFill {} {
+    set t $::osTable
+    if {![winfo exists $t]} return
+    $t delete 0 end
+    foreach {k cmd} {
+        hostname {info hostname}
+        uname    {exec uname -a}
+        whoami   {exec whoami}
+        pwd      {pwd}
+        home     {file normalize ~}
+    } {
+        if {[catch {set v [{*}$cmd]} err]} { set v "(n/a: $err)" }
+        runtimeAddRow $t $k $v
+    }
+    if {[info exists ::env(TMPDIR)] && $::env(TMPDIR) ne ""} {
+        runtimeAddRow $t TMPDIR $::env(TMPDIR)
+    } elseif {[info exists ::env(TEMP)] && $::env(TEMP) ne ""} {
+        runtimeAddRow $t TEMP $::env(TEMP)
+    } elseif {[info exists ::env(TMP)] && $::env(TMP) ne ""} {
+        runtimeAddRow $t TMP $::env(TMP)
+    }
+    foreach k {
+        USER USERNAME HOME LANG LC_ALL LANGUAGE DISPLAY WAYLAND_DISPLAY
+        XDG_CURRENT_DESKTOP XDG_SESSION_TYPE DESKTOP_SESSION
+        SHELL TERM PATH
+    } {
+        if {[info exists ::env($k)] && $::env($k) ne ""} {
+            runtimeAddRow $t "env($k)" $::env($k)
+        }
+    }
+    if {$::tcl_platform(platform) eq "windows"} {
+        foreach k {OS PROCESSOR_ARCHITECTURE NUMBER_OF_PROCESSORS COMPUTERNAME SYSTEMROOT} {
+            if {[info exists ::env($k)]} { runtimeAddRow $t "env($k)" $::env($k) }
+        }
+    } else {
+        foreach cmd {{nproc} {free -h} {df -h /}} {
+            set label [lindex $cmd 0]
+            if {[catch {set v [exec {*}$cmd]} err]} {
+                # optional tools — skip quietly
+            } else {
+                runtimeAddRow $t $label [string map {"\n" " | "} [string trim $v]]
+            }
+        }
+    }
+    set ::osStatus "[$t size] fields"
+}
+
+# ============================ Runtime: packages ============================
+proc buildPackages {f} {
+    set bar [frame $f.bar]
+    label $bar.l -text "Filter:"
+    entry $bar.e -textvariable ::pkgFilter -width 18
+    checkbutton $bar.loaded -text "loaded only" -variable ::pkgLoadedOnly \
+        -command pkgFill
+    ttk::button $bar.refresh -text "Refresh" -command pkgFill
+    label $bar.n -textvariable ::pkgStatus -fg #555
+    pack $bar.l $bar.e $bar.loaded $bar.refresh $bar.n -side left -padx 3
+    pack $bar -fill x -pady 3
+    set t [scrolledTable $f \
+        {28 Package left 10 Loaded left 14 Versions left 48 "ifneeded (source)" left} \
+        -height 20]
+    set ::pkgTable $t
+    catch {::tkutils::tkutlclip::installBindings $t}
+    catch {::tkutils::tkutlsort::columns $t {0 string 1 string 2 string 3 string}}
+    if {[llength [info commands ::tkutils::tkutlfind::find]]} {
+        bind $bar.e <KeyRelease> [list apply {{t} {
+            set ::pkgStatus "[::tkutils::tkutlfind::find $t $::pkgFilter -columns {0 1 2 3}] match(es)"
+        }} $t]
+    } else {
+        bind $bar.e <KeyRelease> pkgFill
+    }
+    set ::pkgFilter ""
+    set ::pkgLoadedOnly 0
+    pkgFill
+}
+proc pkgFill {} {
+    set t $::pkgTable
+    if {![winfo exists $t]} return
+    $t delete 0 end
+    set n 0
+    foreach p [lsort -dictionary [package names]] {
+        if {$::pkgFilter ne "" && ![string match -nocase *$::pkgFilter* $p]} continue
+        set loaded ""
+        if {![catch {package present $p} v]} { set loaded $v }
+        if {$::pkgLoadedOnly && $loaded eq ""} continue
+        set vers [join [lsort -dictionary [package versions $p]] {, }]
+        set src ""
+        set v $loaded
+        if {$v eq "" && [llength [package versions $p]]} {
+            set v [lindex [lsort -dictionary [package versions $p]] end]
+        }
+        if {$v ne "" && ![catch {::tclutils::tupkgfinder::pkgInfo $p} info]
+                && [dict exists $info locations $v]} {
+            set src [lindex [dict get $info locations $v] 0]
+        }
+        if {$src eq "" && $v ne ""} {   ;# no file found (built-in, odd script)
+            catch {set src [lindex [package ifneeded $p $v] end]}
+        }
+        if {[string length $src] > 80} { set src "[string range $src 0 77]..." }
+        $t insert end [list $p $loaded $vers $src]
+        incr n
+    }
+    set ::pkgStatus "$n package(s)  \u00b7  [llength [package names]] known"
+}
+
+# ============================ Runtime: paths ===============================
+proc buildPaths {f} {
+    set bar [frame $f.bar]
+    ttk::button $bar.refresh -text "Refresh" -command pathsFill
+    label $bar.n -textvariable ::pathsStatus -fg #555
+    pack $bar.refresh $bar.n -side left -padx 4
+    pack $bar -fill x -pady 3
+    set t [scrolledTable $f {14 Kind left 80 Path left} -height 22]
+    set ::pathsTable $t
+    catch {::tkutils::tkutlclip::installBindings $t}
+    pathsFill
+}
+proc pathsFill {} {
+    set t $::pathsTable
+    if {![winfo exists $t]} return
+    $t delete 0 end
+    set sp [::tclutils::tupkgfinder::paths]
+    foreach key {auto_path tm_path} label {auto_path tm} {
+        if {![dict exists $sp $key]} continue
+        dict for {pos p} [dict get $sp $key] { $t insert end [list $label $p] }
+    }
+    if {[info exists ::tcl_pkgPath]} {
+        foreach p $::tcl_pkgPath { $t insert end [list tcl_pkgPath $p] }
+    }
+    foreach p [encoding dirs] {
+        $t insert end [list encoding $p]
+    }
+    $t insert end [list script [file normalize [info script]]]
+    $t insert end [list pwd [pwd]]
+    set ::pathsStatus "[$t size] entries"
+}
+
+# ============================ Runtime: display =============================
+proc buildDisplay {f} {
+    set bar [frame $f.bar]
+    ttk::button $bar.refresh -text "Refresh" -command displayFill
+    label $bar.n -textvariable ::dispStatus -fg #555
+    pack $bar.refresh $bar.n -side left -padx 4
+    pack $bar -fill x -pady 3
+    set t [scrolledTable $f {28 Key left 56 Value left} -height 20]
+    set ::dispTable $t
+    catch {::tkutils::tkutlclip::installBindings $t}
+    displayFill
+}
+proc displayFill {} {
+    set t $::dispTable
+    if {![winfo exists $t]} return
+    $t delete 0 end
+    set w .
+    runtimeAddRow $t "screenwidth \u00d7 height" \
+        "[winfo screenwidth $w] \u00d7 [winfo screenheight $w] px"
+    runtimeAddRow $t "screen mm" \
+        "[winfo screenmmwidth $w] \u00d7 [winfo screenmmheight $w] mm"
+    runtimeAddRow $t "screendepth"      [winfo screendepth $w]
+    runtimeAddRow $t "screenvisual"     [winfo screenvisual $w]
+    runtimeAddRow $t "screen cells"     [winfo cells $w]
+    runtimeAddRow $t "server"           [winfo server $w]
+    runtimeAddRow $t "vroot" \
+        "[winfo vrootwidth $w] \u00d7 [winfo vrootheight $w] @ [winfo vrootx $w],[winfo vrooty $w]"
+    runtimeAddRow $t "fpixels 1i"       [format %.2f [winfo fpixels $w 1i]]
+    runtimeAddRow $t "fpixels 1m"       [format %.4f [winfo fpixels $w 1m]]
+    runtimeAddRow $t "tk scaling"       [tk scaling]
+    lassign [winfo pointerxy $w] px py
+    runtimeAddRow $t "pointerxy"        "$px , $py"
+    runtimeAddRow $t "rgb of white"     [winfo rgb $w white]
+    set imgPkgs {}
+    foreach p {Img img::png img::jpeg img::gif img::bmp img::tiff img::window} {
+        if {![catch {package present $p} v]} {
+            lappend imgPkgs "$p $v"
+        } elseif {[llength [package versions $p]]} {
+            lappend imgPkgs "$p ([join [package versions $p] {, }])"
+        }
+    }
+    if {[llength $imgPkgs]} {
+        runtimeAddRow $t "image packages" [join $imgPkgs {; }]
+    }
+    set ::dispStatus "[$t size] fields"
+}
+
+# ============================ Runtime: environment =========================
+proc buildEnv {f} {
+    set bar [frame $f.bar]
+    label $bar.l -text "Filter:"
+    entry $bar.e -textvariable ::envFilter -width 20
+    ttk::button $bar.refresh -text "Refresh" -command envFill
+    label $bar.n -textvariable ::envStatus -fg #555
+    pack $bar.l $bar.e $bar.refresh $bar.n -side left -padx 3
+    pack $bar -fill x -pady 3
+    set t [scrolledTable $f {28 Variable left 72 Value left} -height 22]
+    set ::envTable $t
+    catch {::tkutils::tkutlclip::installBindings $t}
+    catch {::tkutils::tkutlsort::columns $t {0 string 1 string}}
+    bind $bar.e <KeyRelease> envFill
+    set ::envFilter ""
+    envFill
+}
+proc envFill {} {
+    set t $::envTable
+    if {![winfo exists $t]} return
+    $t delete 0 end
+    set n 0
+    foreach name [lsort -dictionary [array names ::env]] {
+        if {$::envFilter ne "" && ![string match -nocase *$::envFilter* $name]
+                && ![string match -nocase *$::envFilter* $::env($name)]} {
+            continue
+        }
+        set val $::env($name)
+        if {[string length $val] > 200} {
+            set val "[string range $val 0 197]..."
+        }
+        $t insert end [list $name $val]
+        incr n
+    }
+    set ::envStatus "$n of [array size ::env] variable(s)"
+}
+
+# ====================== Widgets: hierarchy + bindtags ======================
+proc buildWidgets {f} {
+    set bar [frame $f.bar]
+    ttk::button $bar.refresh -text "Refresh tree" -command widgetsFill
+    label $bar.n -textvariable ::widgetsStatus -fg #555
+    pack $bar.refresh $bar.n -side left -padx 4
+    pack $bar -fill x -pady 3
+
+    ttk::panedwindow $f.pw -orient horizontal
+    pack $f.pw -fill both -expand 1 -padx 4 -pady 4
+
+    set left [ttk::frame $f.pw.left]
+    ttk::treeview $left.tv -show tree -height 22 \
+        -yscrollcommand [list $left.sb set]
+    ttk::scrollbar $left.sb -orient vertical -command [list $left.tv yview]
+    pack $left.sb -side right -fill y
+    pack $left.tv -side left -fill both -expand 1
+    $f.pw add $left -weight 1
+    set ::widgetsTree $left.tv
+
+    set right [ttk::frame $f.pw.right]
+    set info [ttk::labelframe $right.info -text "winfo" -padding 4]
+    set ti [scrolledTable $info {18 Key left 48 Value left} -height 8]
+    set ::widgetsInfo $ti
+    pack $info -fill x -pady {0 4}
+
+    set bt [ttk::labelframe $right.bt -text "bindtags (order)" -padding 4]
+    set tb [scrolledTable $bt {8 "#" right 36 Tag left} -height 5]
+    set ::widgetsTags $tb
+    pack $bt -fill x -pady {0 4}
+
+    set bn [ttk::labelframe $right.bn -text "bindings on selected tag / widget" -padding 4]
+    set tn [scrolledTable $bn {22 Sequence left 50 Script left} -height 8]
+    set ::widgetsBinds $tn
+    catch {::tkutils::tkutlclip::installBindings $tn}
+    pack $bn -fill both -expand 1
+    $f.pw add $right -weight 2
+
+    bind $left.tv <<TreeviewSelect>> widgetsSelect
+    bind $tb <<TablelistSelect>> widgetsTagSelect
+    widgetsFill
+}
+proc widgetsFill {} {
+    set tv $::widgetsTree
+    if {![winfo exists $tv]} return
+    $tv delete [$tv children {}]
+    set n [widgetsInsert $tv {} .]
+    set ::widgetsStatus "$n widget(s) under ."
+    catch {$tv selection set [$tv children {}]; widgetsSelect}
+}
+proc widgetsInsert {tv parent w} {
+    if {![winfo exists $w]} { return 0 }
+    set class [winfo class $w]
+    set label [expr {$w eq "." ? ".  ($class)" : "$w  ($class)"}]
+    set id [$tv insert $parent end -text $label -tags [list W $w] \
+        -open [expr {$w eq "."}]]
+    set n 1
+    foreach c [winfo children $w] {
+        incr n [widgetsInsert $tv $id $c]
+    }
+    return $n
+}
+proc widgetsSelect {} {
+    set tv $::widgetsTree
+    set id [lindex [$tv selection] 0]
+    if {$id eq ""} return
+    set tags [$tv item $id -tags]
+    # tag list is {W .path} — path is the element after W
+    set ix [lsearch -exact $tags W]
+    if {$ix < 0} return
+    set w [lindex $tags [expr {$ix + 1}]]
+    if {$w eq "" || ![winfo exists $w]} return
+
+    set ti $::widgetsInfo
+    $ti delete 0 end
+    runtimeAddRow $ti path $w
+    runtimeAddRow $ti class [winfo class $w]
+    runtimeAddRow $ti manager [winfo manager $w]
+    runtimeAddRow $ti geometry [winfo geometry $w]
+    runtimeAddRow $ti "req (w\u00d7h)" "[winfo reqwidth $w] \u00d7 [winfo reqheight $w]"
+    runtimeAddRow $ti ismapped [winfo ismapped $w]
+    runtimeAddRow $ti viewable [winfo viewable $w]
+    runtimeAddRow $ti exists [winfo exists $w]
+    runtimeAddRow $ti toplevel [winfo toplevel $w]
+    runtimeAddRow $ti parent [winfo parent $w]
+    catch {runtimeAddRow $ti "pack info" [pack info $w]}
+    catch {runtimeAddRow $ti "grid info" [grid info $w]}
+    catch {runtimeAddRow $ti "place info" [place info $w]}
+
+    set tb $::widgetsTags
+    $tb delete 0 end
+    set i 0
+    foreach tag [bindtags $w] {
+        $tb insert end [list $i $tag]
+        incr i
+    }
+    if {[$tb size] > 0} {
+        $tb selection set 0
+        widgetsTagSelect
+    } else {
+        $::widgetsBinds delete 0 end
+    }
+}
+proc widgetsTagSelect {} {
+    set tb $::widgetsTags
+    set tn $::widgetsBinds
+    if {![winfo exists $tb] || ![winfo exists $tn]} return
+    $tn delete 0 end
+    set sel [$tb curselection]
+    if {[llength $sel] == 0} return
+    set tag [lindex [$tb get [lindex $sel 0]] 1]
+    foreach seq [lsort [bind $tag]] {
+        set script [bind $tag $seq]
+        if {[string length $script] > 120} {
+            set script "[string range $script 0 117]..."
+        }
+        $tn insert end [list $seq $script]
+    }
+    if {[$tn size] == 0} {
+        $tn insert end [list "" "(no bindings on $tag)"]
+    }
+}
+
+# ============================ open channels ================================
+proc buildChannels {f} {
+    set bar [frame $f.bar]
+    ttk::button $bar.refresh -text "Refresh" -command channelsFill
+    label $bar.n -textvariable ::chanStatus -fg #555
+    pack $bar.refresh $bar.n -side left -padx 4
+    pack $bar -fill x -pady 3
+    set t [scrolledTable $f \
+        {16 Channel left 12 Type left 10 Mode left 12 Encoding left 10 Blocking left 40 Configure left} \
+        -height 20]
+    set ::chanTable $t
+    catch {::tkutils::tkutlclip::installBindings $t}
+    channelsFill
+}
+proc channelsFill {} {
+    set t $::chanTable
+    if {![winfo exists $t]} return
+    $t delete 0 end
+    foreach ch [lsort [chan names]] {
+        set typ ""; set mode ""; set enc ""; set blk ""; set cfg ""
+        catch {set typ [chan configure $ch -type]}
+        catch {
+            set r [chan configure $ch -blocking]
+            set blk [expr {$r ? "blocking" : "nonblock"}]
+        }
+        catch {set enc [chan configure $ch -encoding]}
+        catch {set mode [chan configure $ch -mode]}
+        if {$mode eq ""} {
+            # sockets often have -sockname; files have neither r/w flags here
+            catch {
+                if {[llength [chan configure $ch -sockname]]} { set mode sock }
+            }
+        }
+        if {[catch {set cfg [chan configure $ch]} err]} { set cfg $err }
+        if {[string length $cfg] > 80} { set cfg "[string range $cfg 0 77]..." }
+        $t insert end [list $ch $typ $mode $enc $blk $cfg]
+    }
+    set ::chanStatus "[$t size] channel(s)"
+}
+
+# ============================ clipboard probe ==============================
+proc buildClipboard {f} {
+    set bar [frame $f.bar]
+    ttk::button $bar.refresh -text "Read" -command clipboardRead
+    ttk::button $bar.clearC -text "Clear CLIPBOARD" -command {clipboardClear CLIPBOARD}
+    ttk::button $bar.clearP -text "Clear PRIMARY" -command {clipboardClear PRIMARY}
+    label $bar.n -textvariable ::clipStatus -fg #555
+    pack $bar.refresh $bar.clearC $bar.clearP $bar.n -side left -padx 3
+    pack $bar -fill x -pady 3
+
+    set setf [ttk::labelframe $f.set -text "Set selection" -padding 6]
+    label $setf.l -text "Text:"
+    entry $setf.e -textvariable ::clipSetText -width 40
+    ttk::combobox $setf.sel -textvariable ::clipSetSel -state readonly -width 12 \
+        -values {CLIPBOARD PRIMARY}
+    ttk::button $setf.go -text "clipboard append" -command clipboardWrite
+    pack $setf.l $setf.e $setf.sel $setf.go -side left -padx 3
+    pack $setf -fill x -padx 6 -pady 4
+    set ::clipSetSel CLIPBOARD
+    set ::clipSetText "tkdevtools sample"
+
+    set t [scrolledTable $f {14 Selection left 12 Type left 60 Content left} -height 12]
+    set ::clipTable $t
+    catch {::tkutils::tkutlclip::installBindings $t}
+    clipboardRead
+}
+proc clipboardRead {} {
+    set t $::clipTable
+    if {![winfo exists $t]} return
+    $t delete 0 end
+    foreach sel {CLIPBOARD PRIMARY} {
+        if {[catch {set types [selection get -displayof . -selection $sel -type TARGETS]} err]} {
+            $t insert end [list $sel "(empty/error)" $err]
+            continue
+        }
+        foreach typ $types {
+            if {[catch {set data [selection get -displayof . -selection $sel -type $typ]} err]} {
+                set data "(error: $err)"
+            }
+            set data [string map {"\n" "\\n" "\t" "\\t"} $data]
+            if {[string length $data] > 100} {
+                set data "[string range $data 0 97]..."
+            }
+            $t insert end [list $sel $typ $data]
+        }
+    }
+    set ::clipStatus "[$t size] row(s)  \u00b7  [clock format [clock seconds] -format %H:%M:%S]"
+}
+proc clipboardWrite {} {
+    set sel $::clipSetSel
+    if {[catch {
+        clipboard clear -displayof . -selection $sel
+        clipboard append -displayof . -selection $sel -- $::clipSetText
+    } err]} {
+        set ::clipStatus "write error: $err"
+        return
+    }
+    set ::clipStatus "wrote [string length $::clipSetText] char(s) to $sel"
+    clipboardRead
+}
+proc clipboardClear {sel} {
+    if {[catch {clipboard clear -displayof . -selection $sel} err]} {
+        set ::clipStatus "clear error: $err"
+        return
+    }
+    set ::clipStatus "cleared $sel"
+    clipboardRead
+}
+
+# ============================ photo formats (load) =========================
+proc buildPhotos {f} {
+    set bar [frame $f.bar]
+    ttk::button $bar.load -text "Load packages" -command photosLoad
+    ttk::button $bar.refresh -text "Refresh" -command photosFill
+    label $bar.n -textvariable ::photoStatus -fg #555
+    pack $bar.load $bar.refresh $bar.n -side left -padx 3
+    pack $bar -fill x -pady 3
+
+    set prev [ttk::labelframe $f.prev -text "probe images" -padding 6]
+    set ::photoPrev [frame $prev.g]
+    pack $::photoPrev -fill x
+    pack $prev -fill x -padx 6 -pady 4
+
+    set t [scrolledTable $f \
+        {22 Package left 10 Version left 12 Status left 40 Detail left} -height 14]
+    set ::photoTable $t
+    catch {::tkutils::tkutlclip::installBindings $t}
+    photosFill
+}
+proc photosFill {} {
+    set t $::photoTable
+    if {![winfo exists $t]} return
+    $t delete 0 end
+    foreach p {
+        Img img::png img::jpeg img::gif img::bmp img::tiff img::ico
+        img::xbm img::xpm img::ppm img::window img::pcx img::sgi img::sun img::tga
+    } {
+        set ver ""; set st "unknown"; set det ""
+        if {![catch {package present $p} v]} {
+            set ver $v; set st loaded
+        } elseif {[llength [set vers [package versions $p]]]} {
+            set ver [join [lsort -dictionary $vers] {, }]
+            set st available
+            catch {set det [lindex [package ifneeded $p [lindex [lsort -dictionary $vers] end]] end]}
+            if {[string length $det] > 60} { set det "[string range $det 0 57]..." }
+        } else {
+            set st missing
+        }
+        $t insert end [list $p $ver $st $det]
+    }
+    # core Tk photo formats (always there when Tk is loaded)
+    foreach fmt {gif ppm pgm} {
+        $t insert end [list "Tk core:$fmt" $::tk_patchLevel builtin "image create photo -format $fmt"]
+    }
+    set ::photoStatus "[$t size] row(s) \u2014 click \u201eLoad packages\u201c to require Img formats"
+}
+proc photosLoad {} {
+    set t $::photoTable
+    set loaded 0; set failed 0
+    foreach p {
+        Img img::png img::jpeg img::gif img::bmp img::tiff img::ico
+        img::xbm img::xpm img::ppm img::window
+    } {
+        if {![catch {package require $p} v]} {
+            incr loaded
+        } else {
+            incr failed
+        }
+    }
+    photosFill
+    photosProbe
+    set ::photoStatus "require: $loaded ok, $failed fail \u2014 probe images below"
+}
+proc photosProbe {} {
+    set g $::photoPrev
+    if {![winfo exists $g]} return
+    foreach c [winfo children $g] { destroy $c }
+    set col 0
+    set i 0
+    foreach {label fmt var} {
+        gif-core gif ::photoGifB64
+        png-Img  png ::photoPngB64
+    } {
+        incr i
+        set cell [frame $g.c$i -relief groove -bd 1]
+        set img ""
+        if {[catch {
+            if {$fmt eq "png"} { package require img::png }
+            set img [image create photo -format $fmt -data [set $var]]
+        } err]} {
+            label $cell.l -text "$label\n(n/a: [lindex [split $err \n] 0])" -fg #a00
+        } else {
+            label $cell.i -image $img
+            label $cell.l -text "$label\n[$img cget -width]x[$img cget -height]"
+            pack $cell.i -padx 6 -pady 2
+        }
+        pack $cell.l -padx 6 -pady 2
+        grid $cell -row 0 -column $col -padx 8 -pady 4
+        incr col
+    }
+}
+# 1x1 red GIF (base64) and 1x1 red PNG
+set ::photoGifB64 {R0lGODlhAQABAPAAAP8AAP///yH5BAAAAAAALAAAAAABAAEAAAICRAEAOw==}
+set ::photoPngB64 {iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==}
+
+# ============================ external tools ===============================
+proc buildTools {f} {
+    label $f.hint -anchor w -justify left -wraplength 720 -fg #333 \
+        -text "Startet bekannte Entwickler-Hilfen in einem eigenen Prozess\
+ (oder einbettet tkcon). Fehlt ein Tool, steht der Hinweis in der Zeile."
+    pack $f.hint -anchor w -padx 8 -pady 6
+
+    set t [scrolledTable $f \
+        {18 Tool left 12 Status left 56 Detail left} -height 8]
+    set ::toolsTable $t
+    catch {::tkutils::tkutlclip::installBindings $t}
+
+    set bar [frame $f.bar]
+    ttk::button $bar.tkcon -text "tkcon (embed)" -command toolsTkconEmbed
+    ttk::button $bar.tkcon2 -text "tkcon (process)" -command toolsTkconProcess
+    ttk::button $bar.insp -text "tkinspect" -command toolsTkinspect
+    ttk::button $bar.demo -text "Tk widget demo" -command toolsWidgetDemo
+    ttk::button $bar.refresh -text "Refresh" -command toolsFill
+    pack $bar.tkcon $bar.tkcon2 $bar.insp $bar.demo $bar.refresh -side left -padx 4
+    pack $bar -fill x -padx 6 -pady 4
+
+    label $f.msg -textvariable ::toolsMsg -anchor w -fg #225
+    pack $f.msg -fill x -padx 8 -pady 4
+    toolsFill
+}
+proc toolsFindTkcon {} {
+    set exe [auto_execok tkcon]
+    if {$exe ne ""} { return [list exe [lindex $exe 0]] }
+    foreach p {
+        /usr/share/tcltk/tkcon2.7.10/tkcon.tcl
+        /usr/share/tcltk/tkcon/tkcon.tcl
+    } {
+        if {[file isfile $p]} { return [list script $p] }
+    }
+    if {[llength [package versions tkcon]]} {
+        return [list package tkcon]
+    }
+    return {}
+}
+proc toolsFindTkinspect {} {
+    set exe [auto_execok tkinspect]
+    if {$exe ne ""} { return [list exe [lindex $exe 0]] }
+    foreach p {
+        /usr/bin/tkinspect
+        /usr/local/bin/tkinspect
+    } {
+        if {[file isfile $p]} { return [list exe $p] }
+    }
+    return {}
+}
+proc toolsFindWidgetDemo {} {
+    set candidates [list \
+        [file join $::tk_library demos widget] \
+        /usr/share/doc/tk$::tk_version-doc/demos/widget \
+        /usr/share/doc/tk8.6-doc/demos/widget \
+        /usr/share/doc/tk9.0-doc/demos/widget]
+    foreach p $candidates {
+        if {[file isfile $p]} { return $p }
+    }
+    return ""
+}
+proc toolsFill {} {
+    set t $::toolsTable
+    if {![winfo exists $t]} return
+    $t delete 0 end
+    set tkc [toolsFindTkcon]
+    if {[llength $tkc]} {
+        $t insert end [list tkcon found "[join $tkc " \u2192 "]"]
+    } else {
+        $t insert end [list tkcon missing "apt: tkcon  \u00b7  package require tkcon"]
+    }
+    set insp [toolsFindTkinspect]
+    if {[llength $insp]} {
+        $t insert end [list tkinspect found "[join $insp " \u2192 "]"]
+    } else {
+        $t insert end [list tkinspect missing "apt: tkinspect  (nicht installiert)"]
+    }
+    set demo [toolsFindWidgetDemo]
+    if {$demo ne ""} {
+        $t insert end [list "widget demo" found $demo]
+    } else {
+        $t insert end [list "widget demo" missing "tk_library/demos/widget oder tk*-doc"]
+    }
+    set ::toolsMsg "wish [info nameofexecutable]  \u00b7  [info patchlevel]"
+}
+proc toolsTkconEmbed {} {
+    set loc [toolsFindTkcon]
+    if {![llength $loc]} {
+        set ::toolsMsg "tkcon nicht gefunden"
+        return
+    }
+    if {[catch {
+        if {![llength [package versions tkcon]] && [lindex $loc 0] eq "script"} {
+            set dir [file dirname [lindex $loc 1]]
+            if {$dir ni $::auto_path} { lappend ::auto_path $dir }
+        }
+        package require tkcon
+        tkcon show
+    } err]} {
+        set ::toolsMsg "tkcon embed: $err"
+        return
+    }
+    set ::toolsMsg "tkcon eingebettet (tkcon show)"
+}
+proc toolsTkconProcess {} {
+    set loc [toolsFindTkcon]
+    if {![llength $loc]} {
+        set ::toolsMsg "tkcon nicht gefunden"
+        return
+    }
+    if {[catch {
+        switch -- [lindex $loc 0] {
+            exe    { exec [lindex $loc 1] & }
+            script { exec [info nameofexecutable] [lindex $loc 1] & }
+            package {
+                exec [info nameofexecutable] << {
+                    package require tkcon
+                    tkcon show
+                    vwait forever
+                } &
+            }
+        }
+    } err]} {
+        set ::toolsMsg "tkcon process: $err"
+        return
+    }
+    set ::toolsMsg "tkcon als Prozess gestartet"
+}
+proc toolsTkinspect {} {
+    set loc [toolsFindTkinspect]
+    if {![llength $loc]} {
+        set ::toolsMsg "tkinspect fehlt \u2014 z. B.: apt install tkinspect"
+        return
+    }
+    if {[catch {exec [lindex $loc 1] &} err]} {
+        set ::toolsMsg "tkinspect: $err"
+        return
+    }
+    set ::toolsMsg "tkinspect gestartet"
+}
+proc toolsWidgetDemo {} {
+    set demo [toolsFindWidgetDemo]
+    if {$demo eq ""} {
+        set ::toolsMsg "Widget-Demo nicht gefunden"
+        return
+    }
+    if {[catch {exec [info nameofexecutable] $demo &} err]} {
+        set ::toolsMsg "widget demo: $err"
+        return
+    }
+    set ::toolsMsg "Widget-Demo gestartet: $demo"
+}
+
+# ============================ Runtime: package shadows =====================
+# Every copy of a package on the module paths and auto_path, from
+# tclutils::tupkgfinder::shadows. The package database keeps one ifneeded per
+# version, so a second copy with the SAME version (an installed library next
+# to a working tree) is invisible in "Packages"; here it is marked.
+proc buildShadows {f} {
+    set bar [frame $f.bar]
+    label $bar.l -text "Filter:"
+    entry $bar.e -textvariable ::shFilter -width 18
+    checkbutton $bar.all -text "also single copies" -variable ::shAll -command shFill
+    ttk::button $bar.refresh -text "Refresh" -command shFill
+    label $bar.n -textvariable ::shStatus -fg #555
+    pack $bar.l $bar.e $bar.all $bar.refresh $bar.n -side left -padx 3
+    pack $bar -fill x -pady 3
+    label $f.hint -anchor w -justify left -fg #555 -text \
+        "\"same version\": a second copy of the version package require takes -- it is never\
+        used, and which one wins depends on path order. Red rows need a look."
+    pack $f.hint -fill x -padx 6
+    set t [scrolledTable $f \
+        {26 Package left 10 Version left 13 Status left 8 Kind left 60 Path left} \
+        -height 20]
+    set ::shTable $t
+    catch {::tkutils::tkutlclip::installBindings $t}
+    bind $bar.e <KeyRelease> shFill
+    set ::shFilter ""
+    set ::shAll 0
+    shFill
+}
+proc shFill {} {
+    set t $::shTable
+    if {![winfo exists $t]} return
+    $t delete 0 end
+    set pat *
+    if {$::shFilter ne ""} { set pat *$::shFilter* }
+    if {[catch {::tclutils::tupkgfinder::shadows -pattern $pat -all $::shAll} res]} {
+        set ::shStatus "error: $res"
+        return
+    }
+    set npk 0 ; set ndup 0
+    foreach d $res {
+        incr npk
+        if {[dict get $d duplicate]} { incr ndup }
+        set first 1
+        foreach c [dict get $d candidates] {
+            set name [expr {$first ? [dict get $d package] : ""}]
+            set first 0
+            $t insert end [list $name [dict get $c version] [dict get $c status] \
+                [dict get $c kind] [file nativename [dict get $c path]]]
+            switch -- [dict get $c status] {
+                "same version"  { $t rowconfigure end -background #ffd8d8 }
+                active          { $t rowconfigure end -foreground #064 }
+                default         { $t rowconfigure end -foreground #777 }
+            }
+        }
+    }
+    set what [expr {$::shAll ? "package(s)" : "package(s) with several copies"}]
+    set ::shStatus "$npk $what, $ndup with one version twice"
+}
+
+# ============================ Platform: paths ==============================
+# What Tcl's file commands make of a path, and how Windows and Unix classify
+# it. The Windows/Unix columns follow the rules of file pathtype, so a path
+# can be checked for the other platform too.
+proc pathTypeFor {platform p} {
+    if {$platform eq "windows"} {
+        set p [string map {\\ /} $p]
+        if {[regexp {^//[^/]+/[^/]+} $p]}  { return absolute }       ;# UNC
+        if {[regexp {^[A-Za-z]:/} $p]}     { return absolute }
+        if {[regexp {^[A-Za-z]:} $p]}      { return volumerelative } ;# C:x
+        if {[string match /* $p]}          { return volumerelative } ;# /x
+        return relative
+    }
+    if {[string match /* $p]} { return absolute }
+    return relative   ;# Tcl 9: no ~ expansion; 8.6 treats ~ as absolute
+}
+proc buildPathProbe {f} {
+    set bar [frame $f.bar]
+    label $bar.l -text "Path:"
+    entry $bar.e -textvariable ::ppPath -width 50
+    pack $bar.l $bar.e -side left -padx 3
+    pack $bar -fill x -pady 3
+    set ex [frame $f.ex]
+    label $ex.l -text "Examples:" -fg #555
+    pack $ex.l -side left -padx 3
+    foreach p {/x C:x C:/x //srv/share/x ~/x a/../../b /a/./b/../c C:/a/../../b} {
+        ttk::button $ex.b[incr i] -text $p -command [list set ::ppPath $p]
+        pack $ex.b$i -side left -padx 1
+    }
+    pack $ex -fill x -padx 3 -pady {0 4}
+    set t [scrolledTable $f {24 Command left 70 Result left} -height 18]
+    set ::ppTable $t
+    catch {::tkutils::tkutlclip::installBindings $t}
+    trace add variable ::ppPath write {apply {args { after idle ppFill }}}
+    set ::ppPath a/../../b
+}
+proc ppFill {} {
+    set t $::ppTable
+    if {![winfo exists $t]} return
+    $t delete 0 end
+    set p $::ppPath
+    set rows [list \
+        "pathtype (this: $::tcl_platform(platform))" {file pathtype $p} \
+        "pathtype, Windows rules"  {pathTypeFor windows $p} \
+        "pathtype, Unix rules"     {pathTypeFor unix $p} \
+        "file split"               {file split $p} \
+        "file dirname"             {file dirname $p} \
+        "file tail"                {file tail $p} \
+        "file rootname"            {file rootname $p} \
+        "file extension"           {file extension $p} \
+        "file join \$p x"          {file join $p x} \
+        "file nativename"          {file nativename $p} \
+        "file normalize"           {file normalize $p} \
+        "tupath::clean"            {::tclutils::tupath::clean $p} \
+        "file exists"              {file exists $p} \
+    ]
+    foreach {label script} $rows {
+        if {[catch $script r]} { set r "error: $r" }
+        $t insert end [list $label $r]
+    }
+}
+
+# ============================ Platform: glob ===============================
+# What a pattern matches here. Windows differs: "*" matches dot files there,
+# so "*" plus ".*" lists them twice -- the tkufiletree ITEM_EXISTS case.
+proc buildGlobProbe {f} {
+    set bar [frame $f.bar]
+    label $bar.dl -text "Directory:"
+    entry $bar.d -textvariable ::gpDir -width 40
+    ttk::button $bar.b -text "..." -width 3 -command {
+        set d [tk_chooseDirectory -initialdir $::gpDir -mustexist 1]
+        if {$d ne ""} { set ::gpDir $d ; gpFill }
+    }
+    label $bar.pl -text "Pattern:"
+    entry $bar.p -textvariable ::gpPat -width 12
+    pack $bar.dl $bar.d $bar.b $bar.pl $bar.p -side left -padx 3
+    pack $bar -fill x -pady 3
+    set opt [frame $f.opt]
+    label $opt.l -text "-types:"
+    pack $opt.l -side left -padx 3
+    foreach ty {f d hidden} {
+        checkbutton $opt.$ty -text $ty -variable ::gpType($ty) -command gpFill
+        pack $opt.$ty -side left
+    }
+    checkbutton $opt.dot -text {also ".*" (as a hidden-files option does)} \
+        -variable ::gpDot -command gpFill
+    pack $opt.dot -side left -padx 8
+    pack $opt -fill x -padx 3
+    label $f.st -textvariable ::gpStatus -anchor w -justify left -fg #225
+    pack $f.st -fill x -padx 6 -pady 3
+    set t [scrolledTable $f {40 Name left 10 Type left 10 Note left} -height 16]
+    set ::gpTable $t
+    catch {::tkutils::tkutlclip::installBindings $t}
+    foreach w [list $bar.d $bar.p] { bind $w <Return> gpFill ; bind $w <FocusOut> gpFill }
+    set ::gpDir [pwd]
+    set ::gpPat *
+    array set ::gpType {f 0 d 0 hidden 0}
+    set ::gpDot 0
+    gpFill
+}
+proc gpFill {} {
+    set t $::gpTable
+    if {![winfo exists $t]} return
+    $t delete 0 end
+    set types [lmap ty {f d hidden} { if {$::gpType($ty)} { set ty } else continue }]
+    set cmd [list glob -nocomplain -directory $::gpDir]
+    if {[llength $types]} { lappend cmd -types $types }
+    if {[catch {{*}$cmd -- $::gpPat} res]} {
+        set ::gpStatus "error: $res"
+        return
+    }
+    set dots {}
+    if {$::gpDot} {
+        catch {set dots [lmap x [{*}$cmd -- .*] {
+            if {[file tail $x] in {. ..}} continue ; set x }]}
+        lappend res {*}$dots
+    }
+    set count {}
+    foreach r $res { dict incr count $r }
+    set ndup 0
+    foreach r [lsort -dictionary $res] {
+        set ty [expr {[file isdirectory $r] ? "dir" : "file"}]
+        set note ""
+        if {[dict get $count $r] > 1} { set note twice ; incr ndup }
+        $t insert end [list [file tail $r] $ty $note]
+        if {$note ne ""} { $t rowconfigure end -background #ffd8d8 }
+    }
+    # how many dot files "*" leaves out here (it does not on Windows)
+    set hidden [llength [lmap x [glob -nocomplain -directory $::gpDir .*] {
+        if {[file tail $x] in {. ..}} continue ; set x }]]
+    set cmdText "glob -directory <dir>[expr {[llength $types] ? " -types {$types}" : ""}] -- $::gpPat"
+    set ::gpStatus "$cmdText  ->  [llength $res] result(s)"
+    if {$ndup} { append ::gpStatus ", [expr {$ndup / 2}] listed twice" }
+    if {$::gpPat eq "*" && $::tcl_platform(platform) ne "windows" && $hidden} {
+        append ::gpStatus "\nHere \"*\" skips the $hidden dot file(s); on Windows it\
+            matches them, and \"*\" plus \".*\" lists them twice."
+    }
+}
+
+# ============================ Platform: programs ===========================
+# Which program a name resolves to (auto_execok), and where along PATH the
+# candidates are -- with the platform's separator and, on Windows, PATHEXT.
+proc buildProgProbe {f} {
+    set bar [frame $f.bar]
+    label $bar.l -text "Program:"
+    entry $bar.e -textvariable ::prName -width 24
+    ttk::button $bar.go -text "Look up" -command prFill
+    pack $bar.l $bar.e $bar.go -side left -padx 3
+    pack $bar -fill x -pady 3
+    label $f.st -textvariable ::prStatus -anchor w -justify left -fg #225 -wraplength 820
+    pack $f.st -fill x -padx 6 -pady 3
+    set t [scrolledTable $f {6 "#" right 52 "PATH entry" left 40 Found left} -height 18]
+    set ::prTable $t
+    catch {::tkutils::tkutlclip::installBindings $t}
+    bind $bar.e <Return> prFill
+    set ::prName [regsub -nocase {\.exe$} [file tail [info nameofexecutable]] ""]
+    prFill
+}
+proc prFill {} {
+    set t $::prTable
+    if {![winfo exists $t]} return
+    $t delete 0 end
+    set name $::prName
+    set win [expr {$::tcl_platform(platform) eq "windows"}]
+    set sep [expr {$win ? ";" : ":"}]
+    set exts {""}
+    if {$win} {
+        set pe .COM\;.EXE\;.BAT\;.CMD
+        if {[info exists ::env(PATHEXT)]} { set pe $::env(PATHEXT) }
+        set exts [concat {""} [split [string tolower $pe] ";"]]
+    }
+    array unset ::auto_execs $name   ;# no cached answer
+    set ae [auto_execok $name]
+    set path [expr {[info exists ::env(PATH)] ? $::env(PATH) : ""}]
+    set i 0 ; set hits 0
+    foreach dir [split $path $sep] {
+        incr i
+        if {$dir eq ""} continue
+        set found {}
+        foreach e $exts {
+            set f [file join $dir $name$e]
+            if {[file isfile $f] && ($win || [file executable $f])} { lappend found [file tail $f] }
+        }
+        if {[llength $found]} { incr hits }
+        $t insert end [list $i $dir [join $found ", "]]
+        if {[llength $found]} { $t rowconfigure end -background #e2f4e2 }
+    }
+    set ::prStatus "auto_execok $name  ->  [expr {$ae eq "" ? "(not found)" : $ae}]\
+        \nPATH separator \"$sep\", $i entries, found in $hits"
+    if {$win} {
+        append ::prStatus "\nPATHEXT: [join [lrange $exts 1 end] { }]\
+            -- a launcher that goes through \"cmd /c start\" also finds programs\
+            registered under App Paths, which are not on PATH."
+    }
+}
+
+# ============================ Platform: encoding profiles ==================
+# How the bytes are read with each -profile (Tcl 9): strict raises an error
+# at the first invalid byte, replace puts U+FFFD there, tcl8 maps it as Tcl
+# 8.6 did. A test runner reading a child's output with strict stalled on
+# one such byte.
+proc buildEncProfile {f} {
+    set bar [frame $f.bar]
+    label $bar.l -text "Bytes (hex):"
+    entry $bar.e -textvariable ::epHex -width 36
+    label $bar.el -text "Encoding:"
+    ttk::combobox $bar.enc -textvariable ::epEnc -width 14 \
+        -values [lsort [encoding names]]
+    pack $bar.l $bar.e $bar.el $bar.enc -side left -padx 3
+    pack $bar -fill x -pady 3
+    label $f.st -textvariable ::epStatus -anchor w -justify left -fg #225
+    pack $f.st -fill x -padx 6 -pady 3
+    set t [scrolledTable $f {10 Profile left 50 Result left 40 "Code points" left} -height 8]
+    set ::epTable $t
+    catch {::tkutils::tkutlclip::installBindings $t}
+    bind $bar.e <KeyRelease> epFill
+    bind $bar.enc <<ComboboxSelected>> epFill
+    bind $bar.enc <KeyRelease> epFill
+    set ::epHex "48 69 20 FF E4 81"
+    set ::epEnc utf-8
+    epFill
+}
+proc epCodepoints {s} {
+    set out {}
+    foreach ch [split $s ""] {
+        scan $ch %c cp
+        lappend out [format U+%04X $cp]
+    }
+    return [join $out " "]
+}
+proc epFill {} {
+    set t $::epTable
+    if {![winfo exists $t]} return
+    $t delete 0 end
+    set hex [regsub -all {[^0-9A-Fa-f]} $::epHex ""]
+    if {[string length $hex] % 2} { set ::epStatus "odd number of hex digits" ; return }
+    set bytes [binary format H* $hex]
+    if {$::epEnc ni [encoding names]} { set ::epStatus "unknown encoding" ; return }
+    if {[package vsatisfies [package provide Tcl] 9-]} {
+        set ::epStatus "Tcl [info patchlevel]: channels read with the profile set by\
+            chan configure -profile (default strict)."
+        foreach prof {strict replace tcl8} {
+            if {[catch {encoding convertfrom -profile $prof -failindex fi $::epEnc $bytes} s]} {
+                $t insert end [list $prof "error: $s" ""]
+                $t rowconfigure end -background #ffd8d8
+                continue
+            }
+            set note ""
+            if {$prof eq "strict" && $fi >= 0} {
+                set note "  (stops at byte $fi)"
+                $t insert end [list $prof "[epShow $s]$note" [epCodepoints $s]]
+                $t rowconfigure end -background #ffd8d8
+                continue
+            }
+            $t insert end [list $prof [epShow $s] [epCodepoints $s]]
+        }
+    } else {
+        set ::epStatus "Tcl [info patchlevel] has no -profile: invalid bytes are\
+            mapped silently (what Tcl 9 calls the tcl8 profile)."
+        set s [encoding convertfrom $::epEnc $bytes]
+        $t insert end [list (8.6) [epShow $s] [epCodepoints $s]]
+    }
+}
+# printable view: non-printable characters as U+XXXX
+proc epShow {s} {
+    set out ""
+    foreach ch [split $s ""] {
+        scan $ch %c cp
+        if {$cp < 32 || ($cp >= 127 && $cp < 160)} {
+            append out [format <U+%04X> $cp]
+        } else { append out $ch }
+    }
+    return $out
+}
+
+# ============================ Reference: font aliases ======================
+# What Tk makes of a family name. A family that comes back unchanged (Tk 9
+# on Windows: "Helvetica" stays "Helvetica") can collide with a PDF standard
+# font of the same name in an export.
+proc buildFontAliases {f} {
+    set bar [frame $f.bar]
+    label $bar.l -text "Add family:"
+    entry $bar.e -textvariable ::faExtra -width 24
+    ttk::button $bar.add -text "Add" -command faFill
+    pack $bar.l $bar.e $bar.add -side left -padx 3
+    pack $bar -fill x -pady 3
+    label $f.hint -anchor w -justify left -fg #555 -text \
+        "Green: Tk substituted another family. Yellow: the name came back unchanged."
+    pack $f.hint -fill x -padx 6
+    set t [scrolledTable $f \
+        {20 Requested left 24 "Resolved family" left 6 Size right 8 Weight left \
+         8 Slant left 6 Ascent right 7 Descent right 9 Linespace right} -height 20]
+    set ::faTable $t
+    catch {::tkutils::tkutlclip::installBindings $t}
+    bind $bar.e <Return> faFill
+    set ::faExtra ""
+    faFill
+}
+proc faFill {} {
+    set t $::faTable
+    if {![winfo exists $t]} return
+    $t delete 0 end
+    set names {Helvetica Times Courier Arial {Times New Roman} {Courier New}
+               Symbol {DejaVu Sans} TkDefaultFont TkTextFont TkFixedFont
+               TkMenuFont TkHeadingFont TkCaptionFont TkSmallCaptionFont
+               TkIconFont TkTooltipFont}
+    if {$::faExtra ne ""} { lappend names $::faExtra }
+    foreach n $names {
+        set spec [expr {[string match Tk* $n] && $n in [font names] ? $n : [list $n 12]}]
+        if {[catch {font actual $spec} a]} {
+            $t insert end [list $n "error: $a" "" "" "" "" "" ""]
+            continue
+        }
+        set m [font metrics $spec]
+        $t insert end [list $n [dict get $a -family] [dict get $a -size] \
+            [dict get $a -weight] [dict get $a -slant] [dict get $m -ascent] \
+            [dict get $m -descent] [dict get $m -linespace]]
+        if {![string match Tk* $n]} {
+            if {[string equal -nocase [dict get $a -family] $n]} {
+                $t rowconfigure end -background #fff3c4
+            } else {
+                $t rowconfigure end -background #e2f4e2
+            }
+        }
+    }
+}
+
+# ============================ Conversion: number format ====================
+# The same values through [format %.Nf] (rounding left to the C runtime:
+# halfway cases differ between glibc and Windows) and tclutils::tunum::format
+# (half away from zero on every platform, German grouping).
+proc buildNumFormat {f} {
+    set bar [frame $f.bar]
+    label $bar.l -text "Values:"
+    entry $bar.e -textvariable ::nfValues -width 44
+    label $bar.dl -text "Decimals:"
+    ttk::spinbox $bar.d -from 0 -to 8 -width 4 -textvariable ::nfDec -command nfFill
+    pack $bar.l $bar.e $bar.dl $bar.d -side left -padx 3
+    pack $bar -fill x -pady 3
+    label $f.hint -anchor w -justify left -fg #555 -text \
+        "Red: format and tunum::format round differently. \"stored as\" shows the binary\
+        double -- 2.675 is stored just below, yet tunum gives 2.68 (it rounds the digits\
+        Tcl prints)."
+    pack $f.hint -fill x -padx 6
+    set t [scrolledTable $f \
+        {14 Value left 26 "stored as (%.17g)" left 16 "format %.Nf" left 18 "tunum::format" left} \
+        -height 16]
+    set ::nfTable $t
+    catch {::tkutils::tkutlclip::installBindings $t}
+    bind $bar.e <KeyRelease> nfFill
+    bind $bar.d <KeyRelease> nfFill
+    set ::nfValues "1234.5 2.5 0.5 -0.5 2.675 1.005 0.125 1000000.455"
+    set ::nfDec 0
+    nfFill
+}
+proc nfFill {} {
+    set t $::nfTable
+    if {![winfo exists $t]} return
+    $t delete 0 end
+    set n $::nfDec
+    if {![string is integer -strict $n] || $n < 0} return
+    foreach v $::nfValues {
+        if {![string is double -strict $v]} {
+            $t insert end [list $v "(not a number)" "" ""] ; continue
+        }
+        set c [format %.*f $n $v]
+        if {[catch {::tclutils::tunum::format $v -decimals $n} u]} { set u "error: $u" }
+        $t insert end [list $v [format %.17g $v] $c $u]
+        # compare without the German separators
+        set uPlain [string map {. "" , .} $u]
+        if {$uPlain ne $c} { $t rowconfigure end -background #ffd8d8 }
+    }
 }
 
 # ============================ assemble ======================================
@@ -1098,19 +2261,41 @@ proc ::navSelect {} {
 
 # category -> {key title buildProc ...}
 set ::toolTree {
+    "Runtime" {
+        tcltk   "Tcl / Tk"         buildTclTk
+        os      "OS / platform"    buildOs
+        pkgs    "Packages"         buildPackages
+        shadow  "Package shadows"  buildShadows
+        paths   "Paths"            buildPaths
+        display "Display"          buildDisplay
+        env     "Environment"      buildEnv
+        chans   "Channels"         buildChannels
+        photos  "Photo formats"    buildPhotos
+        tools   "External tools"   buildTools
+    }
     "Reference" {
         colors  "Colors"          buildColors
         chars   "Characters"      buildChars
         graph   "Graphemes"       buildGraphemes
         fonts   "Fonts"           buildFonts
         bitmaps "Bitmaps"         buildBitmaps
+        falias  "Font aliases"    buildFontAliases
     }
     "Conversion / time" {
         units   "Units"           buildUnits
         tz      "Timezones"       buildTz
         clock   "clock format"    buildClock
+        numfmt  "Number format"   buildNumFormat
+    }
+    "Platform" {
+        pathp   "Paths"            buildPathProbe
+        globp   "glob"             buildGlobProbe
+        progp   "Programs"         buildProgProbe
+        encprof "Encoding profiles" buildEncProfile
     }
     "Tk widgets / style" {
+        widgets "Widget tree"      buildWidgets
+        clip    "Clipboard"        buildClipboard
         cursors "Cursors"          buildCursors
         relief  "Relief / Anchor"  buildRelief
         keysym  "Keysym probe"     buildKeysym

@@ -96,22 +96,23 @@ test tkulauncher-3.1 {list mode builds a frame with buttons} -constraints tk -bo
 # ---- launching via -onlaunch (intercepted, no real spawn) -----------------
 test tkulauncher-4.1 {activating an entry runs -onlaunch with the resolved action} -constraints tk -body {
     set ::got ""
+    set exe [info nameofexecutable]
     ${ns}::widget .l2 -mode list \
-        -items {{type app label Sh cmd {sh -c true}}} \
+        -items [list [list type app label Sh cmd [list $exe -version]]] \
         -onlaunch {apply {{kind argv} {set ::got [list $kind $argv] ; return 0}}}
     foreach c [winfo children .l2] {
         if {[winfo class $c] eq "TButton"} { $c invoke ; break }
     }
     destroy .l2
-    set ::got
-} -result {exec {sh -c true}}
+    expr {$::got eq [list exec [list $exe -version]]}
+} -result 1
 
 test tkulauncher-4.2 {-onlaunch returning false suppresses the real launch} -constraints tk -body {
     # cmd is a bogus program; if it were actually run, exec would fail. The
     # false return must stop that, so no error escapes.
     set ::seen 0
     ${ns}::widget .l3 -mode list \
-        -items {{type app label Ok cmd {sh -c true}}} \
+        -items [list [list type app label Ok cmd [list [info nameofexecutable] -version]]] \
         -onlaunch {apply {{k a} {incr ::seen ; return 0}}}
     foreach c [winfo children .l3] {
         if {[winfo class $c] eq "TButton"} { $c invoke ; break }
@@ -329,15 +330,20 @@ test tkulauncher-8.5 {resolve carries an optional working directory} -constraint
 
 test tkulauncher-8.6 {a working directory is honored at launch} -constraints tk -setup {
     set d [makeDirectory wd]
+    set mk [makeFile {close [open flag w]; exit} mkflag.tcl]
 } -body {
     ${ns}::widget .wd1 -mode list \
-        -items [list [dict create type app label T cmd [list sh -c {touch flag}] dir $d]]
+        -items [list [dict create type app label T cmd [list [info nameofexecutable] $mk] dir $d]]
     foreach c [winfo children .wd1] { if {[winfo class $c] eq "TButton"} { $c invoke ; break } }
-    after 400 {set ::wdone 1} ; vwait ::wdone
-    set r [file exists [file join $d flag]]
+    # wait up to 10 s for the child (wish starts slowly on some systems)
+    set flag [file join $d flag]
+    for {set i 0} {$i < 100 && ![file exists $flag]} {incr i} {
+        after 100 {set ::wdone 1} ; vwait ::wdone
+    }
+    set r [file exists $flag]
     destroy .wd1
     set r
-} -cleanup {catch {file delete [file join $d flag]}} -result 1
+} -cleanup {catch {file delete [file join $d flag]}; removeFile mkflag.tcl} -result 1
 
 
 # ---- scrollable list mode -------------------------------------------------
@@ -386,7 +392,11 @@ test tkulauncher-10.2 {windows launches through 'start' (App Paths aware)} -cons
 
 test tkulauncher-10.3 {windows start honors a working directory via /D} -constraints tk -body {
     ${ns}::_execCommand {firefox} {C:/proj} windows
-} -result {cmd.exe /c start {} /D C:/proj firefox}
+} -result {cmd.exe /c start {} /D {C:\proj} firefox}
+
+test tkulauncher-10.3a {windows start gets backslashes in program and /D} -constraints tk -body {
+    ${ns}::_execCommand {C:/Tcl/bin/wish.exe C:/p/a.tcl https://x.org/a} {C:/Users/x y} windows
+} -result {cmd.exe /c start {} /D {C:\Users\x y} {C:\Tcl\bin\wish.exe} C:/p/a.tcl https://x.org/a}
 
 test tkulauncher-10.4 {a bare program name is not greyed out on Windows} -constraints tk -body {
     # firefox is typically not on PATH on Windows but launches via start
@@ -865,16 +875,19 @@ test tkulauncher-19.1 {interpreter keys and per-platform resolution} -constraint
 } -result {{wish9 wish8 tclsh9 tclsh8} wish9.0 wish90.exe tclsh8.6 tclsh86t.exe}
 
 test tkulauncher-19.2 {resolve builds an exec act for a tcl entry} -constraints tk -body {
-    ${ns}::resolve {type tcl target /p/app.tcl interp wish9}
-} -result {kind exec argv {wish9.0 /p/app.tcl}}
+    expr {[${ns}::resolve {type tcl target /p/app.tcl interp wish9}]
+          eq [list kind exec argv [list [${ns}::resolveTclInterp wish9] /p/app.tcl]]}
+} -result 1
 
 test tkulauncher-19.3 {tcl entry carries TCLLIBPATH as child env} -constraints tk -body {
-    ${ns}::resolve {type tcl target a.tcl interp tclsh9 tcllibpath /l/tcl9.0}
-} -result {kind exec argv {tclsh9.0 a.tcl} env {TCLLIBPATH /l/tcl9.0}}
+    expr {[${ns}::resolve {type tcl target a.tcl interp tclsh9 tcllibpath /l/tcl9.0}]
+          eq [list kind exec argv [list [${ns}::resolveTclInterp tclsh9] a.tcl] env {TCLLIBPATH /l/tcl9.0}]}
+} -result 1
 
 test tkulauncher-19.4 {tcl entry defaults to wish9 and appends args} -constraints tk -body {
-    ${ns}::resolve {type tcl target a.tcl args {--x 1}}
-} -result {kind exec argv {wish9.0 a.tcl --x 1}}
+    expr {[${ns}::resolve {type tcl target a.tcl args {--x 1}}]
+          eq [list kind exec argv [list [${ns}::resolveTclInterp wish9] a.tcl --x 1]]}
+} -result 1
 
 test tkulauncher-19.5 {setTclInterp overrides an interpreter path} -constraints tk -body {
     set ns ::tkutils::tkulauncher
@@ -900,6 +913,8 @@ test tkulauncher-19.6 {editor round-trips a tcl entry} -constraints tk -body {
 
 
 # ---- tilde expansion (Tcl 9 no longer expands ~ in file commands) ----------
+# The 20.x tests set HOME; it is restored after 20.4.
+set savedHome20 [array get ::env HOME]
 test tkulauncher-20.1 {expandTilde handles ~ and ~/path, leaves others alone} -constraints tk -setup {
     set ::env(HOME) /home/testuser
 } -body {
@@ -917,12 +932,16 @@ test tkulauncher-20.2 {open entry expands a leading ~ in its target} -constraint
 test tkulauncher-20.3 {tcl entry expands ~ in target and each tcllibpath dir} -constraints tk -setup {
     set ::env(HOME) /home/testuser
 } -body {
-    ${ns}::resolve {type tcl target ~/app.tcl interp wish9 tcllibpath {~/lib/tcl9.0 ~/lib/tcltk}}
-} -result {kind exec argv {wish9.0 /home/testuser/app.tcl} env {TCLLIBPATH {/home/testuser/lib/tcl9.0 /home/testuser/lib/tcltk}}}
+    expr {[${ns}::resolve {type tcl target ~/app.tcl interp wish9 tcllibpath {~/lib/tcl9.0 ~/lib/tcltk}}]
+          eq [list kind exec argv [list [${ns}::resolveTclInterp wish9] /home/testuser/app.tcl] \
+                  env {TCLLIBPATH {/home/testuser/lib/tcl9.0 /home/testuser/lib/tcltk}}]}
+} -result 1
 
 test tkulauncher-20.4 {url target is left untouched (~ may be part of the URL)} -constraints tk -body {
     ${ns}::resolve {type url label W target https://example.com/~user}
 } -result {kind open argv https://example.com/~user}
+unset -nocomplain ::env(HOME)
+array set ::env $savedHome20
 
 
 # ---- suggestion catalogue --------------------------------------------------

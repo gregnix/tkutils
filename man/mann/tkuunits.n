@@ -1,0 +1,20 @@
+.TH tkuunits n 0.1 tkutils
+.SH tkutils::tkuunits
+.PP
+Convert screen distances between px, pt, mm, cm and inch. Tk accepts the units itself (\fBwinfo fpixels . 10m\fR), but turning pixels back into millimetres, or one unit into another, is left to the caller. Useful for label and print previews. Pure Tk, Tcl/Tk 8.6+ / 9.x.
+.SS "Commands"
+.CS
+::tkutils::tkuunits::units                          ;# -> px pt mm cm inch
+::tkutils::tkuunits::toPixels value unit ?window?   ;# -> float pixels
+::tkutils::tkuunits::fromPixels px ?window?         ;# -> dict px pt mm cm inch
+::tkutils::tkuunits::convert value from to ?window? ;# -> float
+.CE
+.CS
+tkuunits::toPixels 62 mm               ;# label width on screen
+tkuunits::convert 62 mm cm             ;# 6.2
+dict get [tkuunits::fromPixels 300] mm
+.CE
+.PP
+Units are \fBpx pt mm cm inch\fR; the Tk letters \fBp m c i\fR and \fBin\fR are accepted as well. \fBpt\fR is the printer's point, 1/72 inch, as in Tk. Conversions use the screen resolution of \fIwindow\fR (default \fB.\fR), so pixel values follow \fBtk scaling\fR; unit\-to\-unit results do not depend on it.
+.PP
+Errors: \fB{TKUTILS TKUUNITS UNIT}\fR (unknown unit), \fB{TKUTILS TKUUNITS VALUE}\fR (not a number, e.g. \fB2c\fR), \fB{TKUTILS TKUUNITS WINDOW}\fR (no such window).

@@ -11,6 +11,16 @@ set tmDir [file normalize [file join $here .. lib tm]]
 if {[info exists ::env(TKUTILS_TM)]} { catch {tcl::tm::path add $::env(TKUTILS_TM)} }
 catch {tcl::tm::path remove $tmDir}
 tcl::tm::path add $tmDir
+# locate the tclutils dependency for in-tree/dev use (loadCsv needs tclutils::tucsv)
+if {[info exists ::env(TCLUTILS_TM)]} {
+    tcl::tm::path add $::env(TCLUTILS_TM)
+} else {
+    set _tkuRoot [file dirname [file dirname $tmDir]]
+    foreach _c [lsort -decreasing [glob -nocomplain [file join [file dirname $_tkuRoot] tclutils*/lib/tm]]] {
+        tcl::tm::path add $_c
+        break
+    }
+}
 if {$haveTk} { package require tkutils::tkupreview }
 set ns ::tkutils::tkupreview
 

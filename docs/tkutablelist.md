@@ -16,7 +16,9 @@ package require tkutils::tkutablelist
 ```tcl
 set w [::tkutils::tkutablelist::widget .w ?-columns {t...}? ?-stretch all? \
         ?-titlecolumns N? ?-sortable 1? ?-editable 0? ?-selectmode extended? \
-        ?-stripes COLOR? ?-selectcommand cmd? ?-doublecommand cmd?]
+        ?-exportselection 0? ?-stripes COLOR? ?-selectcommand cmd? \
+        ?-doublecommand cmd?]
+# -exportselection defaults to 0 (PRIMARY not cleared by menus); use 1 for Tk-like export
 
 # rows
 ::tkutils::tkutablelist::insert    $w row

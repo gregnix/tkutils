@@ -93,12 +93,14 @@ proc ::tkutils::tkutablelist::_applyEditable {path} {
 #   -sortable 0|1          click headers to sort (default 1)
 #   -editable 0|1          make all columns editable (default 0)
 #   -selectmode M          browse|single|extended (default extended)
+#   -exportselection 0|1   export PRIMARY (default 0 — keeps multi-select when
+#                          focus moves to menus/toolbars)
 #   -stripes COLOR         stripe background for alternate rows ("" = none)
 proc ::tkutils::tkutablelist::widget {path args} {
     variable state
     array set o {-columns {} -stretch all -titlecolumns 0 -sortable 1 \
-        -editable 0 -selectmode extended -stripes "" -editendcommand "" \
-        -selectcommand "" -doublecommand "" -footer 0}
+        -editable 0 -selectmode extended -exportselection 0 -stripes "" \
+        -editendcommand "" -selectcommand "" -doublecommand "" -footer 0}
     foreach {opt val} $args {
         if {![info exists o($opt)]} {
             return -code error -errorcode {TKUTILS TKUTABLELIST OPTION} \
@@ -120,6 +122,7 @@ proc ::tkutils::tkutablelist::widget {path args} {
         -columns $spec \
         -stretch $o(-stretch) -titlecolumns $o(-titlecolumns) \
         -selectmode $o(-selectmode) \
+        -exportselection $o(-exportselection) \
         -editendcommand [list ::tkutils::tkutablelist::_editEnd $path] \
         -yscrollcommand [list $path.ys set] \
         -xscrollcommand [list ::tkutils::tkutablelist::_xscroll $path]
@@ -508,4 +511,4 @@ proc ::tkutils::tkutablelist::saveCsv {path file args} {
     return $file
 }
 
-package provide tkutils::tkutablelist 0.3
+package provide tkutils::tkutablelist 0.4

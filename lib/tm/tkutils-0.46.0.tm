@@ -15,7 +15,7 @@ package require tkutils::tkucal 0.1
 package require tkutils::tkueditor 0.2
 package require tkutils::tkuzip 0.1
 package require tkutils::tkufuzzy 0.1
-package require tkutils::tkudialog 0.2
+package require tkutils::tkudialog 0.3
 package require tkutils::tkubase64 0.1
 package require tkutils::tkustrings 0.1
 package require tkutils::tkutoolbar 0.2
@@ -48,6 +48,8 @@ package require tkutils::tkuballoon 0.1
 package require tkutils::tkubind 0.1
 package require tkutils::tkucontextmenu 0.1
 package require tkutils::tkuwheel 0.2
+package require tkutils::tkuunits 0.1
+package require tkutils::tkugeometry 0.1
 package require tkutils::tkuwinico 0.1
 
 # Explorer-framework widgets: provider-backed file list, breadcrumb path bar,
@@ -56,6 +58,7 @@ package require tkutils::tkufilelist 0.2
 package require tkutils::tkupath 0.2
 package require tkutils::tkupreview 0.1
 package require tkutils::tkutab 0.2
+package require tkutils::tkufiledialog 0.1
 
 # application launcher (menu / list, cross-platform via tuopen)
 package require tkutils::tkulauncher 0.2
@@ -66,4 +69,4 @@ package require tkutils::tkucalc 0.2
 # clickable calendar widget
 package require tkutils::tkucalendar 0.2
 
-package provide tkutils 0.44.0
+package provide tkutils 0.46.0

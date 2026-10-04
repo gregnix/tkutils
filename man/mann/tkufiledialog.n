@@ -1,0 +1,40 @@
+'\"
+'\" tkufiledialog.n -- modal file/directory dialog
+.TH TKUFILEDIALOG n "0.1" "tkutils" "Tkutils Widgets"
+.SH NAME
+tkutils::tkufiledialog \- modal open/save/directory chooser
+.SH SYNOPSIS
+.nf
+\fBpackage require tkutils::tkufiledialog\fR ?0.1?
+.sp
+\fB::tkutils::tkufiledialog::open\fR ?\fIoptions\fR?
+\fB::tkutils::tkufiledialog::save\fR ?\fIoptions\fR?
+\fB::tkutils::tkufiledialog::directory\fR ?\fIoptions\fR?
+.fi
+.SH DESCRIPTION
+Provider-backed modal picker built from \fBtkupath\fR and \fBtkufilelist\fR.
+Returns a path (or a list with \fB\-multiple\fR), or empty if cancelled.
+.SH OPTIONS
+.TP
+\fB\-parent\fR \fIw\fR
+Transient parent toplevel.
+.TP
+\fB\-title\fR \fIt\fR
+Window title.
+.TP
+\fB\-initialdir\fR \fId\fR
+Start directory.
+.TP
+\fB\-provider\fR \fIp\fR
+A \fBtuprovider\fR (default: local).
+.TP
+\fB\-filetypes\fR \fIlist\fR
+As for \fBtk_getOpenFile\fR; first extension drives the list filter.
+.TP
+\fB\-multiple\fR \fI0|1\fR
+Open only: return a list of paths.
+.TP
+\fB\-initialfile\fR \fIname\fR / \fB\-defaultextension\fR \fI.ext\fR
+Save only.
+.SH SEE ALSO
+tkufilelist(n), tkupath(n), tkudialog(n)

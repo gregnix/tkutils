@@ -14,16 +14,18 @@
 | `tkutils::tkudavaccount` | 0.1 | a DAV account form (URL / user / password / type) with a Test-connection button | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkudavaccount-0.1.tm` | tclutils::tudav |
 | `tkutils::tkudavbrowser` | 0.2 | a read-only navigation pane for a CalDAV/CardDAV server, built on tclutils::tudav. | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkudavbrowser-0.2.tm` | tkutils::tkuopts,tclutils::tudav,tclutils::common |
 | `tkutils::tkudhash` | 0.1 | image-file front end for the perceptual dHash | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkudhash-0.1.tm` | tclutils::tudhash,Img |
-| `tkutils::tkudialog` | 0.2 | dialogs with copyable message text | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkudialog-0.2.tm` | tkutils::tkuform |
+| `tkutils::tkudialog` | 0.3 | dialogs with copyable message text | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkudialog-0.3.tm` | tkutils::tkuform |
 | `tkutils::tkudiff` | 0.1 | line diff viewer | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkudiff-0.1.tm` | tclutils::tudiff,tclutils::common |
 | `tkutils::tkueditor` | 0.2 | text editor widget (v0.2 PROTOTYPE) | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkueditor-0.2.tm` | tclutils::tuiconv,tkutils::tkuicon,tkutils::tkutoolbar,tkutils::tkustatus |
 | `tkutils::tkufilelist` | 0.2 | a detail file list, filled from a storage provider | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkufilelist-0.2.tm` | tkutils::tkuopts,tkutils::tkutablelist,tclutils::tuprovider |
+| `tkutils::tkufiledialog` | 0.1 | modal open/save/directory chooser | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkufiledialog-0.1.tm` | tkutils::tkufilelist,tkutils::tkupath,tclutils::tuprovider |
 | `tkutils::tkufiletree` | 0.2 | a lazy file-system tree built on tkutils::tkutree. | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkufiletree-0.2.tm` | tkutils::tkuopts,tkutils::tkutree |
 | `tkutils::tkufilterbar` | 0.2 | a per-column filter bar: one small entry per column, each typing a substring that the consumer ANDs together. | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkufilterbar-0.2.tm` | tkutils::tkuopts |
 | `tkutils::tkuform` | 0.1 | declarative form widget | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuform-0.1.tm` |  |
 | `tkutils::tkufuzzy` | 0.1 | incremental fuzzy filter | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkufuzzy-0.1.tm` | tclutils::tufuzzy |
 | `tkutils::tkuhexedit` | 0.1 | small Tk hex viewer/editor | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuhexedit-0.1.tm` | tclutils::tubin,tclutils::tuhexdump,tclutils::common |
 | `tkutils::tkuical` | 0.2 | iCalendar event viewer/editor | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuical-0.2.tm` | tkutils::tkuopts,tclutils::tuical |
+| `tkutils::tkugeometry` | 0.1 | save and restore a toplevel's size, position and zoom state, kept on the screen | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkugeometry-0.1.tm` | tclutils::tusettings |
 | `tkutils::tkuicon` | 0.1 | SVG icon loader / generator for toolbars (from uitoolkit) | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuicon-0.1.tm` | tksvg,tclutils::tusvg |
 | `tkutils::tkuimage` | 0.2 | image helpers and a scrollable/zoomable viewer widget for Tk | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuimage-0.2.tm` | imgtools |
 | `tkutils::tkuini` | 0.2 | INI viewer | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuini-0.2.tm` | tkutils::tkuopts,tclutils::tuini |
@@ -51,7 +53,7 @@
 | `tkutils::tkustatus` | 0.2 | status bar widget | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkustatus-0.2.tm` | tkutils::tkuopts |
 | `tkutils::tkustrings` | 0.1 | printable strings viewer | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkustrings-0.1.tm` | tclutils::tustrings |
 | `tkutils::tkutab` | 0.2 | a tabbed container with a "+" button and closeable tabs | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkutab-0.2.tm` | tkutils::tkuopts |
-| `tkutils::tkutablelist` | 0.3 | multi-column table (OPTIONAL: requires Tablelist) | Tk · tablelist | Y | Y | Y | tkutils | `lib/tm/tkutils/tkutablelist-0.3.tm` | tkutils::tkuopts,tablelist_tile,Tablelist,tclutils::tunum,tclutils::tucsv,tclutils::tunotes |
+| `tkutils::tkutablelist` | 0.4 | multi-column table (OPTIONAL: requires Tablelist) | Tk · tablelist | Y | Y | Y | tkutils | `lib/tm/tkutils/tkutablelist-0.4.tm` | tkutils::tkuopts,tablelist_tile,Tablelist,tclutils::tunum,tclutils::tucsv,tclutils::tunotes |
 | `tkutils::tkutags` | 0.1 | tag editor: tags shown as removable chips plus an input. | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkutags-0.1.tm` |  |
 | `tkutils::tkutical` | 0.3 | month/week calendar widget (OPTIONAL: requires tical) | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkutical-0.3.tm` | tkutils::tkuopts,tical::view::month,tical::view::week,tical::render::canvas |
 | `tkutils::tkutimeentry` | 0.1 | time entry with hour/minute (optional second) spinboxes. | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkutimeentry-0.1.tm` |  |
@@ -66,6 +68,7 @@
 | `tkutils::tkutodo` | 0.2 | a task-list widget for iCalendar VTODO components, built on tclutils::tuical (todos / todoInfo / setProperty). | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkutodo-0.2.tm` | tkutils::tkuopts,tclutils::tuical |
 | `tkutils::tkutoolbar` | 0.2 | toolbar widget (v0.2) | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkutoolbar-0.2.tm` | tkutils::tkuballoon,tkutils::tkuaction |
 | `tkutils::tkutree` | 0.2 | a thin ttk::treeview wrapper for hierarchical data. | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkutree-0.2.tm` | tkutils::tkuopts |
+| `tkutils::tkuunits` | 0.1 | convert screen distances between px, pt, mm, cm and inch | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuunits-0.1.tm` |  |
 | `tkutils::tkuvalidate` | 0.1 | inline validation feedback for input widgets | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuvalidate-0.1.tm` | tkutils::tkuballoon,tclutils::tuvalidate |
 | `tkutils::tkuvcard` | 0.2 | vCard contact viewer | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuvcard-0.2.tm` | tkutils::tkuopts,tclutils::tuvcard,tkutils::tkuimage |
 | `tkutils::tkuwheel` | 0.2 | forward mouse-wheel events to a scrollable target | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuwheel-0.2.tm` |  |

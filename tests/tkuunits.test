@@ -1,0 +1,68 @@
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+set haveTk 1
+if {[catch {package require Tk 8.6-}]} { set haveTk 0 }
+testConstraint haveTk $haveTk
+set here [file dirname [file normalize [info script]]]
+set tmDir [file normalize [file join $here .. lib tm]]
+catch {tcl::tm::path add $tmDir}
+if {[info exists ::env(TKUTILS_TM)]} { catch {tcl::tm::path add $::env(TKUTILS_TM)} }
+if {$haveTk} { package require tkutils::tkuunits; wm withdraw . }
+
+set ns ::tkutils::tkuunits
+# compare floats to 4 decimals
+proc r4 {x} { format %.4f $x }
+
+test tkuunits-1.1 {units} -constraints haveTk -body {
+    ${ns}::units
+} -result {px pt mm cm inch}
+
+test tkuunits-1.2 {toPixels agrees with winfo fpixels} -constraints haveTk -body {
+    list [expr {[r4 [${ns}::toPixels 10 mm]] eq [r4 [winfo fpixels . 10m]]}] \
+         [expr {[r4 [${ns}::toPixels 1 inch]] eq [r4 [winfo fpixels . 1i]]}] \
+         [${ns}::toPixels 7 px]
+} -result {1 1 7.0}
+
+test tkuunits-1.3 {Tk letters and "in" are accepted} -constraints haveTk -body {
+    list [expr {[${ns}::toPixels 2 c] == [${ns}::toPixels 2 cm]}] \
+         [expr {[${ns}::toPixels 1 in] == [${ns}::toPixels 1 i]}]
+} -result {1 1}
+
+test tkuunits-2.1 {fromPixels: one inch is 72 pt, 25.4 mm, 2.54 cm} -constraints haveTk -body {
+    set d [${ns}::fromPixels [winfo fpixels . 1i]]
+    list [r4 [dict get $d inch]] [r4 [dict get $d pt]] \
+         [r4 [dict get $d mm]] [r4 [dict get $d cm]]
+} -result {1.0000 72.0000 25.4000 2.5400}
+
+test tkuunits-3.1 {convert: unit to unit, independent of tk scaling} -constraints haveTk -body {
+    set old [tk scaling]
+    set r {}
+    foreach s {1.0 2.0} {
+        tk scaling $s
+        lappend r [r4 [${ns}::convert 62 mm cm]] [r4 [${ns}::convert 1 inch pt]]
+    }
+    tk scaling $old
+    set r
+} -result {6.2000 72.0000 6.2000 72.0000}
+
+test tkuunits-3.2 {convert round trip} -constraints haveTk -body {
+    r4 [${ns}::convert [${ns}::convert 12.5 pt mm] mm pt]
+} -result 12.5000
+
+test tkuunits-4.1 {unknown unit} -constraints haveTk -body {
+    catch {${ns}::toPixels 1 furlong} e o
+    list [dict get $o -errorcode] [string match "*px, pt, mm, cm, inch*" $e]
+} -result {{TKUTILS TKUUNITS UNIT} 1}
+
+test tkuunits-4.2 {value must be a number} -constraints haveTk -body {
+    catch {${ns}::toPixels 2c mm} e o
+    dict get $o -errorcode
+} -result {TKUTILS TKUUNITS VALUE}
+
+test tkuunits-4.3 {window must exist} -constraints haveTk -body {
+    catch {${ns}::fromPixels 10 .nope} e o
+    dict get $o -errorcode
+} -result {TKUTILS TKUUNITS WINDOW}
+
+cleanupTests

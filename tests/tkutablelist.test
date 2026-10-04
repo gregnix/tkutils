@@ -214,18 +214,28 @@ test tkutablelist-4.4 {doublecommand fires with the clicked row} -constraints ta
     set w [::tkutils::tkutablelist::widget .t -columns {A B} \
         -doublecommand {apply {{p r} {set ::dblRow $r}}}]
     ::tkutils::tkutablelist::setRows $w {{1 a} {2 b} {3 c}}
-    pack $w; update idletasks
+    pack $w -fill both -expand 1
+    # The rows must be laid out before a y can be mapped to one. update
+    # idletasks alone left the body one pixel high on Windows, the search
+    # found nothing and the fallback y hit row 0.
+    wm deiconify . ; raise .
+    update
+    $w.tbl see 2
+    update
     set body [$w.tbl bodypath]
     # find a body y mapping to data row 2, then drive the bound handler directly
     # (event generate cannot synthesise a Double modifier).
-    set targetY 4
-    for {set yy 0} {$yy < [winfo height $body]} {incr yy 2} {
+    set targetY ""
+    for {set yy 0} {$yy < [winfo height $body]} {incr yy} {
         lassign [tablelist::convEventFields $body 5 $yy] tt xx cy
         if {[$w.tbl containing $cy] == 2} { set targetY $yy; break }
     }
+    if {$targetY eq ""} {
+        return "row 2 not found (body height [winfo height $body])"
+    }
     ::tkutils::tkutablelist::_dblClick $w $body 5 $targetY
     set ::dblRow
-} -result 2
+} -cleanup { catch {destroy .t} } -result 2
 
 test tkutablelist-4.7 {double-click handler is bound on the body tag} -constraints tablelist -body {
     catch {destroy .t}

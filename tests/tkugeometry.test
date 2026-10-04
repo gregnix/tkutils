@@ -1,0 +1,137 @@
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+set haveTk 1
+if {[catch {package require Tk 8.6-}]} { set haveTk 0 }
+testConstraint haveTk $haveTk
+set here [file dirname [file normalize [info script]]]
+set tmDir [file normalize [file join $here .. lib tm]]
+catch {tcl::tm::path add $tmDir}
+if {[info exists ::env(TKUTILS_TM)]} { catch {tcl::tm::path add $::env(TKUTILS_TM)} }
+# locate the tclutils dependency for in-tree/dev use (needs tusettings)
+if {[info exists ::env(TCLUTILS_TM)]} {
+    tcl::tm::path add $::env(TCLUTILS_TM)
+} else {
+    set _tkuRoot [file dirname [file dirname $tmDir]]
+    foreach _c [lsort -decreasing [glob -nocomplain [file join [file dirname $_tkuRoot] tclutils*/lib/tm]]] {
+        tcl::tm::path add $_c
+        break
+    }
+}
+if {$haveTk} { package require tkutils::tkugeometry; wm withdraw . }
+set ns ::tkutils::tkugeometry
+
+# settings go below a private directory
+set base [file join [temporaryDirectory] tkugeometry-[pid]]
+proc fresh {} {
+    global base
+    file delete -force $base
+    set ::env(XDG_CONFIG_HOME) $base
+    set ::tclutils::tusettings::platform unix
+    catch {destroy .g}
+}
+proc mk {{geo ""}} {
+    toplevel .g
+    if {$geo ne ""} { wm geometry .g $geo }
+    update
+}
+proc stored {key field} {
+    ::tclutils::tusettings::value \
+        [::tclutils::tusettings::load demo -name geometry] $key $field
+}
+
+test tkugeometry-1.1 {key of a window} -constraints haveTk -body {
+    list [${ns}::key .] [${ns}::key .dlg] [${ns}::key .a.b]
+} -result {main dlg a.b}
+
+test tkugeometry-1.2 {save writes geometry.ini, not settings.ini} -constraints haveTk -setup {
+    fresh; mk 300x200+40+50
+} -body {
+    ${ns}::save .g demo
+    list [stored g geometry] [stored g zoomed] \
+         [glob -nocomplain -tails -directory [file join $base demo] *]
+} -cleanup { destroy .g } -result {300x200+40+50 0 geometry.ini}
+
+test tkugeometry-1.3 {restore applies the stored geometry} -constraints haveTk -setup {
+    fresh; mk 300x200+40+50; ${ns}::save .g demo; destroy .g; mk
+} -body {
+    set r [${ns}::restore .g demo]
+    update
+    list $r [wm geometry .g]
+} -cleanup { destroy .g } -result {300x200+40+50 300x200+40+50}
+
+test tkugeometry-1.4 {nothing stored: -default, else empty} -constraints haveTk -setup {
+    fresh; mk
+} -body {
+    list [${ns}::restore .g demo] [${ns}::restore .g demo -default 420x310]
+} -cleanup { destroy .g } -result {{} 420x310}
+
+test tkugeometry-2.1 {off-screen position is centred, size kept} -constraints haveTk -setup {
+    fresh
+    ::tclutils::tusettings::save demo {g {geometry 300x200+9000+9000 zoomed 0}} -name geometry
+    mk
+} -body {
+    set r [${ns}::restore .g demo]
+    set sw [winfo screenwidth .g]; set sh [winfo screenheight .g]
+    expr {$r eq "300x200+[expr {($sw-300)/2}]+[expr {($sh-200)/2}]"}
+} -cleanup { destroy .g } -result 1
+
+test tkugeometry-2.2 {window larger than the screen is shrunk} -constraints haveTk -setup {
+    fresh
+    ::tclutils::tusettings::save demo {g {geometry 99999x99999+0+0 zoomed 0}} -name geometry
+    mk
+} -body {
+    lassign [split [lindex [split [${ns}::restore .g demo] +] 0] x] gw gh
+    list [expr {$gw <= [winfo vrootwidth .g]}] [expr {$gh <= [winfo vrootheight .g]}]
+} -cleanup { destroy .g } -result {1 1}
+
+test tkugeometry-2.3 {title bar above the screen counts as off-screen} -constraints haveTk -setup {
+    fresh
+    ::tclutils::tusettings::save demo {g {geometry 300x200+50+-150 zoomed 0}} -name geometry
+    mk
+} -body {
+    expr {[lindex [split [${ns}::restore .g demo] +] end] >= 0}
+} -cleanup { destroy .g } -result 1
+
+test tkugeometry-2.4 {garbage in the file is ignored, -default used} -constraints haveTk -setup {
+    fresh
+    ::tclutils::tusettings::save demo {g {geometry nonsense zoomed 0}} -name geometry
+    mk
+} -body {
+    ${ns}::restore .g demo -default 200x100
+} -cleanup { destroy .g } -result 200x100
+
+test tkugeometry-3.1 {track: restore now, save on destroy} -constraints haveTk -setup {
+    fresh
+    ::tclutils::tusettings::save demo {g {geometry 250x150+30+30 zoomed 0}} -name geometry
+    mk
+} -body {
+    set r [${ns}::track .g demo]
+    update
+    wm geometry .g 260x170+35+45
+    update
+    destroy .g
+    list $r [stored g geometry]
+} -result {250x150+30+30 260x170+35+45}
+
+test tkugeometry-3.2 {track keeps the app's own <Destroy> binding} -constraints haveTk -setup {
+    fresh; mk; set ::hit 0
+    bind .g <Destroy> {if {"%W" eq ".g"} {incr ::hit}}
+} -body {
+    ${ns}::track .g demo -default 200x100
+    update
+    destroy .g
+    # -default gives only a size; the position is the window manager's
+    # choice (+0+0 under Xvfb, centred under a real WM) -- compare the size
+    list $::hit [lindex [split [stored g geometry] +] 0]
+} -result {1 200x100}
+
+test tkugeometry-4.1 {not a toplevel} -constraints haveTk -setup {
+    fresh; mk; frame .g.f
+} -body {
+    catch {${ns}::save .g.f demo} e o
+    dict get $o -errorcode
+} -cleanup { destroy .g } -result {TKUTILS TKUGEOMETRY WINDOW}
+
+file delete -force $base
+cleanupTests

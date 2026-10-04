@@ -1,5 +1,107 @@
 # Changelog
 
+## 0.46.0
+
+Recommended pairing: tclutils 0.64.0 + tkutils 0.46.0 + ctrlutils 0.3
+(`tkdevtools` needs tclutils 0.64.0 for `tustr::graphemes`, `tudate::zones`).
+
+### `tkufiletree`: hidden files on Windows (2026-10-03)
+
+With `-showhidden 1` dot files were listed twice on Windows (`*` matches them
+there too), and the tree failed with `ITEM_EXISTS`. Duplicates are dropped.
+Tests: `tkufiletree-1.7`; `tkulauncher` tests no longer assume `sh` or Unix
+interpreter names.
+
+### `tkdevtools`: package copies and platform probes (2026-10-04)
+
+New tools: "Package shadows" (every copy of a package, a second copy of the
+same version marked; `tupkgfinder` 0.2), "Paths" (file commands and
+`tupath::clean`, Windows and Unix rules), "glob", "Programs" (`auto_execok`,
+PATH, PATHEXT), "Encoding profiles" (strict / replace / tcl8), "Font aliases"
+and "Number format" (`format %.Nf` next to `tunum::format`).
+
+### `tkulauncher`: backslashes for `start` (2026-10-04)
+
+On Windows the program and the `/D` working directory are handed to
+`cmd /c start` with backslashes; `start` read a `/` in them as a switch.
+Tests: `tkulauncher-10.3a`; 8.6 waits for the child up to 10 s; the 20.x
+tests restore `HOME`; `tkutablelist-4.4` lays out the rows before it
+searches for one and says so if it finds none.
+
+### `tkudialog-0.2.tm` removed (2026-10-03)
+
+0.3 is compatible for plain labels, and `package require tkutils::tkudialog 0.2`
+loaded 0.3 anyway. Doc and man list `result`, `getText`, `getDetail`,
+`copyText` again.
+
+### `tests/all.tcl` uses `tclutils::tutestrun` (2026-10-03)
+
+Same behaviour, one copy for all three libraries. Needs tclutils 0.64.0.
+
+### `tkugeometry` 0.1 — remember window geometry (2026-10-03)
+
+`track`, `restore`, `save` over `tusettings` (own file `geometry.ini`). A
+position no longer on the screen is centred. Needs tclutils 0.64.0.
+
+### `tkuunits` 0.1 — screen distances (2026-10-03)
+
+`toPixels`, `fromPixels`, `convert` between px, pt, mm, cm and inch over
+`winfo fpixels`. For label and print previews.
+
+### `tkdevtools` on library functions (2026-10-03)
+
+Tables via `tkutablelist`; graphemes, printable check, zone list, units and
+package sources from `tustr`, `tudate`, `tkuunits`, `tupkgfinder`. New
+"Copy report" (`tuappinfo::buildReport`). Starts under Tcl 9 again
+(`tcl_precision` is unset there).
+
+### `tkufiledialog` 0.1 — open / save / directory (2026-10-02)
+
+Modal chooser on `tkupath` + `tkufilelist` (explorer look). Local provider by
+default; optional `-provider`. API: `open`, `save`, `directory`. Options:
+`-parent`, `-title`, `-initialdir`, `-filetypes`, `-multiple`, `-showhidden`,
+`-initialfile`, `-defaultextension`. First stand — not a full file manager.
+
+### `tkutablelist` 0.4 — default `-exportselection 0` (2026-10-03)
+
+The new default (selection stays when menus take PRIMARY) changes observable
+behaviour for callers that relied on Tk’s usual export. Module version is
+therefore **0.4**; opt in to the old behaviour with `-exportselection 1`.
+`tkutablelist-0.3.tm` is the unchanged 0.3 again. `package require
+tkutils::tkutablelist 0.3` still loads 0.4 (same major 0); only `-exact 0.3`
+gets the old one.
+
+### `tkdevtools`: non-ASCII literals as `\u` escapes (2026-10-03)
+
+`·`, `×`, `—`, `→` showed as `Â·` etc. under Tcl 8.6 with iso8859-1/cp1252
+script encoding.
+
+### Tests / runner (2026-10-03)
+
+- `tkudialog.test` 1.11: `focus -force` + 3 s failsafe (Xvfb without WM).
+- `tkucalc.test` 4.5: `\u00d7` via `[list …]` (script encoding on 8.6).
+- `tkupreview.test`: locate sibling `tclutils` tm tree (needs `tucsv`).
+- `tests/all.tcl`: per-file wall-clock limit (`TKUTILS_TESTGRENZE`, default 120 s).
+
+## 0.45.0
+
+Recommended pairing: tclutils 0.63.0+ + tkutils 0.45.0 + ctrlutils 0.3.
+
+### `tkudialog` 0.3 — keyboard, structured buttons, msgcat (2026-10-02)
+
+- Return / KP_Enter → `-default` (first button if unset); Escape → `-cancel`
+  (No/Cancel when present). Default button uses ttk `-default active`.
+- `-buttons` accepts `Label` or `{id Label}`; `result`/`show` return the **id**
+  (plain labels keep id == label for 0.2 callers).
+- Titles/labels (`OK`, `Yes`, `Copy`, …) via `msgcat` when available.
+- Modal dialogs restore previous focus and grab.
+- `-detailcollapsed`, `-width`, `-maxheight`; `_msgHeight` estimates wrap lines.
+- `confirm` / `input` / `form` use stable ids (`yes`/`no`, `ok`/`cancel`).
+
+### `tkutablelist` 0.3 — `-exportselection` (default 0)
+
+First shipping of the option under the 0.3 number; corrected to **0.4** above.
+
 ## 0.44.0
 
 Recommended pairing: tclutils 0.63.0 + tkutils 0.44.0 + ctrlutils 0.2.

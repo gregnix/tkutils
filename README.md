@@ -1,4 +1,4 @@
-# tkutils 0.44.0
+# tkutils 0.46.0
 
 `tkutils` is a collection of Tcl/Tk GUI widgets that sit on top of the pure-Tcl
 engines in [`tclutils`](https://github.com/gregnix/tclutils). It is intentionally separate from
@@ -15,11 +15,11 @@ engines in [`tclutils`](https://github.com/gregnix/tclutils). It is intentionall
 
 ```bash
 # explicit (recommended for tests/CI)
-export TCLUTILS_TM=/path/to/tclutils-0.63.0/lib/tm
-export TKUTILS_TM=/path/to/tkutils-0.44.0/lib/tm
+export TCLUTILS_TM=/path/to/tclutils-0.64.0/lib/tm
+export TKUTILS_TM=/path/to/tkutils-0.46.0/lib/tm
 
 # or source the bootstrap (adds both libs, finds the highest version)
-tclsh -e 'source /path/to/tkutils-0.44.0/tools/setup.tcl'
+tclsh -e 'source /path/to/tkutils-0.46.0/tools/setup.tcl'
 ```
 
 Then:
@@ -46,6 +46,7 @@ package require tkutils::tkunotes   ;# or a single widget
 | `tkuzip`     | tuzip     | ZIP member tree |
 | `tkufuzzy`   | tufuzzy   | Fuzzy search / best matches |
 | `tkudialog`  | Tk        | message / confirm / warning / **form** dialogs |
+| `tkufiledialog` | tuprovider | Modal open / save / directory chooser |
 | `tkubase64`  | tubase64  | Encode/decode panes |
 | `tkustrings` | tustrings | Printable strings from binaries |
 | `tkutoolbar` | Tk (tkuballoon) | Toolbar: buttons/toggles/dropdowns, icon/text/both, tooltips, shortcuts, optional action binding |
@@ -85,6 +86,8 @@ package require tkutils::tkunotes   ;# or a single widget
 | `tkucalendar` | —          | Clickable month calendar with navigation |
 | `tkudhash`    | tudhash    | Image-file front end for the perceptual dHash |
 | `tkuwheel`    | —          | Forward mouse-wheel events to a scrollable target |
+| `tkuunits`    | —          | Convert screen distances between px, pt, mm, cm and inch |
+| `tkugeometry` | tusettings | Remember window size, position and zoom state; kept on the screen |
 | `tkuwinico`   | tuico      | Build Windows `.ico` files from Tk images: each size rendered from SVG, or scaled from a photo; transparency preserved. Pure Tcl engine, hence in the umbrella; the SVG path needs Tk 9 or tksvg |
 
 `tkuical`, `tkuldif`, `tkuini`, `tkuvcard` accept `-editable 0` for a read-only view.
@@ -124,7 +127,7 @@ Each `tests/*.test` runs in its own interpreter; `tests/all.tcl` runs the suite.
 several widgets against their engines.
 
 ```bash
-export TCLUTILS_TM=/path/to/tclutils-0.63.0/lib/tm
+export TCLUTILS_TM=/path/to/tclutils-0.64.0/lib/tm
 xvfb-run -a tclsh tests/all.tcl       # GUI tests need a display (Xvfb)
 ```
 
@@ -133,10 +136,10 @@ skip cleanly when those packages are absent.
 
 ## Dependency summary
 
-`tkutils 0.44.0` pairs with `tclutils 0.63.0`. The editing helpers
+`tkutils 0.46.0` pairs with `tclutils 0.64.0`. The editing helpers
 (`tkuini`/`tkuvcard`/`tkuical`/`tkuldif`) and `tkunotes` subtree/tags build on the
 `tclutils` engines, so a current `tclutils` is required alongside. The recommended
-pairing is **tclutils 0.63.0 + tkutils 0.44.0**.
+pairing is **tclutils 0.64.0 + tkutils 0.46.0** (+ **ctrlutils 0.3**).
 
 `tkuwinico` in particular needs **tclutils 0.61.0 or newer**: it builds on
 `tclutils::tuico`, which arrived with that release. An older tclutils on the

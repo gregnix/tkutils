@@ -289,6 +289,9 @@ proc ::tkutils::tkufiletree::_scan {path dir} {
     set all [glob -nocomplain -directory $dir -- *]
     if {$state($path,hidden)} {
         catch {lappend all {*}[glob -nocomplain -directory $dir -- .*]}
+        # On Windows "*" already matches dot files: drop the duplicates,
+        # otherwise the treeview raises ITEM_EXISTS for their ids.
+        set all [lsort -unique $all]
     }
     set dirs {}
     set files {}

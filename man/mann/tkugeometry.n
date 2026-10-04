@@ -1,0 +1,25 @@
+.TH tkugeometry n 0.1 tkutils
+.SH tkutils::tkugeometry
+.PP
+Remember a toplevel's size, position and zoom state between runs. Stored per app through \fBtclutils::tusettings\fR in its own file (\fB<config dir>/<app>/geometry.ini\fR), so an app that saves its own settings dict at exit cannot overwrite it. Pure Tk + tclutils, Tcl/Tk 8.6+ / 9.x.
+.SS Commands
+.CS
+::tkutils::tkugeometry::track   w app ?-key k? ?-default geo?  ;# restore now, save on destroy
+::tkutils::tkugeometry::restore w app ?-key k? ?-default geo?  ;# -> geometry applied, "" if none
+::tkutils::tkugeometry::save    w app ?-key k?                 ;# -> geometry stored
+::tkutils::tkugeometry::key     w                              ;# "." -> main, ".dlg" -> dlg
+.CE
+.CS
+tkugeometry::track . etikettendruck -default 900x650
+tkugeometry::track .vorschau etikettendruck
+.CE
+.PP
+\fBtrack\fR puts an own bindtag in front of the window's bindtags, so the app's \fB<Destroy>\fR bindings stay as they are. \fB\-default\fR (a size such as \fB800x600\fR or a full geometry) is used when nothing is stored yet.
+.SS "Kept on the screen"
+.PP
+A stored position that is no longer on the screen \-\- the second monitor is gone, the resolution shrank \-\- is not used: the window keeps its size, shrunk to the screen if needed, and is centred. "On the screen" means the top strip of the window (title bar region) lies within Tk's virtual root: on X11 all monitors as one rectangle, on Windows the virtual desktop. A gap between monitors of different size is not seen.
+.PP
+The zoom state is stored as \fBzoomed\fR and restored where Tk has it (\fBwm state zoomed\fR on Windows/macOS, \fBwm attributes \-zoomed\fR on X11).
+.SS Errors
+.PP
+\fB{TKUTILS TKUGEOMETRY WINDOW}\fR (not an existing toplevel); bad app names and unreadable files raise the \fBtusettings\fR errors.

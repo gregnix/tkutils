@@ -96,12 +96,29 @@ test tkudialog-1.9 {input cancelled returns empty} -constraints haveTk -body {
     ::tkutils::tkudialog::input -message "Name?"
 } -result {}
 
+test tkudialog-1.10 {structured buttons return id not label} -constraints haveTk -body {
+    catch {destroy .ds}
+    after 50 { .ds.btns.b0 invoke }
+    ::tkutils::tkudialog::show .ds -message q \
+        -buttons {{overwrite Überschreiben} {cancel Abbrechen}} \
+        -default overwrite -cancel cancel
+} -result overwrite
+
+test tkudialog-1.11 {Return activates default button} -constraints haveTk -body {
+    catch {destroy .dr}
+    # without a window manager (Xvfb) the toplevel never gets focus and the
+    # key event is dropped -- force focus; the second timer turns a hang into a failure
+    after 80 { focus -force .dr; event generate .dr <Return> }
+    after 3000 { catch {::tkutils::tkudialog::choose .dr TIMEOUT} }
+    ::tkutils::tkudialog::show .dr -message q -buttons {OK Cancel} -default OK
+} -result OK
+
 test tkudialog-3.1 {form dialog returns values dict on OK} -constraints haveTk -body {
     after 200 {
         set ::DLG ""
         foreach t [winfo children .] { if {[winfo exists $t.form]} { set ::DLG $t; break } }
         ::tkutils::tkuform::setField $::DLG.form name "Zaphod"
-        ::tkutils::tkudialog::choose $::DLG OK
+        ::tkutils::tkudialog::choose $::DLG ok
     }
     ::tkutils::tkudialog::form {{name name label "Name" default ""}} -title "Test"
 } -result {name Zaphod}
@@ -110,7 +127,7 @@ test tkudialog-3.2 {form dialog returns empty on Cancel} -constraints haveTk -bo
     after 200 {
         set ::DLG ""
         foreach t [winfo children .] { if {[winfo exists $t.form]} { set ::DLG $t; break } }
-        ::tkutils::tkudialog::choose $::DLG Cancel
+        ::tkutils::tkudialog::choose $::DLG cancel
     }
     ::tkutils::tkudialog::form {{name name label "Name" default "x"}}
 } -result {}

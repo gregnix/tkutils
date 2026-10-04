@@ -158,7 +158,7 @@ test tkucalc-4.4 {the history panel lists entries} -constraints tk -body {
 
 test tkucalc-4.5 {reusing a history line loads its result} -constraints tk -body {
     ${ns}::widget .h3 -history 1
-    foreach k {6 × 7 =} { ${ns}::_press .h3 $k }     ;# 42
+    foreach k [list 6 \u00d7 7 =] { ${ns}::_press .h3 $k }     ;# 42
     ${ns}::clear .h3
     .h3.hist.list selection set 0
     ${ns}::_histReuse .h3

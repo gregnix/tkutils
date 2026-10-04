@@ -533,8 +533,8 @@ proc ::tkutils::tkulauncher::_activate {path entry} {
 proc ::tkutils::tkulauncher::_terminalCommand {argv dir platform desktop} {
     if {$platform eq "windows"} {
         set pre [list cmd.exe /c start ""]
-        if {$dir ne ""} { lappend pre /D $dir }
-        return [concat $pre [list cmd.exe /k] $argv]
+        if {$dir ne ""} { lappend pre /D [_winPath $dir] }
+        return [concat $pre [list cmd.exe /k] [_winArgv $argv]]
     }
     set term [lindex [dict get \
         [resolveSystem terminal -platform unix -os Linux -desktop $desktop] argv] 0]
@@ -551,10 +551,26 @@ proc ::tkutils::tkulauncher::_terminalCommand {argv dir platform desktop} {
 proc ::tkutils::tkulauncher::_execCommand {argv dir platform} {
     if {$platform eq "windows"} {
         set pre [list cmd.exe /c start ""]
-        if {$dir ne ""} { lappend pre /D $dir }
-        return [concat $pre $argv]
+        if {$dir ne ""} { lappend pre /D [_winPath $dir] }
+        return [concat $pre [_winArgv $argv]]
     }
     return $argv
+}
+
+# cmd.exe and start read "/" as the start of a switch: give them backslashes.
+# Explicit mapping rather than file nativename, so the result does not depend
+# on the platform the command is built on.
+proc ::tkutils::tkulauncher::_winPath {p} {
+    return [string map {/ \\} $p]
+}
+
+# The program (first word) as a Windows path; its arguments stay as they are
+# (they may be URLs or options).
+proc ::tkutils::tkulauncher::_winArgv {argv} {
+    if {[llength $argv] == 0} { return $argv }
+    set prog [lindex $argv 0]
+    if {![string match *://* $prog]} { set prog [_winPath $prog] }
+    return [lreplace $argv 0 0 $prog]
 }
 
 proc ::tkutils::tkulauncher::_perform {act} {

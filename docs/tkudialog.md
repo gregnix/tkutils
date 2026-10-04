@@ -2,30 +2,36 @@
 
 Dialogs whose **message text is selectable and copyable** (Ctrl-C or the Copy
 button) -- unlike `tk_messageBox`. A generic, extensible builder plus ready-made
-variants. Pure Tk; no tclutils engine required.
+variants. Pure Tk; no tclutils engine required. **0.3** adds keyboard defaults,
+structured button ids, optional `msgcat`, and focus/grab restore.
 
 ## Generic / extensible
 ```tcl
 # non-modal toplevel (embed or drive yourself)
 ::tkutils::tkudialog::build  $win ?-title t? ?-message m? ?-icon info|warning|error|question? \
-                                 ?-detail d? ?-buttons {labels...}? ?-entry 0|1? ?-initial s? \
-                                 ?-parent w?
-# modal: builds, grabs, waits, returns the clicked button label
+                                 ?-detail d? ?-buttons {…}? ?-default id? ?-cancel id? \
+                                 ?-entry 0|1? ?-initial s? ?-parent w? \
+                                 ?-detailcollapsed 0|1? ?-width 48? ?-maxheight 20?
+# modal: builds, grabs, waits, returns the button **id**
 ::tkutils::tkudialog::show    $win ?same options?
-::tkutils::tkudialog::getText $win          ;# message text
-::tkutils::tkudialog::getDetail $win
-::tkutils::tkudialog::result  $win
-::tkutils::tkudialog::copyText $win          ;# copies message (+detail), returns it
-::tkutils::tkudialog::choose  $win label     ;# pick a button programmatically
+::tkutils::tkudialog::choose  $win id          ;# pick a button programmatically
+::tkutils::tkudialog::result  $win             ;# chosen id, "" while open
+::tkutils::tkudialog::getText   $win           ;# message text
+::tkutils::tkudialog::getDetail $win           ;# detail text
+::tkutils::tkudialog::copyText  $win           ;# message (+ detail) to the clipboard, returns it
 ```
+
+`-buttons` items are either `Label` (id equals label, 0.2-compatible) or
+`{id Label}`. Return activates `-default` (first button if unset); Escape
+activates `-cancel` (No/Cancel when present).
 
 ## Ready-made variants
 ```tcl
-::tkutils::tkudialog::showInfo    message ?options?   ;# returns OK
+::tkutils::tkudialog::showInfo    message ?options?   ;# id ok
 ::tkutils::tkudialog::showWarning message ?options?
-::tkutils::tkudialog::showError   message ?-detail d?
-::tkutils::tkudialog::confirm     message ?options?   ;# 1 for Yes, else 0
-::tkutils::tkudialog::input       ?-title t? ?-message m? ?-initial s? ?-parent w?   ;# entered text or ""
+::tkutils::tkudialog::showError   message ?-detail d? ;# detail collapsed by default
+::tkutils::tkudialog::confirm     message ?options?   ;# 1 for yes, else 0
+::tkutils::tkudialog::input       ?-title t? ?-message m? ?-initial s? ?-parent w?
 ```
 
 Extend by passing your own `-buttons` and `-detail`, or build a non-modal dialog

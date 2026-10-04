@@ -1,0 +1,105 @@
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+
+set haveTk [expr {![catch {package require Tk}]}]
+if {$haveTk} { catch {wm withdraw .} }
+
+set ok 0
+set ::loadErr ""
+if {$haveTk} {
+    set here [file dirname [file normalize [info script]]]
+    set tmDir [file normalize [file join $here .. lib tm]]
+    catch {tcl::tm::path add $tmDir}
+    if {[info exists ::env(TKUTILS_TM)]}  { catch {tcl::tm::path add $::env(TKUTILS_TM)} }
+    if {[info exists ::env(TCLUTILS_TM)]} {
+        catch {tcl::tm::path add $::env(TCLUTILS_TM)}
+    } else {
+        set _tkuRoot [file dirname [file dirname $tmDir]]
+        foreach _c [lsort -decreasing \
+                [glob -nocomplain [file join [file dirname $_tkuRoot] tclutils*/lib/tm]]] {
+            tcl::tm::path add $_c
+            break
+        }
+    }
+    if {![catch {package require tkutils::tkufiledialog} ::loadErr]
+     && ![catch {package require tclutils::tuprovider} ::loadErr]} {
+        set ok 1
+        set ::loadErr ""
+    }
+}
+testConstraint tk $ok
+testConstraint haveTk $haveTk
+
+test tkufiledialog-0.0 {the module loads when Tk is available} -constraints haveTk -body {
+    set ::loadErr
+} -result {}
+
+set ns ::tkutils::tkufiledialog
+set dir [makeDirectory fd]
+set fh [open [file join $dir a.txt] w]; puts $fh hi; close $fh
+set fh [open [file join $dir b.log] w]; puts $fh x; close $fh
+makeDirectory sub $dir
+
+test tkufiledialog-1.1 {open returns selected file path} -constraints tk -body {
+    after 80 {
+        set w ""
+        foreach t [winfo children .] {
+            if {[string match .tkufiledialog* $t]} { set w $t; break }
+        }
+        if {$w eq ""} return
+        ::tkutils::tkufilelist::setDir $w.list $::dir
+        update idletasks
+        # select a.txt via name field
+        $w.name delete 0 end
+        $w.name insert 0 a.txt
+        ::tkutils::tkufiledialog::_finishOk $w
+    }
+    set r [${ns}::open -parent . -initialdir $::dir -title OpenTest]
+    expr {$r eq [file normalize [file join $::dir a.txt]]}
+} -result 1
+
+test tkufiledialog-1.2 {cancel returns empty} -constraints tk -body {
+    after 80 {
+        set w ""
+        foreach t [winfo children .] {
+            if {[string match .tkufiledialog* $t]} { set w $t; break }
+        }
+        if {$w ne ""} { ::tkutils::tkufiledialog::_choose $w cancel }
+    }
+    ${ns}::open -parent . -initialdir $::dir
+} -result {}
+
+test tkufiledialog-1.3 {directory returns current folder} -constraints tk -body {
+    after 80 {
+        set w ""
+        foreach t [winfo children .] {
+            if {[string match .tkufiledialog* $t]} { set w $t; break }
+        }
+        if {$w ne ""} { ::tkutils::tkufiledialog::_finishOk $w }
+    }
+    set r [${ns}::directory -parent . -initialdir $::dir]
+    expr {$r eq [file normalize $::dir]}
+} -result 1
+
+test tkufiledialog-1.4 {save appends defaultextension} -constraints tk -body {
+    after 80 {
+        set w ""
+        foreach t [winfo children .] {
+            if {[string match .tkufiledialog* $t]} { set w $t; break }
+        }
+        if {$w eq ""} return
+        $w.name delete 0 end
+        $w.name insert 0 neu
+        ::tkutils::tkufiledialog::_finishOk $w
+    }
+    set r [${ns}::save -parent . -initialdir $::dir -defaultextension .txt]
+    expr {$r eq [file normalize [file join $::dir neu.txt]]}
+} -result 1
+
+test tkufiledialog-1.5 {unknown option names the known ones} -constraints tk -body {
+    catch {${ns}::open -titel x} m o
+    list [dict get $o -errorcode] [string match "*Known:*-title*" $m]
+} -result {{TKUTILS TKUFILEDIALOG OPTION -titel} 1}
+
+cleanupTests
