@@ -1,4 +1,4 @@
-.TH tkupreview n 0.1 tkutils
+.TH tkupreview n 0.2 tkutils
 .SH tkutils::tkupreview
 .PP
 A content preview widget. \fBPolicy\-free by design\fR: it knows how to \fIdisplay\fR a range of content kinds, but nothing about file types, extensions, providers, or where the content comes from. The caller decides what to show; the widget just shows it. That split keeps it reusable \-\- a file manager, a diff tool, a help browser can all use it, with the file\-type\-to\-preview\-kind mapping living in the application, not here. Tk 8.6+ and 9.x.
@@ -67,6 +67,17 @@ pack .pv -fill both -expand 1
 .SS "The policy\-free split"
 .PP
 The widget never inspects a file name or asks a provider anything. It receives already\-decoded content (or a file path for the binary kinds) and a title, and displays it. Deciding that \fB*.md\fR means markdown, or reading bytes from a ZIP and decoding UTF\-8, is the application's job. This is what lets the same widget serve very different applications unchanged.
+.SS Language
+.PP
+Messages the widget writes itself ("Image preview unavailable.", "Cannot show PDF: ...") go through \fBmsgcat\fR when it is loaded. An application in another language sets them in the \fB::tkutils\fR namespace (msgcat also searches parent namespaces), e.g. in the root locale so they apply on any system:
+.CS
+namespace eval ::tkutils {
+    ::msgcat::mcset {} "Image preview unavailable." "Bildvorschau nicht verfügbar."
+    ::msgcat::mcset {} "Cannot show PDF:\n%s" "PDF lässt sich nicht anzeigen:\n%s"
+}
+.CE
+.PP
+Without a catalog the texts stay English. Since 0.2.
 .SS "See also"
 .PP
-\fBtkumdview\fR, \fBtkujson\fR, \fBtkucsv\fR, \fBtkusqlite\fR, \fBtkuimage\fR
+\fBtkumdview\fR, \fBtkujson\fR, \fBtkucsv\fR, \fBtkutablelist\fR, \fBtkusqlite\fR, \fBtkuimage\fR

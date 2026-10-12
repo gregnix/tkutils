@@ -1,4 +1,4 @@
-.TH tkupath n 0.2 tkutils
+.TH tkupath n 0.3 tkutils
 .SH tkutils::tkupath
 .PP
 A breadcrumb path bar. Shows a path as a row of clickable segments: \fB/home/greg/docs\fR becomes \fB[/] [home] [greg] [docs]\fR. Clicking a segment fires a callback with the path up to and including that segment, so a file manager can navigate to any ancestor in one click. Tk 8.6+ and 9.x.
@@ -25,6 +25,17 @@ pack .bar -fill x
 .CE
 .PP
 Clicking \fBgreg\fR fires the callback with \fB/home/greg\fR; the caller decides what navigation means (change a directory listing, re\-root a tree) and typically calls \fBsetPath\fR again to reflect the new location.
+.SS "Windows paths"
+.PP
+A drive path shows the drive as the first segment, a UNC path the share; backslashes count as \fB/\fR. The targets are real paths:
+.TS
+l l l.
+path	segments	targets
+\fBS:/gregor/daten\fR	\fBS:\fR \fBgregor\fR \fBdaten\fR	\fBS:/\fR \fBS:/gregor\fR \fBS:/gregor/daten\fR
+\fB//srv/share/x\fR	\fB//srv/share\fR \fBx\fR	\fB//srv/share/\fR \fB//srv/share/x\fR
+.TE
+.PP
+Up to 0.2 the root \fB/\fR was put in front of every target (\fB/S:/gregor\fR), which Windows reads as a path on the current drive. Since 0.3.
 .SS "See also"
 .PP
 \fBtkufiletree\fR, \fBtkufilelist\fR, \fBtkutab\fR

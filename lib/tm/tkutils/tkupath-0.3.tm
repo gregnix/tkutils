@@ -10,6 +10,13 @@
 # does not touch any filesystem, so it works for local paths, ZIP paths, DAV
 # hrefs -- whatever the provider uses, as long as "/" is the separator.
 #
+# Windows paths (0.3): a drive path S:/gregor/daten becomes [S:] [gregor]
+# [daten] and a UNC path //server/share/x becomes [//server/share] [x]; the
+# first segment navigates to the drive or share root (S:/, //server/share/).
+# Up to 0.2 the leading "/" was glued in front of every target, so clicking
+# "gregor" sent "/S:/gregor" -- on Windows a path on the CURRENT drive, the
+# host ended up on C:. Backslashes are taken as "/".
+#
 #   tkupath::widget .pb -onnavigate {apply {p { puts "go $p" }}}
 #   tkupath::setPath .pb /home/greg/docs
 #   tkupath::getPath .pb            -> /home/greg/docs
@@ -63,16 +70,17 @@ proc ::tkutils::tkupath::_rebuild {path} {
     variable state
     foreach w [winfo children $path] { destroy $w }
 
-    set p $state($path,path)
+    lassign [_root [string map {\\ /} $state($path,path)]] rootText rootTarget rest
+    if {$rootText eq ""} { set rootText $state($path,root) }
     # Leading root segment.
-    ttk::button $path.seg0 -style Toolbutton -text $state($path,root) \
-        -command [list ::tkutils::tkupath::_go $path "/"]
+    ttk::button $path.seg0 -style Toolbutton -text $rootText \
+        -command [list ::tkutils::tkupath::_go $path $rootTarget]
     pack $path.seg0 -side left
 
     # Remaining segments; accumulate the path as we go.
-    set acc ""
+    set acc [string trimright $rootTarget /]
     set i 0
-    foreach part [split [string trim $p /] /] {
+    foreach part [split [string trim $rest /] /] {
         if {$part eq ""} continue
         incr i
         append acc "/$part"
@@ -85,6 +93,20 @@ proc ::tkutils::tkupath::_rebuild {path} {
         pack $path.seg$i -side left
     }
     return
+}
+
+# Split off the root: {text target rest}. text "" means the -rootlabel.
+#   /home/greg       -> {"" / home/greg}
+#   S:/gregor/daten  -> {S: S:/ gregor/daten}      (also "S:" alone)
+#   //srv/share/x    -> {//srv/share //srv/share/ x}
+proc ::tkutils::tkupath::_root {p} {
+    if {[regexp {^([A-Za-z]:)(/.*)?$} $p -> drive rest]} {
+        return [list $drive $drive/ $rest]
+    }
+    if {[regexp {^(//[^/]+/[^/]+)(/.*)?$} $p -> share rest]} {
+        return [list $share $share/ $rest]
+    }
+    return [list "" / $p]
 }
 
 proc ::tkutils::tkupath::_go {path target} {
@@ -104,4 +126,4 @@ proc ::tkutils::tkupath::_cleanup {path w} {
     return
 }
 
-package provide tkutils::tkupath 0.2
+package provide tkutils::tkupath 0.3

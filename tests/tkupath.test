@@ -65,4 +65,56 @@ test tkupath-1.5 {setting a new path replaces the old segments} -constraints tk 
     set r
 } -result /x
 
+# Windows paths (0.3): the segments navigate to real paths, not "/S:/..."
+proc tkupathTargets {w} {
+    set out {}
+    foreach c [winfo children $w] {
+        if {[catch {$c cget -command} cmd] || $cmd eq ""} continue
+        lappend out [list [$c cget -text] [lindex $cmd end]]
+    }
+    return $out
+}
+
+test tkupath-2.1 {drive path: segments and targets} -constraints tk -body {
+    ${ns}::widget .p21
+    ${ns}::setPath .p21 S:/gregor/daten
+    set r [tkupathTargets .p21]
+    destroy .p21
+    set r
+} -result {{S: S:/} {gregor S:/gregor} {daten S:/gregor/daten}}
+
+test tkupath-2.2 {clicking a drive segment navigates on that drive} -constraints tk -body {
+    set ::nav ""
+    ${ns}::widget .p22 -onnavigate {apply {p {set ::nav $p}}}
+    ${ns}::setPath .p22 S:/gregor/daten
+    .p22.seg1 invoke
+    set r [list $::nav [${ns}::getPath .p22]]
+    destroy .p22
+    set r
+} -result {S:/gregor S:/gregor}
+
+test tkupath-2.3 {UNC path and backslashes} -constraints tk -body {
+    ${ns}::widget .p23
+    ${ns}::setPath .p23 {\\srv\share\x}
+    set r [tkupathTargets .p23]
+    destroy .p23
+    set r
+} -result {{//srv/share //srv/share/} {x //srv/share/x}}
+
+test tkupath-2.4 {Unix paths unchanged, root label kept} -constraints tk -body {
+    ${ns}::widget .p24 -rootlabel Wurzel
+    ${ns}::setPath .p24 /home/greg
+    set r [tkupathTargets .p24]
+    destroy .p24
+    set r
+} -result {{Wurzel /} {home /home} {greg /home/greg}}
+
+test tkupath-2.5 {drive root alone} -constraints tk -body {
+    ${ns}::widget .p25
+    ${ns}::setPath .p25 C:/
+    set r [tkupathTargets .p25]
+    destroy .p25
+    set r
+} -result {{C: C:/}}
+
 cleanupTests

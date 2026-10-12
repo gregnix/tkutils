@@ -5,6 +5,20 @@
 Recommended pairing: tclutils 0.64.0 + tkutils 0.46.0 + ctrlutils 0.3
 (`tkdevtools` needs tclutils 0.64.0 for `tustr::graphemes`, `tudate::zones`).
 
+### `tkupath` 0.3: drive and UNC paths (2026-10-07)
+
+On Windows the breadcrumb of `S:/gregor/daten` read `/ > S: > gregor > daten`
+and clicking `gregor` sent `/S:/gregor` -- a path on the current drive, so a
+file manager landed on `C:`. The drive (or `//server/share`) is now the first
+segment and every target a real path (`S:/`, `S:/gregor`); backslashes count
+as `/`. Unix paths are unchanged. Tests `tkupath-2.1` to `2.5`.
+
+### `tkupreview` 0.2: texts through msgcat (2026-10-07)
+
+The messages the widget writes itself (preview unavailable, cannot open,
+render failed) go through `msgcat` when loaded, like `tkudialog` 0.3. An
+application sets its language in `::tkutils`. Test `tkupreview-2.1`.
+
 ### `tkufiletree`: hidden files on Windows (2026-10-03)
 
 With `-showhidden 1` dot files were listed twice on Windows (`*` matches them

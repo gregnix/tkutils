@@ -23,11 +23,24 @@
 
 package require Tcl 8.6-
 package require Tk 8.6-
+# User-visible texts go through msgcat when available (as in tkudialog 0.3);
+# an application sets its language with ::msgcat::mcset in ::tkutils.
+catch {package require msgcat}
 
 namespace eval ::tkutils {}
 namespace eval ::tkutils::tkupreview {
     namespace export widget text markdown html json xml ini csv hex sqlite image photo pdf message clear kind
     variable state
+}
+
+# _ text ?arg ...? -- user-visible text through msgcat (when loaded), with
+# format-style %s arguments.
+proc ::tkutils::tkupreview::_ {s args} {
+    if {[llength [info commands ::msgcat::mc]]} {
+        return [::msgcat::mc $s {*}$args]
+    }
+    if {[llength $args]} { return [format $s {*}$args] }
+    return $s
 }
 
 proc ::tkutils::tkupreview::widget {path} {
@@ -102,7 +115,7 @@ proc ::tkutils::tkupreview::html {path title content} {
     $path.hdr configure -text $title
     _clear $path
     if {[catch {package require tcllitehtml}]} {
-        $path.hdr configure -text "$title  --  (tcllitehtml not available, showing source)"
+        $path.hdr configure -text "$title  --  [_ {(tcllitehtml not available, showing source)}]"
         text $path $title $content
         return
     }
@@ -125,7 +138,7 @@ proc ::tkutils::tkupreview::html {path title content} {
         set ht [winfo height $h]
         if {$w > 1 && $ht > 1} { ::tcllitehtml::_do_resize $h $w $ht }
     }]} {
-        $path.hdr configure -text "$title  --  (render failed, showing source)"
+        $path.hdr configure -text "$title  --  [_ {(render failed, showing source)}]"
         _clear $path
         text $path $title $content
         return
@@ -249,7 +262,7 @@ proc ::tkutils::tkupreview::sqlite {path title file} {
     $path.hdr configure -text $title
     _clear $path
     if {[catch {package require tkutils::tkusqlite}]} {
-        message $path "SQLite preview unavailable."
+        message $path [_ "SQLite preview unavailable."]
         return
     }
     if {[catch {
@@ -257,7 +270,7 @@ proc ::tkutils::tkupreview::sqlite {path title file} {
         ::tkutils::tkusqlite::openFile $path.body.db $file
         pack $path.body.db -fill both -expand 1
     } e]} {
-        message $path "Cannot open database:\n$e"
+        message $path [_ "Cannot open database:\n%s" $e]
         return
     }
     set state($path,kind) sqlite
@@ -271,7 +284,7 @@ proc ::tkutils::tkupreview::image {path title file} {
     $path.hdr configure -text $title
     _clear $path
     if {[catch {package require tkutils::tkuimage}]} {
-        message $path "Image preview unavailable."
+        message $path [_ "Image preview unavailable."]
         return
     }
     if {[catch {
@@ -279,7 +292,7 @@ proc ::tkutils::tkupreview::image {path title file} {
         ::tkutils::tkuimage::openFile $path.body.iv $file
         pack $path.body.iv -fill both -expand 1
     } e]} {
-        message $path "Cannot show image:\n$e"
+        message $path [_ "Cannot show image:\n%s" $e]
         return
     }
     set state($path,kind) image
@@ -292,7 +305,7 @@ proc ::tkutils::tkupreview::pdf {path title file} {
     $path.hdr configure -text $title
     _clear $path
     if {[catch {package require tkutils::tkupdfinspect}]} {
-        message $path "PDF preview unavailable."
+        message $path [_ "PDF preview unavailable."]
         return
     }
     if {[catch {
@@ -300,7 +313,7 @@ proc ::tkutils::tkupreview::pdf {path title file} {
         ::tkutils::tkupdfinspect::loadFile $path.body.pv $file
         pack $path.body.pv -fill both -expand 1
     } e]} {
-        message $path "Cannot show PDF:\n$e"
+        message $path [_ "Cannot show PDF:\n%s" $e]
         return
     }
     set state($path,kind) pdf
@@ -331,4 +344,4 @@ proc ::tkutils::tkupreview::_cleanup {path w} {
     array unset state $path,*
 }
 
-package provide tkutils::tkupreview 0.1
+package provide tkutils::tkupreview 0.2

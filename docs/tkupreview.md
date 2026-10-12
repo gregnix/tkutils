@@ -82,6 +82,22 @@ displays it. Deciding that `*.md` means markdown, or reading bytes from a ZIP an
 decoding UTF-8, is the application's job. This is what lets the same widget serve
 very different applications unchanged.
 
+## Language
+
+Messages the widget writes itself ("Image preview unavailable.", "Cannot
+show PDF: ...") go through `msgcat` when it is loaded. An application in
+another language sets them in the `::tkutils` namespace (msgcat also searches
+parent namespaces), e.g. in the root locale so they apply on any system:
+
+```tcl
+namespace eval ::tkutils {
+    ::msgcat::mcset {} "Image preview unavailable." "Bildvorschau nicht verfügbar."
+    ::msgcat::mcset {} "Cannot show PDF:\n%s" "PDF lässt sich nicht anzeigen:\n%s"
+}
+```
+
+Without a catalog the texts stay English. Since 0.2.
+
 ## See also
 
 `tkumdview`, `tkujson`, `tkucsv`, `tkutablelist`, `tkusqlite`, `tkuimage`

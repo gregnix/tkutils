@@ -35,6 +35,19 @@ Clicking `greg` fires the callback with `/home/greg`; the caller decides what
 navigation means (change a directory listing, re-root a tree) and typically
 calls `setPath` again to reflect the new location.
 
+## Windows paths
+
+A drive path shows the drive as the first segment, a UNC path the share;
+backslashes count as `/`. The targets are real paths:
+
+| path | segments | targets |
+|:--|:--|:--|
+| `S:/gregor/daten` | `S:` `gregor` `daten` | `S:/` `S:/gregor` `S:/gregor/daten` |
+| `//srv/share/x` | `//srv/share` `x` | `//srv/share/` `//srv/share/x` |
+
+Up to 0.2 the root `/` was put in front of every target (`/S:/gregor`), which
+Windows reads as a path on the current drive. Since 0.3.
+
 ## See also
 
 `tkufiletree`, `tkufilelist`, `tkutab`

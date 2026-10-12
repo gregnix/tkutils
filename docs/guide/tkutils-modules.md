@@ -43,9 +43,9 @@
 | `tkutils::tkunotes` | 0.2 | hierarchical notes widget | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkunotes-0.2.tm` | tkutils::tkuopts,tclutils::tunotes |
 | `tkutils::tkunumentry` | 0.1 | numeric entry with validation, fixed decimals and optional min/max clamping | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkunumentry-0.1.tm` |  |
 | `tkutils::tkuopts` | 0.1 | merge options over defaults; an unknown option is an error that lists the known ones | System · runtime | Y | Y | N | tkutils | `lib/tm/tkutils/tkuopts-0.1.tm` |  |
-| `tkutils::tkupath` | 0.2 | a breadcrumb path bar with clickable segments | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkupath-0.2.tm` | tkutils::tkuopts |
+| `tkutils::tkupath` | 0.3 | a breadcrumb path bar with clickable segments | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkupath-0.3.tm` | tkutils::tkuopts |
 | `tkutils::tkupdfinspect` | 0.1 | PDF structure inspector (read-only) | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkupdfinspect-0.1.tm` | tclutils::tupdf |
-| `tkutils::tkupreview` | 0.1 | a content preview widget, policy-free (the caller picks the kind) | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkupreview-0.1.tm` | tkutils::tkumdview,tcllitehtml,tkutils::tkutablelist,tkutils::tkucsv,tkutils::tkusqlite,tkutils::tkuimage,tkutils::tkupdfinspect |
+| `tkutils::tkupreview` | 0.2 | a content preview widget, policy-free (the caller picks the kind) | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkupreview-0.2.tm` | tkutils::tkumdview,tcllitehtml,tkutils::tkutablelist,tkutils::tkucsv,tkutils::tkusqlite,tkutils::tkuimage,tkutils::tkupdfinspect |
 | `tkutils::tkurender` | 0.2 | shared render core for tkudesigner / tkuload. | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkurender-0.2.tm` |  |
 | `tkutils::tkuscrolledframe` | 0.1 | scrollable frame container (thin scrollutil wrapper) | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuscrolledframe-0.1.tm` | scrollutil |
 | `tkutils::tkusearchbar` | 0.1 | a search bar: entry with debounced change callback, a clear button, and an optional filter drop-down. | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkusearchbar-0.1.tm` |  |

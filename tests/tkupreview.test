@@ -109,4 +109,14 @@ test tkupreview-1.9 {csv prefers tablelist when available} -constraints tk -body
          [expr {$k ne "csv" || $used ne "text"}]
 } -result {csv 1 1}
 
+test tkupreview-2.1 {messages go through msgcat (catalog in ::tkutils)} -constraints tk -setup {
+    package require msgcat
+    namespace eval ::tkutils { ::msgcat::mcset {} "Cannot show PDF:\n%s" "PDF nicht darstellbar:\n%s" }
+} -body {
+    list [::tkutils::tkupreview::_ "Cannot show PDF:\n%s" x] \
+         [::tkutils::tkupreview::_ "Image preview unavailable."]
+} -cleanup {
+    namespace eval ::tkutils { ::msgcat::mcset {} "Cannot show PDF:\n%s" "Cannot show PDF:\n%s" }
+} -result [list "PDF nicht darstellbar:\nx" "Image preview unavailable."]
+
 cleanupTests
