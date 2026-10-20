@@ -1,10 +1,10 @@
-.TH tkutlclip n 0.1 tkutils
+.TH tkutlclip n 0.2 tkutils
 .SH tkutils::tkutlclip
 .PP
 Copy \fBtablelist\fR rows to the clipboard as TSV or CSV — the common "Ctrl+C copies the selection as spreadsheet\-pasteable text" behaviour that tablelist itself does not provide. Library\-neutral.
 .SS Package
 .CS
-package require tkutils::tkutlclip 0.1
+package require tkutils::tkutlclip 0.2
 .CE
 .PP
 Requires \fBTk\fR and \fBtablelist\fR. Uses \fBtclutils::tucsv\fR for CSV quoting when available (falls back to a built\-in quoter otherwise).
@@ -29,7 +29,7 @@ Option	Default	Meaning
 .SS Usage
 .CS
 package require Tk
-package require tablelist
+package require tablelist_tile
 package require tkutils::tkutlclip
 
 tablelist::tablelist .t -columns {0 Article left 0 Qty right 0 Price right}

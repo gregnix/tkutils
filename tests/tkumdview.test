@@ -15,6 +15,13 @@ if {[info exists ::env(TCLUTILS_TM)]} {
 
 testConstraint haveTk [expr {![catch {package require Tk}]}]
 if {[testConstraint haveTk]} { wm withdraw . }
+# Without a display the Tk modules cannot load. Skip the whole file with a
+# proper summary instead of aborting the run (all.tcl reported "no summary").
+if {![testConstraint haveTk]} {
+    puts "tkumdview.test: no display, all tests skipped"
+    cleanupTests
+    return
+}
 package require tkutils::tkumdview
 
 set ::SAMPLE {# Title

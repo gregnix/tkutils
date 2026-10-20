@@ -30,7 +30,7 @@ test tkuballoon-1.1 {configure/cget round-trip} -constraints haveTk -body {
 test tkuballoon-1.2 {configure rejects unknown option} -constraints haveTk -body {
     catch {$::ns\::configure -bogus 1} m o
     dict get $o -errorcode
-} -result {TKUTILS TKUBALLOON OPTION}
+} -result {TKUTILS TKUBALLOON OPTION -bogus}
 
 test tkuballoon-1.3 {configure rejects negative delay} -constraints haveTk -body {
     catch {$::ns\::configure -delay -5} m o
@@ -66,7 +66,7 @@ test tkuballoon-2.4 {add with unknown option errors} -constraints haveTk -body {
     reset
     catch {$::ns\::add .b "x" -bogus 1} m o
     dict get $o -errorcode
-} -result {TKUTILS TKUBALLOON OPTION}
+} -result {TKUTILS TKUBALLOON OPTION -bogus}
 
 # --- enable / disable / clear ----------------------------------------------
 

@@ -56,8 +56,8 @@ proc ::tkutils::tkuaction::define {name args} {
             -tooltip     { dict set a tooltip $val }
             -compound    { dict set a compound $val }
             default {
-                return -code error -errorcode {TKUTILS TKUACTION OPTION} \
-                    "unknown option '$opt'"
+                return -code error -errorcode [list TKUTILS TKUACTION OPTION $opt] \
+                    "unknown option \"$opt\"\nKnown: [join {-accelerator -checkable -checked -command -compound -enabled -icon -iconChecked -label -tooltip} { }]"
             }
         }
     }

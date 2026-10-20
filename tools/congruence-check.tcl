@@ -40,7 +40,7 @@ proc roots {which} {
 proc paths {name nsdir which} {
     set r [roots $which]
     return [dict create \
-        module [file join $r lib tm $nsdir $name-0.1.tm] \
+        module [file join $r lib tm $nsdir $name-*.tm] \
         doc    [file join $r docs $name.md] \
         demo   [file join $r examples demo-$name.tcl] \
         man    [file join $r man mann $name.n] \
@@ -55,7 +55,9 @@ foreach {name nsdir which} $family {
     set p [paths $name $nsdir $which]
     set line [format "%-12s" $name]
     foreach c $cols {
-        if {[file exists [dict get $p $c]]} {
+        # module is a pattern (any version): up to 2026-10-20 the check
+        # expected "-0.1.tm" and reported tkutlfmt/footer/state 0.2 missing.
+        if {[llength [glob -nocomplain -- [dict get $p $c]]]} {
             append line [format " %-6s" ok]
         } else {
             append line [format " %-6s" MISS]

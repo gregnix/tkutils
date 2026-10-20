@@ -17,7 +17,7 @@ set ::kbdir [file dirname [file dirname [file normalize [info script]]]]
 
 set haveGui [expr {![catch {
     package require Tk
-    package require tablelist
+    package require tablelist_tile
     package require tdbc::sqlite3
     package require tkutils::tkusearchbar
     package require tkutils::tkutltree

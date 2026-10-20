@@ -18,7 +18,7 @@
 | `tkutils::tkudiff` | 0.1 | line diff viewer | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkudiff-0.1.tm` | tclutils::tudiff,tclutils::common |
 | `tkutils::tkueditor` | 0.2 | text editor widget (v0.2 PROTOTYPE) | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkueditor-0.2.tm` | tclutils::tuiconv,tkutils::tkuicon,tkutils::tkutoolbar,tkutils::tkustatus |
 | `tkutils::tkufilelist` | 0.2 | a detail file list, filled from a storage provider | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkufilelist-0.2.tm` | tkutils::tkuopts,tkutils::tkutablelist,tclutils::tuprovider |
-| `tkutils::tkufiledialog` | 0.1 | modal open/save/directory chooser | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkufiledialog-0.1.tm` | tkutils::tkufilelist,tkutils::tkupath,tclutils::tuprovider |
+| `tkutils::tkufiledialog` | 0.2 | modal open/save/directory chooser | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkufiledialog-0.2.tm` | tkutils::tkufilelist,tkutils::tkupath,tclutils::tuprovider |
 | `tkutils::tkufiletree` | 0.2 | a lazy file-system tree built on tkutils::tkutree. | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkufiletree-0.2.tm` | tkutils::tkuopts,tkutils::tkutree |
 | `tkutils::tkufilterbar` | 0.2 | a per-column filter bar: one small entry per column, each typing a substring that the consumer ANDs together. | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkufilterbar-0.2.tm` | tkutils::tkuopts |
 | `tkutils::tkuform` | 0.1 | declarative form widget | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuform-0.1.tm` |  |
@@ -57,14 +57,14 @@
 | `tkutils::tkutags` | 0.1 | tag editor: tags shown as removable chips plus an input. | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkutags-0.1.tm` |  |
 | `tkutils::tkutical` | 0.3 | month/week calendar widget (OPTIONAL: requires tical) | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkutical-0.3.tm` | tkutils::tkuopts,tical::view::month,tical::view::week,tical::render::canvas |
 | `tkutils::tkutimeentry` | 0.1 | time entry with hour/minute (optional second) spinboxes. | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkutimeentry-0.1.tm` |  |
-| `tkutils::tkutlclip` | 0.1 | copy tablelist rows to the clipboard as TSV or CSV. | Tk · tablelist | Y | Y | Y | tkutils | `lib/tm/tkutils/tkutlclip-0.1.tm` | tablelist,tclutils::tucsv |
-| `tkutils::tkutlfind` | 0.1 | incremental find with match highlighting for a tablelist widget. | Tk · tablelist | Y | Y | Y | tkutils | `lib/tm/tkutils/tkutlfind-0.1.tm` | tablelist |
-| `tkutils::tkutlfmt` | 0.2 | per-column display formatting for a tablelist widget via tablelist's -formatcommand. | Tk · tablelist | Y | Y | Y | tkutils | `lib/tm/tkutils/tkutlfmt-0.2.tm` | tkutils::tkuopts,tablelist,tclutils::tunum |
-| `tkutils::tkutlfooter` | 0.2 | a footer row for a tablelist widget, realised as a second single-row tablelist ("header at the bottom" look). | Tk · tablelist | Y | Y | Y | tkutils | `lib/tm/tkutils/tkutlfooter-0.2.tm` | tablelist,tclutils::tunum |
-| `tkutils::tkutlsort` | 0.1 | type-aware column sorting for a tablelist widget. | Tk · tablelist | Y | Y | Y | tkutils | `lib/tm/tkutils/tkutlsort-0.1.tm` | tablelist,tclutils::tunum |
-| `tkutils::tkutlstate` | 0.2 | save and restore a tablelist's column layout: widths, hidden state, display order and the active sort. | Tk · tablelist | Y | Y | Y | tkutils | `lib/tm/tkutils/tkutlstate-0.2.tm` | tablelist |
-| `tkutils::tkutltools` | 0.1 | umbrella for the tablelist extension family. | Tk · tablelist | Y | Y | Y | tkutils | `lib/tm/tkutils/tkutltools-0.1.tm` | tablelist,tclutils::tunum,tkutils::tkutlsort,tkutils::tkutlfmt,tkutils::tkutlclip,tkutils::tkutlfooter,tkutils::tkutlfind,tkutils::tkutlstate,tkutils::tkutltree |
-| `tkutils::tkutltree` | 0.1 | convert between nested data and a tablelist tree, with free column mapping. | Tk · tablelist | Y | Y | Y | tkutils | `lib/tm/tkutils/tkutltree-0.1.tm` | tablelist |
+| `tkutils::tkutlclip` | 0.2 | copy tablelist rows to the clipboard as TSV or CSV. | Tk · tablelist | Y | Y | Y | tkutils | `lib/tm/tkutils/tkutlclip-0.2.tm` | tablelist,tclutils::tucsv |
+| `tkutils::tkutlfind` | 0.2 | incremental find with match highlighting for a tablelist widget. | Tk · tablelist | Y | Y | Y | tkutils | `lib/tm/tkutils/tkutlfind-0.2.tm` | tablelist |
+| `tkutils::tkutlfmt` | 0.3 | per-column display formatting for a tablelist widget via tablelist's -formatcommand. | Tk · tablelist | Y | Y | Y | tkutils | `lib/tm/tkutils/tkutlfmt-0.3.tm` | tkutils::tkuopts,tablelist,tclutils::tunum |
+| `tkutils::tkutlfooter` | 0.3 | a footer row for a tablelist widget, realised as a second single-row tablelist ("header at the bottom" look). | Tk · tablelist | Y | Y | Y | tkutils | `lib/tm/tkutils/tkutlfooter-0.3.tm` | tablelist,tclutils::tunum |
+| `tkutils::tkutlsort` | 0.2 | type-aware column sorting for a tablelist widget. | Tk · tablelist | Y | Y | Y | tkutils | `lib/tm/tkutils/tkutlsort-0.2.tm` | tablelist,tclutils::tunum |
+| `tkutils::tkutlstate` | 0.3 | save and restore a tablelist's column layout: widths, hidden state, display order and the active sort. | Tk · tablelist | Y | Y | Y | tkutils | `lib/tm/tkutils/tkutlstate-0.3.tm` | tablelist |
+| `tkutils::tkutltools` | 0.2 | umbrella for the tablelist extension family. | Tk · tablelist | Y | Y | Y | tkutils | `lib/tm/tkutils/tkutltools-0.2.tm` | tablelist,tclutils::tunum,tkutils::tkutlsort,tkutils::tkutlfmt,tkutils::tkutlclip,tkutils::tkutlfooter,tkutils::tkutlfind,tkutils::tkutlstate,tkutils::tkutltree |
+| `tkutils::tkutltree` | 0.2 | convert between nested data and a tablelist tree, with free column mapping. | Tk · tablelist | Y | Y | Y | tkutils | `lib/tm/tkutils/tkutltree-0.2.tm` | tablelist |
 | `tkutils::tkutodo` | 0.2 | a task-list widget for iCalendar VTODO components, built on tclutils::tuical (todos / todoInfo / setProperty). | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkutodo-0.2.tm` | tkutils::tkuopts,tclutils::tuical |
 | `tkutils::tkutoolbar` | 0.2 | toolbar widget (v0.2) | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkutoolbar-0.2.tm` | tkutils::tkuballoon,tkutils::tkuaction |
 | `tkutils::tkutree` | 0.2 | a thin ttk::treeview wrapper for hierarchical data. | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkutree-0.2.tm` | tkutils::tkuopts |

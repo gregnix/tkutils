@@ -1,10 +1,10 @@
-.TH tkutlfooter n 0.2 tkutils
+.TH tkutlfooter n 0.3 tkutils
 .SH tkutils::tkutlfooter
 .PP
 A footer row for a \fBtablelist\fR widget, realised as a second single\-row tablelist below the main table ("header at the bottom" look). The footer mirrors the main table's column widths, order and alignment, keeps horizontal scrolling in sync, and can compute auto\-sums. Library\-neutral — no references to any application.
 .SS Package
 .CS
-package require tkutils::tkutlfooter 0.1
+package require tkutils::tkutlfooter 0.3
 .CE
 .PP
 Requires \fBtablelist\fR. Horizontal scroll sync chains the main table's \fB\-xscrollcommand\fR (no \fBscrollutil\fR needed). \fBautosum\fR/\fBautoagg\fR use \fBtclutils::tunum\fR for number parsing when available (falls back to a built\-in parser otherwise).
@@ -19,7 +19,7 @@ Requires \fBtablelist\fR. Horizontal scroll sync chains the main table's \fB\-xs
 .SS "Quick Start"
 .CS
 package require Tk
-package require tablelist
+package require tablelist_tile
 package require tkutils::tkutlfooter
 
 tablelist::tablelist .t -columns {0 "Article" left 0 "Price" right} -stretch all

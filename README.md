@@ -1,12 +1,12 @@
-# tkutils 0.46.0
+# tkutils 0.47.0
 
 `tkutils` is a collection of Tcl/Tk GUI widgets that sit on top of the pure-Tcl
 engines in [`tclutils`](https://github.com/gregnix/tclutils). It is intentionally separate from
 `tclutils` so that console/server/CI use never requires `Tk`.
 
 - **Rule:** the engine lives in `tclutils`, the GUI in `tkutils`. Each widget is
-  a package `tkutils::tk<name>` (file `lib/tm/tkutils/tk<name>-0.1.tm`).
-- **Tcl/Tk:** 8.6+ and 9.x. The umbrella package loads the **50 core widgets**;
+  a package `tkutils::tku<name>` (file `lib/tm/tkutils/tku<name>-<version>.tm`).
+- **Tcl/Tk:** 8.6+ and 9.x. The umbrella package loads the **53 core widgets**;
   optional widgets that need external packages are not in the umbrella.
 
 ## Install / path setup
@@ -15,11 +15,11 @@ engines in [`tclutils`](https://github.com/gregnix/tclutils). It is intentionall
 
 ```bash
 # explicit (recommended for tests/CI)
-export TCLUTILS_TM=/path/to/tclutils-0.64.0/lib/tm
-export TKUTILS_TM=/path/to/tkutils-0.46.0/lib/tm
+export TCLUTILS_TM=/path/to/tclutils-0.66.0/lib/tm
+export TKUTILS_TM=/path/to/tkutils-0.47.0/lib/tm
 
 # or source the bootstrap (adds both libs, finds the highest version)
-tclsh -e 'source /path/to/tkutils-0.46.0/tools/setup.tcl'
+tclsh -e 'source /path/to/tkutils-0.47.0/tools/setup.tcl'
 ```
 
 Then:
@@ -96,8 +96,8 @@ package require tkutils::tkunotes   ;# or a single widget
 
 | Widget | Needs | Notes |
 |--------|-------|-------|
-| `tkutils::tkutablelist` | **Tablelist** (tklib) | Full editable/sortable table; CSV import/export; tests skip without Tablelist |
-| `tkutils::tkutltools` + `tkutlclip` `tkutlfind` `tkutlfmt` `tkutlfooter` `tkutlsort` `tkutlstate` `tkutltree` | **Tablelist** | Helpers for a tablelist: copy rows as TSV/CSV, incremental find, column formats, a footer row, type-aware sorting, column layout save/restore, nested data to a tablelist tree. `tkutltools` loads all of them except `tkutltree` |
+| `tkutils::tkutablelist` | **Tablelist** (tklib) | Full editable/sortable table; CSV import/export; tests skip without Tablelist. Not loaded by the umbrella itself, but `tkufilelist` (in the umbrella) requires it, so with Tablelist present it is loaded |
+| `tkutils::tkutltools` + `tkutlclip` `tkutlfind` `tkutlfmt` `tkutlfooter` `tkutlsort` `tkutlstate` `tkutltree` | **Tablelist** | Helpers for a tablelist: copy rows as TSV/CSV, incremental find, column formats, a footer row, type-aware sorting, column layout save/restore, nested data to a tablelist tree. `tkutltools` loads all seven, `tkutltree` included. Like `tkutablelist` they use `tablelist_tile` (or whichever Tablelist variant the application already loaded) |
 | `tkutils::tkuxml`       | **tDOM**     | XML tree |
 | `tkutils::tkusqlite`    | **sqlite3**  | Lightweight DB browser |
 | `tkutils::tkucanvaspng` | `tclutils::tupngdraw` (Glyphs for `-fontmap`) | Export a live Tk canvas to PNG: lines (arrows/dashes), shapes, elliptical arcs, text, images |
@@ -118,7 +118,7 @@ tclsh bin/tkunotes.tcl
 tclsh examples/demo-tkuical.tcl
 ```
 
-There are **38 demos** under `examples/` and **24 launchers** under `bin/`.
+There are **77 demos** (`examples/demo-*.tcl`) and **25 launchers** under `bin/` (counted 2026-10-20).
 
 ## Tests
 
@@ -127,7 +127,7 @@ Each `tests/*.test` runs in its own interpreter; `tests/all.tcl` runs the suite.
 several widgets against their engines.
 
 ```bash
-export TCLUTILS_TM=/path/to/tclutils-0.64.0/lib/tm
+export TCLUTILS_TM=/path/to/tclutils-0.66.0/lib/tm
 xvfb-run -a tclsh tests/all.tcl       # GUI tests need a display (Xvfb)
 ```
 
@@ -136,10 +136,10 @@ skip cleanly when those packages are absent.
 
 ## Dependency summary
 
-`tkutils 0.46.0` pairs with `tclutils 0.64.0`. The editing helpers
+`tkutils 0.47.0` needs `tclutils 0.64.0` or newer; 0.66.0 is current. The editing helpers
 (`tkuini`/`tkuvcard`/`tkuical`/`tkuldif`) and `tkunotes` subtree/tags build on the
 `tclutils` engines, so a current `tclutils` is required alongside. The recommended
-pairing is **tclutils 0.64.0 + tkutils 0.46.0** (+ **ctrlutils 0.3**).
+pairing is **tclutils 0.66.0 + tkutils 0.47.0** (+ **ctrlutils 0.4**).
 
 `tkuwinico` in particular needs **tclutils 0.61.0 or newer**: it builds on
 `tclutils::tuico`, which arrived with that release. An older tclutils on the

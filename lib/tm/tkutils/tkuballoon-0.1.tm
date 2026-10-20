@@ -34,8 +34,8 @@ proc ::tkutils::tkuballoon::configure {args} {
     variable defaults
     foreach {o v} $args {
         if {![info exists defaults($o)]} {
-            return -code error -errorcode {TKUTILS TKUBALLOON OPTION} \
-                "unknown option '$o'"
+            return -code error -errorcode [list TKUTILS TKUBALLOON OPTION $o] \
+                "unknown option \"$o\"\nKnown: [join [lsort [array names defaults]] { }]"
         }
         if {![string is integer -strict $v] || $v < 0} {
             return -code error -errorcode {TKUTILS TKUBALLOON VALUE} \
@@ -49,8 +49,8 @@ proc ::tkutils::tkuballoon::configure {args} {
 proc ::tkutils::tkuballoon::cget {option} {
     variable defaults
     if {![info exists defaults($option)]} {
-        return -code error -errorcode {TKUTILS TKUBALLOON OPTION} \
-            "unknown option '$option'"
+        return -code error -errorcode [list TKUTILS TKUBALLOON OPTION $option] \
+            "unknown option \"$option\"\nKnown: [join [lsort [array names defaults]] { }]"
     }
     return $defaults($option)
 }
@@ -81,8 +81,8 @@ proc ::tkutils::tkuballoon::add {w text args} {
     array set opts [array get defaults]
     foreach {o v} $args {
         if {![info exists opts($o)]} {
-            return -code error -errorcode {TKUTILS TKUBALLOON OPTION} \
-                "unknown option '$o'"
+            return -code error -errorcode [list TKUTILS TKUBALLOON OPTION $o] \
+                "unknown option \"$o\"\nKnown: [join [lsort [array names opts]] { }]"
         }
         set opts($o) $v
     }

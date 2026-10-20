@@ -112,7 +112,7 @@ test tkuform-3.1 {unknown option errors} -constraints haveTk -body {
     catch {destroy .f}
     catch {::tkutils::tkuform::widget .f $spec -bogus 1} m o
     dict get $o -errorcode
-} -result {TKUTILS TKUFORM OPTION}
+} -result {TKUTILS TKUFORM OPTION -bogus}
 
 test tkuform-3.2 {non-integer -columns errors} -constraints haveTk -body {
     catch {destroy .f}
@@ -142,5 +142,10 @@ test tkuform-3.5 {get on unknown field errors} -constraints haveTk -body {
 test tkuform-3.6 {no proc named set shadows the builtin} -constraints haveTk -body {
     expr {[info procs ::tkutils::tkuform::set] eq ""}
 } -result 1
+
+test tkuform-3.7 {unknown option names the known ones} -constraints haveTk -body {
+    catch {::tkutils::tkuform::widget .f32 {} -bogus 1} m
+    set m
+} -result "unknown option \"-bogus\"\nKnown: -columns -padding"
 
 cleanupTests

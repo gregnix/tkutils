@@ -1,4 +1,4 @@
-.TH tkutlstate n 0.2 tkutils
+.TH tkutlstate n 0.3 tkutils
 .SH tkutils::tkutlstate
 .PP
 Save and restore a \fBtablelist\fR's column layout — widths, hidden state, display order and the active sort — so an application can persist how the user arranged a table between sessions. Library\-neutral.
@@ -34,7 +34,7 @@ so it is safe to store as text, embed in a config, or convert to JSON.
 .SS Usage
 .CS
 package require Tk
-package require tablelist
+package require tablelist_tile
 package require tkutils::tkutlstate
 
 # on quit

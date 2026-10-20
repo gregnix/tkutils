@@ -11,7 +11,7 @@
 # ===========================================================================
 
 package require Tk
-package require tablelist
+package require tablelist_tile
 
 wm title . "Timezone viewer"
 

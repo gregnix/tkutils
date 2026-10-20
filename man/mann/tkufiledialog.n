@@ -1,11 +1,11 @@
 '\"
 '\" tkufiledialog.n -- modal file/directory dialog
-.TH TKUFILEDIALOG n "0.1" "tkutils" "Tkutils Widgets"
+.TH TKUFILEDIALOG n "0.2" "tkutils" "Tkutils Widgets"
 .SH NAME
 tkutils::tkufiledialog \- modal open/save/directory chooser
 .SH SYNOPSIS
 .nf
-\fBpackage require tkutils::tkufiledialog\fR ?0.1?
+\fBpackage require tkutils::tkufiledialog\fR ?0.2?
 .sp
 \fB::tkutils::tkufiledialog::open\fR ?\fIoptions\fR?
 \fB::tkutils::tkufiledialog::save\fR ?\fIoptions\fR?

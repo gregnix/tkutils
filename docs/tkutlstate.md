@@ -47,7 +47,7 @@ so it is safe to store as text, embed in a config, or convert to JSON.
 
 ```tcl
 package require Tk
-package require tablelist
+package require tablelist_tile
 package require tkutils::tkutlstate
 
 # on quit

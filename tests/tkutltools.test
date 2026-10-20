@@ -5,7 +5,7 @@ set here [file dirname [file normalize [info script]]]
 tcl::tm::path add [file normalize [file join $here .. lib tm]]
 catch {tcl::tm::path add [file normalize [file join $here .. .. tclutils lib tm]]}
 testConstraint hasTk  [expr {![catch {package require Tk}]}]
-testConstraint hasTbl [expr {![catch {package require tablelist}]}]
+testConstraint hasTbl [expr {![catch {package require tablelist_tile}]}]
 
 test tkutltools-1.1 {umbrella loads whole family} -constraints {hasTk hasTbl} -body {
     package require tkutils::tkutltools
@@ -19,4 +19,30 @@ test tkutltools-1.2 {tunum backend present} -constraints {hasTk hasTbl} -body {
     package require tkutils::tkutltools
     expr {[package present tclutils::tunum] ne ""}
 } -result 1
+# In a fresh process, because Tablelist's "tablelist or tablelist_tile, not
+# both" holds per process. Up to 2026-10-20 the umbrella (tkutablelist ->
+# tablelist_tile) followed by tkutltools (classic tablelist) failed.
+proc ::childLoad {script} {
+    set tm [file normalize [file join $::here .. lib tm]]
+    set tcu [file normalize [file join $::here .. .. tclutils lib tm]]
+    if {[info exists ::env(TCLUTILS_TM)]} { set tcu $::env(TCLUTILS_TM) }
+    set code [string map [list @TM@ $tm @TCU@ $tcu] {
+        tcl::tm::path add @TM@
+        catch {tcl::tm::path add @TCU@}
+        package require Tk
+        wm withdraw .
+    }]
+    append code $script "\nputs \[package present tablelist_tile\]\nexit 0\n"
+    set f [file join [temporaryDirectory] childload-[pid].tcl]
+    set fh [open $f w]; puts $fh $code; close $fh
+    set rc [catch {exec [info nameofexecutable] $f 2>@1} out]
+    file delete $f
+    return [list $rc [expr {[string is double -strict [lindex $out end]] ? "ok" : $out}]]
+}
+test tkutltools-2.1 {tkutils, then tkutltools: one Tablelist variant} -constraints {hasTk hasTbl} -body {
+    ::childLoad {package require tkutils; package require tkutils::tkutltools}
+} -result {0 ok}
+test tkutltools-2.2 {tkutltools, then tkutils} -constraints {hasTk hasTbl} -body {
+    ::childLoad {package require tkutils::tkutltools; package require tkutils}
+} -result {0 ok}
 cleanupTests

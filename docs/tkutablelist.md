@@ -142,7 +142,7 @@ double-click a cell to edit it; `rows`/`getRow` then reflect the new value.
 
 ## Errors
 
-Unknown widget options raise `{TKUTILS TKUTABLELIST OPTION}`.
+Unknown widget options raise `{TKUTILS TKUTABLELIST OPTION <opt>}` with the message `unknown option "<opt>"` and a second line `Known:` listing the valid options (since 2026-10-20; before without the option name).
 
 ## Launcher
 ```bash

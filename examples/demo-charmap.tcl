@@ -16,7 +16,7 @@ set here  [file dirname [file normalize [info script]]]
 tcl::tm::path add [file normalize [file join $here .. lib tm]]
 
 package require Tk
-package require tablelist
+package require tablelist_tile
 catch {package require tkutils::tkutlclip}
 
 wm title . "charmap -- codepage / Unicode viewer"

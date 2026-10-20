@@ -115,6 +115,6 @@ test tkulayoutcanvas-2.2 {unknown option at creation errors} -constraints haveTk
     catch {destroy .f2}
     catch {$::ns\::widget .f2.lc -bogus 1} m o
     dict get $o -errorcode
-} -result {TKUTILS TKULAYOUTCANVAS OPTION}
+} -result {TKUTILS TKULAYOUTCANVAS OPTION -bogus}
 
 cleanupTests

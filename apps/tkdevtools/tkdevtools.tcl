@@ -19,7 +19,7 @@
 source [file join [file dirname [file normalize [info script]]] .. _lib paths.tcl]
 
 package require Tk
-package require tablelist
+package require tablelist_tile
 package require tclutils::tucolor
 package require tclutils::tustr 0.2       ;# graphemes, isPrintable
 package require tclutils::tudate 0.2      ;# zones

@@ -7,7 +7,7 @@ tablelist itself does not provide. Library-neutral.
 ## Package
 
 ```tcl
-package require tkutils::tkutlclip 0.1
+package require tkutils::tkutlclip 0.2
 ```
 
 Requires `Tk` and `tablelist`. Uses `tclutils::tucsv` for CSV quoting when
@@ -38,7 +38,7 @@ rows copied; `asText` returns the built string without touching the clipboard.
 
 ```tcl
 package require Tk
-package require tablelist
+package require tablelist_tile
 package require tkutils::tkutlclip
 
 tablelist::tablelist .t -columns {0 Article left 0 Qty right 0 Price right}

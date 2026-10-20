@@ -159,7 +159,10 @@ proc ::tkutils::tkufiledialog::_onActivate {win entry} {
         $win.name delete 0 end
         $win.name insert 0 [dict get $entry name]
     }
-    _choose $win ok
+    # Through _finishOk, like OK and <Return>: it sets state(value). A bare
+    # "_choose ok" closed the dialog with an empty result -- a double-click
+    # on a file returned "" (found 2026-10-20 while checking the book).
+    _finishOk $win
 }
 
 proc ::tkutils::tkufiledialog::_onSelect {win entry} {
@@ -424,4 +427,4 @@ proc ::tkutils::tkufiledialog::directory {args} {
     return [_run directory {*}$args]
 }
 
-package provide tkutils::tkufiledialog 0.1
+package provide tkutils::tkufiledialog 0.2

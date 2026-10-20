@@ -55,8 +55,8 @@ proc ::tkutils::tkumarquee::enable {c args} {
         -outline #1565c0 -fill {} -dash {2 2} -stipple {} -keep 0}
     foreach {opt val} $args {
         if {![info exists o($opt)]} {
-            return -code error -errorcode {TKUTILS TKUMARQUEE OPTION} \
-                "unknown option '$opt'"
+            return -code error -errorcode [list TKUTILS TKUMARQUEE OPTION $opt] \
+                "unknown option \"$opt\"\nKnown: [join [lsort [array names o]] { }]"
         }
         set o($opt) $val
     }

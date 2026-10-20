@@ -75,8 +75,8 @@ proc ::tkutils::tkulayoutcanvas::widget {path args} {
     array set opts $defaults
     foreach {k v} $args {
         if {![info exists opts($k)]} {
-            return -code error -errorcode {TKUTILS TKULAYOUTCANVAS OPTION} \
-                "unknown option '$k'"
+            return -code error -errorcode [list TKUTILS TKULAYOUTCANVAS OPTION $k] \
+                "unknown option \"$k\"\nKnown: [join [lsort [array names opts]] { }]"
         }
         set opts($k) $v
     }
@@ -183,15 +183,15 @@ proc ::tkutils::tkulayoutcanvas::configure {path args} {
     if {[llength $args] == 1} {
         set k [lindex $args 0]
         if {![info exists state($path,$k)]} {
-            return -code error -errorcode {TKUTILS TKULAYOUTCANVAS OPTION} \
-                "unknown option '$k'"
+            return -code error -errorcode [list TKUTILS TKULAYOUTCANVAS OPTION $k] \
+                "unknown option \"$k\"\nKnown: [join [lsort [_optKeys]] { }]"
         }
         return $state($path,$k)
     }
     foreach {k v} $args {
         if {![info exists state($path,$k)]} {
-            return -code error -errorcode {TKUTILS TKULAYOUTCANVAS OPTION} \
-                "unknown option '$k'"
+            return -code error -errorcode [list TKUTILS TKULAYOUTCANVAS OPTION $k] \
+                "unknown option \"$k\"\nKnown: [join [lsort [_optKeys]] { }]"
         }
         set state($path,$k) $v
     }

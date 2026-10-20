@@ -1,5 +1,46 @@
 # Changelog
 
+## 0.47.0 - 2026-10-20
+
+Recommended pairing: tclutils 0.66.0 + tkutils 0.47.0 + ctrlutils 0.4
+(0.47.0 still needs at least tclutils 0.64.0).
+
+Module versions: `tkufiledialog` 0.2; `tkutlsort`, `tkutlclip`, `tkutlfind`,
+`tkutltree`, `tkutltools` 0.2; `tkutlfooter`, `tkutlfmt`, `tkutlstate` 0.3
+(they now load `tablelist_tile`, see below). When copying over an older tree,
+delete the old files (`tkufiledialog-0.1.tm`, `tkutl*-0.1.tm`,
+`tkutl*-0.2.tm`), otherwise both versions sit side by side.
+
+- `tkufiledialog`: a double-click on a file returned `""` -- `_onActivate`
+  closed the dialog without setting the result. It goes through `_finishOk`
+  now, like OK and Return. Test `tkufiledialog-1.4a`.
+- One Tablelist variant: `tablelist_tile`. The `tkutl*` helpers required the
+  classic `tablelist`, `tkutablelist` the themed one, and Tablelist refuses
+  both in one process: `tkutils` followed by `tkutltools` failed with
+  `can't set "usingTile"`. The helpers now load `tablelist_tile` unless the
+  application already has one of the two (then they use it); apps
+  (tkdevtools, knowledge), examples, tests, docs and man pages load
+  `tablelist_tile`. Tests `tkutltools-2.1`/`-2.2` load both orders in a
+  child process.
+- Tests: `stack`, `tkumdview`, `tkupdfinspect`, `tkuwinico` skip without a
+  display (all.tcl reported "no summary", exit 1). `tkumonthcanvas.test`
+  finds tical in a flat checkout too (before: all 13 tests skipped).
+- `tools/congruence-check.tcl`: modules of any version (was fixed `-0.1.tm`,
+  four false "missing").
+- README: 53 umbrella widgets, `tkutltools` loads `tkutltree` too,
+  `tkutablelist` comes in via `tkufilelist`, 77 demos / 25 launchers, module
+  file names, pairing. `tkuload` header comment names `tkutils::tkuload`.
+  tkdevtools README: tclutils 0.64.0 or newer.
+
+- Option errors in ten modules (`tkuaction` define, `tkuballoon`, `tkuform`,
+  `tkukeynav`, `tkulayoutcanvas`, `tkumarquee`, `tkuscrolledframe`,
+  `tkutablelist`, `tkutoolbar`, `tkuvalidate`) follow `tkuopts`: errorcode
+  `{TKUTILS <MOD> OPTION <opt>}` (was without the option), message
+  `unknown option "<opt>"` and a line `Known:` with the valid options (was
+  `unknown option '<opt>'`). Tests adjusted, `tkuform-3.7` new.
+- `docs/tkupath.md`, `tkupath.n`: the example no longer calls `setPath` in the
+  callback -- the bar updates itself before calling it.
+
 ## 0.46.0
 
 Recommended pairing: tclutils 0.64.0 + tkutils 0.46.0 + ctrlutils 0.3

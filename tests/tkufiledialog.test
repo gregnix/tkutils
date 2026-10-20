@@ -97,6 +97,20 @@ test tkufiledialog-1.4 {save appends defaultextension} -constraints tk -body {
     expr {$r eq [file normalize [file join $::dir neu.txt]]}
 } -result 1
 
+test tkufiledialog-1.4a {double-click on a file returns its path} -constraints tk -body {
+    after 80 {
+        set w ""
+        foreach t [winfo children .] {
+            if {[string match .tkufiledialog* $t]} { set w $t; break }
+        }
+        if {$w eq ""} return
+        ::tkutils::tkufiledialog::_onActivate $w [dict create type file \
+            name a.txt path [file join $::dir a.txt]]
+    }
+    set r [${ns}::open -parent . -initialdir $::dir]
+    expr {$r eq [file normalize [file join $::dir a.txt]]}
+} -result 1
+
 test tkufiledialog-1.5 {unknown option names the known ones} -constraints tk -body {
     catch {${ns}::open -titel x} m o
     list [dict get $o -errorcode] [string match "*Known:*-title*" $m]

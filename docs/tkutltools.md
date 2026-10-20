@@ -7,7 +7,7 @@ Umbrella for the tablelist extension family. Requiring this one package pulls in
 ## Package
 
 ```tcl
-package require tkutils::tkutltools 0.1
+package require tkutils::tkutltools 0.2
 ```
 
 It is kept **separate** from the main `tkutils` umbrella, which by design loads

@@ -103,8 +103,8 @@ proc ::tkutils::tkutablelist::widget {path args} {
         -editendcommand "" -selectcommand "" -doublecommand "" -footer 0}
     foreach {opt val} $args {
         if {![info exists o($opt)]} {
-            return -code error -errorcode {TKUTILS TKUTABLELIST OPTION} \
-                "unknown option '$opt'"
+            return -code error -errorcode [list TKUTILS TKUTABLELIST OPTION $opt] \
+                "unknown option \"$opt\"\nKnown: [join [lsort [array names o]] { }]"
         }
     }
     array set o [::tkutils::tkuopts::merge TKUTABLELIST [array get o] $args]

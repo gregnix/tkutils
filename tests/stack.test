@@ -17,6 +17,13 @@ catch { ::tcl::tm::path add [file normalize [file join $here .. .. tclutils lib 
 
 testConstraint tk [expr {![catch {package require Tk}]}]
 if {[testConstraint tk]} { catch {wm withdraw .} }
+# Without a display the Tk modules cannot load. Skip the whole file with a
+# proper summary instead of aborting the run (all.tcl reported "no summary").
+if {![testConstraint tk]} {
+    puts "stack.test: no display, all tests skipped"
+    cleanupTests
+    return
+}
 
 package require tclutils
 package require tkutils

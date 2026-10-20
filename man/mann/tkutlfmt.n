@@ -1,10 +1,10 @@
-.TH tkutlfmt n 0.2 tkutils
+.TH tkutlfmt n 0.3 tkutils
 .SH tkutils::tkutlfmt
 .PP
 Per\-column display formatting for a \fBtablelist\fR widget, via tablelist's \fB\-formatcommand\fR. The underlying cell value stays unchanged, so sorting and filtering still operate on the raw number while the user sees a grouped / currency / percent / date string. Pairs with \fBtkutils::tkutlsort\fR. Library\-neutral.
 .SS Package
 .CS
-package require tkutils::tkutlfmt 0.2
+package require tkutils::tkutlfmt 0.3
 .CE
 .PP
 Requires \fBTk\fR and \fBtablelist\fR. Uses \fBtclutils::tunum\fR to parse raw values when present (falls back to a built\-in parser).
@@ -42,7 +42,7 @@ Option	Default	Applies to	Meaning
 .SS Usage
 .CS
 package require Tk
-package require tablelist
+package require tablelist_tile
 package require tkutils::tkutlfmt
 
 tablelist::tablelist .t -columns {0 Article left 0 Price right 0 Share right 0 Date left}

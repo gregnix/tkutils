@@ -16,8 +16,15 @@ tcl::tm::path add $tmDir
 if {[info exists ::env(TICAL_DIR)]} {
     lappend auto_path $::env(TICAL_DIR)
 } else {
-    foreach c [glob -nocomplain [file join $tmDir .. .. .. tical*/tical] \
-                                 [file join $tmDir .. .. .. .. tical*/tical]] {
+    # Same places as tkutical.test (a flat checkout tical/ with its
+    # pkgIndex.tcl, tical*/lib), plus the nested tical*/tical. Up to
+    # 2026-10-20 only the nested form was searched, and with a flat checkout
+    # all 13 tests were skipped.
+    set _tkuRoot [file dirname [file dirname $tmDir]]
+    set _base [file dirname $_tkuRoot]
+    foreach c [lsort -decreasing [glob -nocomplain \
+            [file join $_base tical*/tical] [file join $_base tical*/lib] \
+            [file join $_base tical*]]] {
         lappend auto_path $c
     }
 }

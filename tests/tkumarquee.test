@@ -105,7 +105,7 @@ test tkumarquee-2.2 {unknown option errors} -constraints haveTk -body {
     mkcanvas
     catch {$::ns\::enable .c -bogus 1} m o
     dict get $o -errorcode
-} -result {TKUTILS TKUMARQUEE OPTION}
+} -result {TKUTILS TKUMARQUEE OPTION -bogus}
 
 test tkumarquee-2.3 {disable removes the press binding} -constraints haveTk -body {
     mkcanvas

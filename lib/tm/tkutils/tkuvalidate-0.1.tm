@@ -64,8 +64,8 @@ proc ::tkutils::tkuvalidate::attach {w validator args} {
         -onvalid {} -oninvalid {}}
     foreach {o v} $args {
         if {![info exists opts($o)]} {
-            return -code error -errorcode {TKUTILS TKUVALIDATE OPTION} \
-                "unknown option '$o'"
+            return -code error -errorcode [list TKUTILS TKUVALIDATE OPTION $o] \
+                "unknown option \"$o\"\nKnown: [join [lsort [array names opts]] { }]"
         }
         set opts($o) $v
     }

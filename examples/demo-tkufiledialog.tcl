@@ -10,7 +10,7 @@ if {[info exists ::env(TCLUTILS_TM)]} {
         break
     }
 }
-package require tkutils::tkufiledialog 0.1
+package require tkutils::tkufiledialog 0.2
 
 wm title . "tkufiledialog demo"
 ttk::frame .f -padding 12

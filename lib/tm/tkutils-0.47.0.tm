@@ -58,7 +58,7 @@ package require tkutils::tkufilelist 0.2
 package require tkutils::tkupath 0.2
 package require tkutils::tkupreview 0.1
 package require tkutils::tkutab 0.2
-package require tkutils::tkufiledialog 0.1
+package require tkutils::tkufiledialog 0.2
 
 # application launcher (menu / list, cross-platform via tuopen)
 package require tkutils::tkulauncher 0.2
@@ -69,4 +69,4 @@ package require tkutils::tkucalc 0.2
 # clickable calendar widget
 package require tkutils::tkucalendar 0.2
 
-package provide tkutils 0.46.0
+package provide tkutils 0.47.0

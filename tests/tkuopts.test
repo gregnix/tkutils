@@ -27,7 +27,7 @@ test tkuopts-1.4 {no options: the defaults come back unchanged} -body {
 # Every former `array set o $args` site now goes through merge. Checked on
 # the module that had a check that could never fire (it ran after the
 # merge): tkutlfmt::column accepted -decimalz until tkutils 0.44.0.
-testConstraint tbl [expr {![catch {package require Tk}] && ![catch {package require tablelist}]}]
+testConstraint tbl [expr {![catch {package require Tk}] && ![catch {package require tablelist_tile}]}]
 test tkuopts-2.1 {tkutlfmt::column rejects a misspelt option} -constraints tbl -setup {
     tcl::tm::path add [file normalize [file join $here .. .. tclutils lib tm]]
     package require tkutils::tkutlfmt

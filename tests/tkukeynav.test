@@ -48,7 +48,7 @@ test tkukeynav-2.2 {enable rejects unknown option} -constraints haveTk -body {
     mkform
     catch {$::ns\::enable .f.a -bogus 1} m o
     dict get $o -errorcode
-} -result {TKUTILS TKUKEYNAV OPTION}
+} -result {TKUTILS TKUKEYNAV OPTION -bogus}
 
 test tkukeynav-2.3 {onreturn callback fires on Return} -constraints haveTk -body {
     mkform

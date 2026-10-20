@@ -10,7 +10,7 @@ compares human-formatted numbers via `tclutils::tunum`. Library-neutral.
 ## Package
 
 ```tcl
-package require tkutils::tkutlsort 0.1
+package require tkutils::tkutlsort 0.2
 ```
 
 Requires `tablelist`. Uses `tclutils::tunum` for the `num` sort mode (falls back
@@ -38,7 +38,7 @@ to a built-in parser when tunum is not on the path).
 
 ```tcl
 package require Tk
-package require tablelist
+package require tablelist_tile
 package require tkutils::tkutlsort
 
 tablelist::tablelist .t -columns {0 Article left 0 Price right 0 Qty right}

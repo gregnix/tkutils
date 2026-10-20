@@ -75,7 +75,7 @@ test tkutoolbar-2.1 {widget rejects unknown option} -constraints haveTk -body {
     catch {destroy .tb}
     catch {::tkutils::tkutoolbar::widget .tb -bogus 1} msg opt
     list [dict get $opt -errorcode] [string match {*unknown option*} $msg]
-} -result {{TKUTILS TKUTOOLBAR OPTION} 1}
+} -result {{TKUTILS TKUTOOLBAR OPTION -bogus} 1}
 
 test tkutoolbar-2.2 {widget rejects bad orient} -constraints haveTk -body {
     catch {destroy .tb}

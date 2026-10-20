@@ -52,8 +52,8 @@ proc ::tkutils::tkuscrolledframe::widget {path args} {
     array set opts {-width 300 -height 200 -xscrollincrement 0 -yscrollincrement 0}
     foreach {o v} $args {
         if {![info exists opts($o)]} {
-            return -code error -errorcode {TKUTILS TKUSCROLLEDFRAME OPTION} \
-                "unknown option '$o'"
+            return -code error -errorcode [list TKUTILS TKUSCROLLEDFRAME OPTION $o] \
+                "unknown option \"$o\"\nKnown: [join [lsort [array names opts]] { }]"
         }
         if {![string is integer -strict $v] || $v < 0} {
             return -code error -errorcode {TKUTILS TKUSCROLLEDFRAME VALUE} \

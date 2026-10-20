@@ -21,7 +21,7 @@ if {[info exists ::env(TCLUTILS_TM)]} {
 }
 
 package require Tk
-package require tablelist
+package require tablelist_tile
 package require tkutils::tkutlfmt
 catch {package require tkutils::tkutlsort}
 

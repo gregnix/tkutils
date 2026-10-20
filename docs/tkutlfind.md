@@ -8,7 +8,7 @@ cells and lets you step through them with next/prev. Complements
 ## Package
 
 ```tcl
-package require tkutils::tkutlfind 0.1
+package require tkutils::tkutlfind 0.2
 ```
 
 Requires `Tk` and `tablelist`.
@@ -40,7 +40,7 @@ Requires `Tk` and `tablelist`.
 
 ```tcl
 package require Tk
-package require tablelist
+package require tablelist_tile
 package require tkutils::tkutlfind
 
 # search box that highlights as you type

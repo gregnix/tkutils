@@ -109,8 +109,8 @@ proc ::tkutils::tkutoolbar::widget {path args} {
     array set opts {-orient horizontal -displaymode both -spacing 2 -padding 2 -buttonstyle flat}
     foreach {o v} $args {
         if {![info exists opts($o)]} {
-            return -code error -errorcode {TKUTILS TKUTOOLBAR OPTION} \
-                "unknown option '$o'"
+            return -code error -errorcode [list TKUTILS TKUTOOLBAR OPTION $o] \
+                "unknown option \"$o\"\nKnown: [join [lsort [array names opts]] { }]"
         }
         set opts($o) $v
     }

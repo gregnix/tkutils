@@ -8,7 +8,7 @@ not just a key/value pair. Library-neutral.
 ## Package
 
 ```tcl
-package require tkutils::tkutltree 0.1
+package require tkutils::tkutltree 0.2
 ```
 
 Requires `Tk` and `tablelist`. The tablelist should have a tree column
@@ -50,7 +50,7 @@ is a list of nodes.
 
 ```tcl
 package require Tk
-package require tablelist
+package require tablelist_tile
 package require tkutils::tkutltree
 
 tablelist::tablelist .t -columns {0 Name left 0 Size right 0 Type left} -treecolumn 0

@@ -51,7 +51,7 @@ test tkuscrolledframe-3.3 {bad option errors with code} -constraints sf -body {
     catch {destroy .sf}
     catch {$::ns\::widget .sf -bogus 1} m o
     dict get $o -errorcode
-} -result {TKUTILS TKUSCROLLEDFRAME OPTION}
+} -result {TKUTILS TKUSCROLLEDFRAME OPTION -bogus}
 
 test tkuscrolledframe-3.4 {non-integer geometry errors with code} -constraints sf -body {
     catch {destroy .sf}

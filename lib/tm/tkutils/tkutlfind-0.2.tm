@@ -24,9 +24,10 @@ package require Tk
 # (the themed build), and Tablelist forbids loading both tablelist and
 # tablelist_tile in one process. Both provide the same ::tablelist:: commands
 # this module needs, so use whichever is present; only load the classic one if
-# neither is.
+# neither is -- since 2026-10-20 the themed tablelist_tile, as everywhere
+# in tkutils (was the classic tablelist).
 if {[catch {package present tablelist}] && [catch {package present tablelist_tile}]} {
-    package require tablelist
+    package require tablelist_tile
 }
 
 namespace eval ::tkutils {}
@@ -148,4 +149,4 @@ proc ::tkutils::tkutlfind::clear {tbl} {
     return
 }
 
-package provide tkutils::tkutlfind 0.1
+package provide tkutils::tkutlfind 0.2

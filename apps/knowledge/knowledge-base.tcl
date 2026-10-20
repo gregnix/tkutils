@@ -24,7 +24,7 @@ source [file join $::kbdir kb-import.tcl]
 source [file join $::kbdir kb-export.tcl]
 
 package require Tk
-package require tablelist
+package require tablelist_tile
 package require tkutils::tkusearchbar
 package require tkutils::tkutablelist
 package require tkutils::tkutltree

@@ -1,10 +1,10 @@
-.TH tkutltree n 0.1 tkutils
+.TH tkutltree n 0.2 tkutils
 .SH tkutils::tkutltree
 .PP
 Convert between nested data and a \fBtablelist\fR tree, with \fBfree column mapping\fR. A node is a dict of named fields plus an optional list of child nodes; \fB\-fields\fR maps field names to columns in order, so each tree row carries several columns — not just a key/value pair. Library\-neutral.
 .SS Package
 .CS
-package require tkutils::tkutltree 0.1
+package require tkutils::tkutltree 0.2
 .CE
 .PP
 Requires \fBTk\fR and \fBtablelist\fR. The tablelist should have a tree column (\fB\-treecolumn\fR).
@@ -37,7 +37,7 @@ Each node is a dict: \fB<field> <value> ...\fR plus an optional \fBchildren\fR (
 .SS Usage
 .CS
 package require Tk
-package require tablelist
+package require tablelist_tile
 package require tkutils::tkutltree
 
 tablelist::tablelist .t -columns {0 Name left 0 Size right 0 Type left} -treecolumn 0

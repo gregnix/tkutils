@@ -9,7 +9,7 @@ Library-neutral.
 ## Package
 
 ```tcl
-package require tkutils::tkutlfmt 0.2
+package require tkutils::tkutlfmt 0.3
 ```
 
 Requires `Tk` and `tablelist`. Uses `tclutils::tunum` to parse raw values when
@@ -52,7 +52,7 @@ Numeric types are right-aligned automatically (override with `-align`).
 
 ```tcl
 package require Tk
-package require tablelist
+package require tablelist_tile
 package require tkutils::tkutlfmt
 
 tablelist::tablelist .t -columns {0 Article left 0 Price right 0 Share right 0 Date left}

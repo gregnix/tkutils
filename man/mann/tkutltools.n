@@ -1,10 +1,10 @@
-.TH tkutltools n 0.1 tkutils
+.TH tkutltools n 0.2 tkutils
 .SH tkutils::tkutltools
 .PP
 Umbrella for the tablelist extension family. Requiring this one package pulls in \fBtablelist\fR (external) plus all \fBtkutl*\fR helpers and their shared \fBtclutils::tunum\fR number backend.
 .SS Package
 .CS
-package require tkutils::tkutltools 0.1
+package require tkutils::tkutltools 0.2
 .CE
 .PP
 It is kept \fBseparate\fR from the main \fBtkutils\fR umbrella, which by design loads only modules with pure\-Tk/tclutils dependencies. \fBtablelist\fR is external, so require \fBtkutltools\fR only where tablelist is available.

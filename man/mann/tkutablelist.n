@@ -111,7 +111,7 @@ set w [::tkutils::tkutablelist::widget .w \
 Editing: with \fB\-editable 1\fR (or \fBconfigureColumn $w col \-editable 1\fR), double\-click a cell to edit it; \fBrows\fR/\fBgetRow\fR then reflect the new value.
 .SS Errors
 .PP
-Unknown widget options raise \fB{TKUTILS TKUTABLELIST OPTION}\fR.
+Unknown widget options raise \fB{TKUTILS TKUTABLELIST OPTION \fIopt\fB}\fR with the message \fBunknown option "\fIopt\fB"\fR and a second line \fBKnown:\fR listing the valid options.
 .SS Launcher
 .CS
 tclsh bin/tkutablelist.tcl

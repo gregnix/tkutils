@@ -22,7 +22,15 @@
 # Tcl 8.6-
 package require Tcl 8.6-
 package require Tk
-package require tablelist
+# tablelist_tile is the Tablelist variant of tkutils (as in tkutablelist).
+# Tablelist forbids loading tablelist and tablelist_tile in one process; both
+# provide the same ::tablelist:: commands, so an application that already has
+# the classic one keeps it. Up to 2026-10-20 this module required the classic
+# "tablelist", and tkutils followed by this module failed with
+# "usingTile ... not supported".
+if {[catch {package present tablelist}] && [catch {package present tablelist_tile}]} {
+    package require tablelist_tile
+}
 
 namespace eval ::tkutils {}
 namespace eval ::tkutils::tkutltree {
@@ -109,4 +117,4 @@ proc ::tkutils::tkutltree::clear {tbl args} {
     return
 }
 
-package provide tkutils::tkutltree 0.1
+package provide tkutils::tkutltree 0.2

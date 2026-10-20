@@ -9,7 +9,7 @@ application.
 ## Package
 
 ```tcl
-package require tkutils::tkutlfooter 0.1
+package require tkutils::tkutlfooter 0.3
 ```
 
 Requires `tablelist`. Horizontal scroll sync chains the main table's
@@ -31,7 +31,7 @@ parser otherwise).
 
 ```tcl
 package require Tk
-package require tablelist
+package require tablelist_tile
 package require tkutils::tkutlfooter
 
 tablelist::tablelist .t -columns {0 "Article" left 0 "Price" right} -stretch all

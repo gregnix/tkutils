@@ -10,7 +10,7 @@ set tmDir [file normalize [file join $here .. lib tm]]
 tcl::tm::path add $tmDir
 
 package require Tk
-package require tablelist
+package require tablelist_tile
 package require tkutils::tkutlstate
 
 wm title . "tkutlstate demo"

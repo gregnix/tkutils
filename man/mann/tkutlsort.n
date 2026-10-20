@@ -1,4 +1,4 @@
-.TH tkutlsort n 0.1 tkutils
+.TH tkutlsort n 0.2 tkutils
 .SH tkutils::tkutlsort
 .PP
 Type\-aware column sorting for a \fBtablelist\fR widget.
@@ -6,7 +6,7 @@ Type\-aware column sorting for a \fBtablelist\fR widget.
 tablelist sorts columns as dictionary/ASCII text by default, which mis\-orders numeric and currency columns — e.g. \fB"1.234,56 €"\fR sorts before \fB"2,50 €"\fR. \fBtkutlsort\fR sets the correct \fB\-sortmode\fR per column, including a \fBnum\fR mode that compares human\-formatted numbers via \fBtclutils::tunum\fR. Library\-neutral.
 .SS Package
 .CS
-package require tkutils::tkutlsort 0.1
+package require tkutils::tkutlsort 0.2
 .CE
 .PP
 Requires \fBtablelist\fR. Uses \fBtclutils::tunum\fR for the \fBnum\fR sort mode (falls back to a built\-in parser when tunum is not on the path).
@@ -29,7 +29,7 @@ type	tablelist mode	use for
 .SS Usage
 .CS
 package require Tk
-package require tablelist
+package require tablelist_tile
 package require tkutils::tkutlsort
 
 tablelist::tablelist .t -columns {0 Article left 0 Price right 0 Qty right}

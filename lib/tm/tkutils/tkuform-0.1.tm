@@ -60,8 +60,8 @@ proc ::tkutils::tkuform::widget {path fieldspec args} {
     array set o {-padding 8 -columns 1}
     foreach {opt val} $args {
         if {![info exists o($opt)]} {
-            return -code error -errorcode {TKUTILS TKUFORM OPTION} \
-                "unknown option '$opt'"
+            return -code error -errorcode [list TKUTILS TKUFORM OPTION $opt] \
+                "unknown option \"$opt\"\nKnown: [join [lsort [array names o]] { }]"
         }
         set o($opt) $val
     }

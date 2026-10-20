@@ -55,8 +55,8 @@ proc ::tkutils::tkukeynav::enable {w args} {
     array set opts {-onreturn {} -onescape {} -tab 1}
     foreach {o v} $args {
         if {![info exists opts($o)]} {
-            return -code error -errorcode {TKUTILS TKUKEYNAV OPTION} \
-                "unknown option '$o'"
+            return -code error -errorcode [list TKUTILS TKUKEYNAV OPTION $o] \
+                "unknown option \"$o\"\nKnown: [join [lsort [array names opts]] { }]"
         }
         set opts($o) $v
     }
@@ -130,8 +130,8 @@ proc ::tkutils::tkukeynav::form {container args} {
     array set opts {-onsubmit {} -wrap 0 -onescape {}}
     foreach {o v} $args {
         if {![info exists opts($o)]} {
-            return -code error -errorcode {TKUTILS TKUKEYNAV OPTION} \
-                "unknown option '$o'"
+            return -code error -errorcode [list TKUTILS TKUKEYNAV OPTION $o] \
+                "unknown option \"$o\"\nKnown: [join [lsort [array names opts]] { }]"
         }
         set opts($o) $v
     }

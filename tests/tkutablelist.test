@@ -268,7 +268,7 @@ test tkutablelist-4.6 {unknown widget option errors with code} -constraints tabl
     catch {destroy .t}
     catch {::tkutils::tkutablelist::widget .t -columns {A B} -bogus 1} m o
     dict get $o -errorcode
-} -result {TKUTILS TKUTABLELIST OPTION}
+} -result {TKUTILS TKUTABLELIST OPTION -bogus}
 
 # --- part B: row/cell formatting ---
 

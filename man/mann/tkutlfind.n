@@ -1,10 +1,10 @@
-.TH tkutlfind n 0.1 tkutils
+.TH tkutlfind n 0.2 tkutils
 .SH tkutils::tkutlfind
 .PP
 Incremental find with match highlighting for a \fBtablelist\fR widget. Unlike a filter (which hides non\-matching rows), \fBtkutlfind\fR highlights the matching cells and lets you step through them with next/prev. Complements \fBtkutils::tkufilterbar\fR. Library\-neutral.
 .SS Package
 .CS
-package require tkutils::tkutlfind 0.1
+package require tkutils::tkutlfind 0.2
 .CE
 .PP
 Requires \fBTk\fR and \fBtablelist\fR.
@@ -31,7 +31,7 @@ Option	Default	Meaning
 .SS Usage
 .CS
 package require Tk
-package require tablelist
+package require tablelist_tile
 package require tkutils::tkutlfind
 
 # search box that highlights as you type

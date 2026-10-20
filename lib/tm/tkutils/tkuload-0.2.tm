@@ -9,7 +9,7 @@
 # no drift.
 #
 # Usage:
-#   package require tkuload
+#   package require tkutils::tkuload
 #   set ui [::tkuload::buildFromFile $someFrame path/to/design.tkd]
 #   # $ui is a dict: root <parent> byId {id w ...} byType {type {w ...} ...}
 #   set firstEntry [lindex [dict get $ui byType entry] 0]

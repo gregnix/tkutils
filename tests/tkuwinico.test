@@ -8,7 +8,14 @@ set here [file dirname [file normalize [info script]]]
 tcl::tm::path add [file normalize [file join $here .. lib tm]]
 # tclutils::tuico lives in the tclutils tree; allow a sibling layout
 catch {tcl::tm::path add [file normalize [file join $here .. .. tclutils lib tm]]}
-package require Tk
+testConstraint haveTk [expr {![catch {package require Tk}]}]
+# Without a display the Tk modules cannot load. Skip the whole file with a
+# proper summary instead of aborting the run (all.tcl reported "no summary").
+if {![testConstraint haveTk]} {
+    puts "tkuwinico.test: no display, all tests skipped"
+    cleanupTests
+    return
+}
 package require tkutils::tkuwinico 0.1
 package require tclutils::tuico 0.1
 
