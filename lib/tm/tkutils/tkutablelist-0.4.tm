@@ -7,7 +7,9 @@
 # selection helpers, per-column configuration (sort mode, alignment), CSV
 # loading via tclutils::tucsv, and display of a tclutils::tunotes store.
 #
-# OPTIONAL widget: NOT part of the tkutils umbrella. Require it directly once
+# OPTIONAL widget: not listed in the tkutils umbrella itself, but
+# tkutils::tkufilelist (in the umbrella) requires it, so loading the umbrella
+# loads it too and needs Tablelist. Standalone: require it directly once
 # Tablelist is installed. Tcl/Tk 8.6+.
 
 package require Tcl 8.6-

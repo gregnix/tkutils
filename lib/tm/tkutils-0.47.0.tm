@@ -61,7 +61,7 @@ package require tkutils::tkutab 0.2
 package require tkutils::tkufiledialog 0.2
 
 # application launcher (menu / list, cross-platform via tuopen)
-package require tkutils::tkulauncher 0.2
+package require tkutils::tkulauncher 0.3
 
 # calculator widget
 package require tkutils::tkucalc 0.2

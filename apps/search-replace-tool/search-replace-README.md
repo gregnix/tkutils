@@ -211,7 +211,7 @@ die Statuszeile.
 Das war der Hauptmangel der Ergebnisanzeige. Vier Dinge zusammen:
 
 **Der Pfad steht relativ zur Suchwurzel.** Bei
-`/home/greg/Project/2026/code/git/github/…` ist der Anfang bei allen
+`/home/user/projekte/2026/code/git/github/…` ist der Anfang bei allen
 Knoten gleich und frisst die Spalte.
 
 **Die Pfadspalte wird nicht gequetscht** (`-stretch 0`, 340 px). Vorher

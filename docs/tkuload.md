@@ -30,6 +30,9 @@ megawidgets (e.g. `tkunumentry`) through their inner entry -- neutralising
 `-state`/`-validate` around the write so readonly and key-validated fields
 round-trip.
 
+All commands above are exported (`namespace import ::tkuload::*`); up to 0.2
+only `build`, `buildFromFile` and `slot` were.
+
 ## Embedding
 A loaded UI is just widgets under `$parent`; no editor is attached, so no
 selection or designer bindings are installed. Host code wires its own

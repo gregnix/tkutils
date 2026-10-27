@@ -1,7 +1,7 @@
 # tkutils::tkupath
 
 A breadcrumb path bar. Shows a path as a row of clickable segments:
-`/home/greg/docs` becomes `[/] [home] [greg] [docs]`. Clicking a segment fires a
+`/srv/daten/docs` becomes `[/] [srv] [daten] [docs]`. Clicking a segment fires a
 callback with the path up to and including that segment, so a file manager can
 navigate to any ancestor in one click. Tk 8.6+ and 9.x.
 
@@ -28,11 +28,11 @@ package require tkutils::tkupath
     -onnavigate {apply {p { puts "go $p" }}}
 pack .bar -fill x
 
-::tkutils::tkupath::setPath .bar /home/greg/docs
+::tkutils::tkupath::setPath .bar /srv/daten/docs
 ```
 
-Clicking `greg` shows `/home/greg` in the bar and then fires the callback with
-`/home/greg`; the caller decides what navigation means (change a directory
+Clicking `daten` shows `/srv/daten` in the bar and then fires the callback with
+`/srv/daten`; the caller decides what navigation means (change a directory
 listing, re-root a tree). The bar has already updated itself, so the callback
 does not need `setPath` -- only a navigation that ends somewhere else (a
 redirect, a failed change) calls `setPath` with the real location.
@@ -44,10 +44,10 @@ backslashes count as `/`. The targets are real paths:
 
 | path | segments | targets |
 |:--|:--|:--|
-| `S:/gregor/daten` | `S:` `gregor` `daten` | `S:/` `S:/gregor` `S:/gregor/daten` |
+| `S:/projekte/daten` | `S:` `projekte` `daten` | `S:/` `S:/projekte` `S:/projekte/daten` |
 | `//srv/share/x` | `//srv/share` `x` | `//srv/share/` `//srv/share/x` |
 
-Up to 0.2 the root `/` was put in front of every target (`/S:/gregor`), which
+Up to 0.2 the root `/` was put in front of every target (`/S:/projekte`), which
 Windows reads as a path on the current drive. Since 0.3.
 
 ## See also

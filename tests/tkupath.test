@@ -24,15 +24,15 @@ test tkupath-1.1 {widget creates} -constraints tk -body {
 
 test tkupath-1.2 {setPath / getPath round-trip} -constraints tk -body {
     ${ns}::widget .p2
-    ${ns}::setPath .p2 /home/greg/docs
+    ${ns}::setPath .p2 /srv/daten/docs
     set r [${ns}::getPath .p2]
     destroy .p2
     set r
-} -result /home/greg/docs
+} -result /srv/daten/docs
 
 test tkupath-1.3 {a path renders one clickable segment per component} -constraints tk -body {
     ${ns}::widget .p3
-    ${ns}::setPath .p3 /home/greg/docs
+    ${ns}::setPath .p3 /srv/daten/docs
     update
     # count the child buttons/labels that make up the breadcrumb
     set segs [llength [winfo children .p3]]
@@ -43,12 +43,12 @@ test tkupath-1.3 {a path renders one clickable segment per component} -constrain
 test tkupath-1.4 {clicking a segment fires -onnavigate with that path} -constraints tk -body {
     set ::nav ""
     ${ns}::widget .p4 -onnavigate {apply {p {set ::nav $p}}}
-    ${ns}::setPath .p4 /home/greg/docs
+    ${ns}::setPath .p4 /srv/daten/docs
     update
-    # find a child that carries an invoke command mentioning /home, and invoke it
+    # find a child that carries an invoke command mentioning /srv, and invoke it
     foreach c [winfo children .p4] {
         if {![catch {$c cget -command} cmd] && $cmd ne ""} {
-            if {[string match *home* $cmd] || [string match *greg* $cmd]} { $c invoke ; break }
+            if {[string match *srv* $cmd] || [string match *daten* $cmd]} { $c invoke ; break }
         }
     }
     set r [expr {$::nav ne ""}]
@@ -77,21 +77,21 @@ proc tkupathTargets {w} {
 
 test tkupath-2.1 {drive path: segments and targets} -constraints tk -body {
     ${ns}::widget .p21
-    ${ns}::setPath .p21 S:/gregor/daten
+    ${ns}::setPath .p21 S:/projekte/daten
     set r [tkupathTargets .p21]
     destroy .p21
     set r
-} -result {{S: S:/} {gregor S:/gregor} {daten S:/gregor/daten}}
+} -result {{S: S:/} {projekte S:/projekte} {daten S:/projekte/daten}}
 
 test tkupath-2.2 {clicking a drive segment navigates on that drive} -constraints tk -body {
     set ::nav ""
     ${ns}::widget .p22 -onnavigate {apply {p {set ::nav $p}}}
-    ${ns}::setPath .p22 S:/gregor/daten
+    ${ns}::setPath .p22 S:/projekte/daten
     .p22.seg1 invoke
     set r [list $::nav [${ns}::getPath .p22]]
     destroy .p22
     set r
-} -result {S:/gregor S:/gregor}
+} -result {S:/projekte S:/projekte}
 
 test tkupath-2.3 {UNC path and backslashes} -constraints tk -body {
     ${ns}::widget .p23
@@ -103,11 +103,11 @@ test tkupath-2.3 {UNC path and backslashes} -constraints tk -body {
 
 test tkupath-2.4 {Unix paths unchanged, root label kept} -constraints tk -body {
     ${ns}::widget .p24 -rootlabel Wurzel
-    ${ns}::setPath .p24 /home/greg
+    ${ns}::setPath .p24 /srv/daten
     set r [tkupathTargets .p24]
     destroy .p24
     set r
-} -result {{Wurzel /} {home /home} {greg /home/greg}}
+} -result {{Wurzel /} {srv /srv} {daten /srv/daten}}
 
 test tkupath-2.5 {drive root alone} -constraints tk -body {
     ${ns}::widget .p25

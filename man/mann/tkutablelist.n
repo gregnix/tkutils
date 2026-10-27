@@ -3,7 +3,7 @@
 .PP
 A multi\-column table built on the \fBTablelist\fR megawidget (from tklib): a rows/columns API, click\-to\-sort headers, editable cells, selection helpers, per\-column configuration, optional frozen title columns, CSV loading via tclutils \fBtucsv\fR, and display of a tclutils \fBtunotes\fR store.
 .PP
-OPTIONAL widget \-\- NOT in the tkutils umbrella. Require it directly once Tablelist is installed (e.g. \fBapt install tklib\fR):
+OPTIONAL widget \-\- not listed in the tkutils umbrella itself, but \fBtkutils::tkufilelist\fR (in the umbrella) requires it, so loading the umbrella loads it too and needs Tablelist. Standalone: require it directly once Tablelist is installed (e.g. \fBapt install tklib\fR):
 .CS
 package require tkutils::tkutablelist
 .CE

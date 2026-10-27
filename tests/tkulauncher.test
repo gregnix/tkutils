@@ -42,7 +42,7 @@ set spec {
         {type app label Firefox cmd firefox}
         {type url label Manual target https://tcl.tk}
         {type separator}
-        {type open label Home target /home/greg}
+        {type open label Home target /home/user}
     }}
     {type separator}
     {type app label Terminal cmd xterm}
@@ -58,8 +58,8 @@ test tkulauncher-1.2 {url resolves to an open action} -constraints tk -body {
 } -result {kind open argv https://tcl.tk}
 
 test tkulauncher-1.3 {open (file/dir) resolves to an open action} -constraints tk -body {
-    ${ns}::resolve {type open label X target /home/greg}
-} -result {kind open argv /home/greg}
+    ${ns}::resolve {type open label X target /home/user}
+} -result {kind open argv /home/user}
 
 test tkulauncher-1.4 {an unknown type is an error} -constraints tk -body {
     catch {${ns}::resolve {type bogus label X}} e
@@ -426,6 +426,22 @@ test tkulauncher-9.4 {scroll mode binds the mouse wheel over the button subtree}
     destroy .sc4
     set r
 } -result {1 1}
+
+test tkulauncher-9.5 {scroll mode: buttons from reload get the wheel binding (0.3)} -constraints tk -setup {
+    set f [makeFile {} sc5.json]
+    set ch [open $f w] ; puts $ch {{"items":[{"type":"app","label":"One","cmd":["sh"]}]}} ; close $ch
+} -body {
+    ${ns}::widget .sc5 -mode list -file $f -scroll 1 -height 120
+    pack .sc5
+    set ch [open $f w]
+    puts $ch {{"items":[{"type":"app","label":"One","cmd":["sh"]},{"type":"app","label":"Two","cmd":["sh"]}]}}
+    close $ch
+    ${ns}::reload .sc5
+    set content $::tkutils::tkulauncher::state(.sc5,content)
+    set r [lmap b [winfo children $content] {expr {[bind $b <Button-5>] ne ""}}]
+    destroy .sc5
+    set r
+} -cleanup {removeFile sc5.json} -result {1 1}
 
 
 # ---- tooltips -------------------------------------------------------------

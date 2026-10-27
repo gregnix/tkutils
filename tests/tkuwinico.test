@@ -6,8 +6,16 @@ namespace import ::tcltest::*
 
 set here [file dirname [file normalize [info script]]]
 tcl::tm::path add [file normalize [file join $here .. lib tm]]
-# tclutils::tuico lives in the tclutils tree; allow a sibling layout
-catch {tcl::tm::path add [file normalize [file join $here .. .. tclutils lib tm]]}
+# tclutils: $env(TCLUTILS_TM), otherwise a sibling tclutils* checkout
+if {[info exists ::env(TCLUTILS_TM)]} {
+    tcl::tm::path add $::env(TCLUTILS_TM)
+} else {
+    foreach _c [lsort -decreasing [glob -nocomplain -type d [file join \
+            [file dirname [file dirname $here]] tclutils* lib tm]]] {
+        tcl::tm::path add $_c
+        break
+    }
+}
 testConstraint haveTk [expr {![catch {package require Tk}]}]
 # Without a display the Tk modules cannot load. Skip the whole file with a
 # proper summary instead of aborting the run (all.tcl reported "no summary").

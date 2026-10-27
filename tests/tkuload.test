@@ -102,4 +102,8 @@ test tkuload-4.1 {slot empties a named placeholder} -constraints haveTk -body {
          [string match *host [lindex [winfo children $box] 0]]
 } -result {TFrame 1 1}
 
+test tkuload-5.1 {the documented commands are exported (0.3)} -constraints haveTk -body {
+    lsort [namespace eval ::tkuload {namespace export}]
+} -result {build buildFromFile collect fill getValue setValue slot widgetByName}
+
 cleanupTests

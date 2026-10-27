@@ -29,7 +29,15 @@ test tkuopts-1.4 {no options: the defaults come back unchanged} -body {
 # merge): tkutlfmt::column accepted -decimalz until tkutils 0.44.0.
 testConstraint tbl [expr {![catch {package require Tk}] && ![catch {package require tablelist_tile}]}]
 test tkuopts-2.1 {tkutlfmt::column rejects a misspelt option} -constraints tbl -setup {
-    tcl::tm::path add [file normalize [file join $here .. .. tclutils lib tm]]
+    if {[info exists ::env(TCLUTILS_TM)]} {
+        tcl::tm::path add $::env(TCLUTILS_TM)
+    } else {
+        foreach _c [lsort -decreasing [glob -nocomplain -type d [file join \
+                [file dirname [file dirname $here]] tclutils* lib tm]]] {
+            tcl::tm::path add $_c
+            break
+        }
+    }
     package require tkutils::tkutlfmt
     proc fakeTbl {args} {}
 } -body {

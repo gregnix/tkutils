@@ -230,7 +230,7 @@ proc ::tieferBaum {} {
 
 test gui-8.1 {der Baum zeigt den Pfad relativ, nicht absolut} \
         -constraints gui -body {
-    # Bei /home/greg/Project/2026/code/git/github/... ist der Anfang bei
+    # Bei /home/user/projekte/2026/code/git/github/... ist der Anfang bei
     # allen Knoten gleich und frisst die ganze Spalte.
     ::tieferBaum
     lsort [lmap d [.pw.left.tv children {}] {.pw.left.tv item $d -text}]

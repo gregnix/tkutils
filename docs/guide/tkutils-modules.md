@@ -32,10 +32,10 @@
 | `tkutils::tkujson` | 0.1 | JSON tree viewer | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkujson-0.1.tm` | tclutils::tujson,tclutils::common |
 | `tkutils::tkukeynav` | 0.1 | keyboard focus navigation helpers | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkukeynav-0.1.tm` |  |
 | `tkutils::tkulabeled` | 0.1 | labeled input composites (label + control in one) | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkulabeled-0.1.tm` |  |
-| `tkutils::tkulauncher` | 0.2 | an application launcher widget, as a menu or a list | Tk · widgets | Y | Y | N | tkutils | `lib/tm/tkutils/tkulauncher-0.2.tm` | tkutils::tkuopts,tclutils::tuopen,tkutils::tkuscrolledframe,tkutils::tkuwheel,tkutils::tkuballoon,tclutils::tujson,tclutils::tuini,tkutils::tkutical,tkutils::tkucalendar,tkutils::tkucal,tkutils::tkucalc,tkutils::tkuform |
+| `tkutils::tkulauncher` | 0.3 | an application launcher widget, as a menu or a list | Tk · widgets | Y | Y | N | tkutils | `lib/tm/tkutils/tkulauncher-0.3.tm` | tkutils::tkuopts,tclutils::tuopen,tkutils::tkuscrolledframe,tkutils::tkuwheel,tkutils::tkuballoon,tclutils::tujson,tclutils::tuini,tkutils::tkutical,tkutils::tkucalendar,tkutils::tkucal,tkutils::tkucalc,tkutils::tkuform |
 | `tkutils::tkulayoutcanvas` | 0.1 | visual block layout designer on a Tk canvas | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkulayoutcanvas-0.1.tm` | tclutils::tulayout |
 | `tkutils::tkuldif` | 0.2 | LDIF entry viewer/editor | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuldif-0.2.tm` | tkutils::tkuopts,tclutils::tuldif |
-| `tkutils::tkuload` | 0.2 | instantiate a tkudesigner `.tkd` layout as a live Tk widget tree (no code export) | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuload-0.2.tm` | tkutils::tkurender |
+| `tkutils::tkuload` | 0.3 | instantiate a tkudesigner `.tkd` layout as a live Tk widget tree (no code export) | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuload-0.3.tm` | tkutils::tkurender |
 | `tkutils::tkumarquee` | 0.1 | rubber-band (marquee) rectangle selection on a canvas | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkumarquee-0.1.tm` |  |
 | `tkutils::tkumd` | 0.1 | Markdown outline viewer | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkumd-0.1.tm` | tclutils::tumd,tclutils::common |
 | `tkutils::tkumdview` | 0.1 | Markdown viewer (headings outline + rendered preview) | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkumdview-0.1.tm` | tclutils::tumd |

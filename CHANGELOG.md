@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased
+
+Module versions: `tkulauncher` 0.3, `tkuload` 0.3 (delete
+`tkulauncher-0.2.tm`, `tkuload-0.2.tm`).
+
+- `tkulauncher`: with `-scroll 1` the buttons are bound to the wheel when
+  they are built; after `reload` new buttons had no wheel binding, and
+  `tkulauncher-9.4` failed under load. Test `tkulauncher-9.5`.
+- `tkuload`: exports `widgetByName`, `setValue`, `getValue`, `fill`,
+  `collect` (was `build`, `buildFromFile`, `slot`). Test `tkuload-5.1`.
+- `tkutablelist` header comment, doc, man: comes in via `tkufilelist`
+  (was "NOT part of the umbrella").
+- Tests `tkucanvaspng`, `tkuwinico`, `tkutl*`, `tkuopts`: find tclutils via
+  `TCLUTILS_TM` or a sibling `tclutils*` (was sibling `tclutils` only).
+- Examples without personal paths (`/srv/daten/docs`, `S:/projekte/daten`,
+  `/home/user`): `tkupath`, `tkulauncher` (code comments, docs, man, tests),
+  `demo-tkupreview`, search-replace-tool, `tools/check-modules`.
+
 ## 0.47.0 - 2026-10-20
 
 Recommended pairing: tclutils 0.66.0 + tkutils 0.47.0 + ctrlutils 0.4
@@ -48,10 +66,10 @@ Recommended pairing: tclutils 0.64.0 + tkutils 0.46.0 + ctrlutils 0.3
 
 ### `tkupath` 0.3: drive and UNC paths (2026-10-07)
 
-On Windows the breadcrumb of `S:/gregor/daten` read `/ > S: > gregor > daten`
-and clicking `gregor` sent `/S:/gregor` -- a path on the current drive, so a
+On Windows the breadcrumb of `S:/projekte/daten` read `/ > S: > projekte > daten`
+and clicking `projekte` sent `/S:/projekte` -- a path on the current drive, so a
 file manager landed on `C:`. The drive (or `//server/share`) is now the first
-segment and every target a real path (`S:/`, `S:/gregor`); backslashes count
+segment and every target a real path (`S:/`, `S:/projekte`); backslashes count
 as `/`. Unix paths are unchanged. Tests `tkupath-2.1` to `2.5`.
 
 ### `tkupreview` 0.2: texts through msgcat (2026-10-07)

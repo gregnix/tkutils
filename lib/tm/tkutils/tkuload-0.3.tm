@@ -1,4 +1,4 @@
-# tkuload 0.2 -- instantiate a tkudesigner ".tkd" layout as a live Tk widget
+# tkuload 0.3 -- instantiate a tkudesigner ".tkd" layout as a live Tk widget
 # Description: instantiate a tkudesigner `.tkd` layout as a live Tk widget tree (no code export)
 # Category: Tk · widgets
 # tree inside a host application, without code export.
@@ -31,7 +31,8 @@ namespace eval ::tkuload {
     # our own directory, captured at source time (info script is unreliable
     # later -- it would reflect whichever script is calling us)
     variable selfDir [file dirname [file normalize [info script]]]
-    namespace export build buildFromFile slot
+    namespace export build buildFromFile slot \
+        widgetByName setValue getValue fill collect
 }
 
 # Load the shared render engine once: the package tkutils::tkurender (procs +
@@ -115,7 +116,7 @@ proc ::tkuload::slot {ui name} {
     return $w
 }
 
-package provide tkutils::tkuload 0.2
+package provide tkutils::tkuload 0.3
 
 # ---------------------------------------------------------------------------
 # Value binding helpers -- wire a loaded design to host data by widget name.

@@ -2,24 +2,24 @@
 # Description: a breadcrumb path bar with clickable segments
 # Category: Tk · widgets
 #
-# Shows a path as a row of clickable segments: /home/greg/docs becomes
-# [/] [home] [greg] [docs]. Clicking a segment fires -onnavigate with the path
+# Shows a path as a row of clickable segments: /srv/daten/docs becomes
+# [/] [srv] [daten] [docs]. Clicking a segment fires -onnavigate with the path
 # up to and including that segment, so the host can navigate there.
 #
 # Provider-neutral: it only splits and joins "/"-separated paths as text. It
 # does not touch any filesystem, so it works for local paths, ZIP paths, DAV
 # hrefs -- whatever the provider uses, as long as "/" is the separator.
 #
-# Windows paths (0.3): a drive path S:/gregor/daten becomes [S:] [gregor]
+# Windows paths (0.3): a drive path S:/projekte/daten becomes [S:] [projekte]
 # [daten] and a UNC path //server/share/x becomes [//server/share] [x]; the
 # first segment navigates to the drive or share root (S:/, //server/share/).
 # Up to 0.2 the leading "/" was glued in front of every target, so clicking
-# "gregor" sent "/S:/gregor" -- on Windows a path on the CURRENT drive, the
+# "projekte" sent "/S:/projekte" -- on Windows a path on the CURRENT drive, the
 # host ended up on C:. Backslashes are taken as "/".
 #
 #   tkupath::widget .pb -onnavigate {apply {p { puts "go $p" }}}
-#   tkupath::setPath .pb /home/greg/docs
-#   tkupath::getPath .pb            -> /home/greg/docs
+#   tkupath::setPath .pb /srv/daten/docs
+#   tkupath::getPath .pb            -> /srv/daten/docs
 #
 # Options:
 #   -onnavigate cmd   called with the target path when a segment is clicked
@@ -96,9 +96,9 @@ proc ::tkutils::tkupath::_rebuild {path} {
 }
 
 # Split off the root: {text target rest}. text "" means the -rootlabel.
-#   /home/greg       -> {"" / home/greg}
-#   S:/gregor/daten  -> {S: S:/ gregor/daten}      (also "S:" alone)
-#   //srv/share/x    -> {//srv/share //srv/share/ x}
+#   /srv/daten         -> {"" / srv/daten}
+#   S:/projekte/daten  -> {S: S:/ projekte/daten}    (also "S:" alone)
+#   //srv/share/x      -> {//srv/share //srv/share/ x}
 proc ::tkutils::tkupath::_root {p} {
     if {[regexp {^([A-Za-z]:)(/.*)?$} $p -> drive rest]} {
         return [list $drive $drive/ $rest]

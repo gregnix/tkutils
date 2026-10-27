@@ -84,9 +84,15 @@ proc ::tkutils::tkulauncher::widget {path args} {
         # forward the mouse wheel to the scrollable frame, over the whole button
         # subtree, so scrolling works with the pointer anywhere in the panel --
         # and -dynamic keeps it covered when reload rebuilds the buttons.
+        # The buttons are created later in _populate, which binds them itself:
+        # -dynamic alone only reacts to <Configure> of the scrollable frame,
+        # so buttons from reload (same frame size) stayed unbound, and right
+        # after creation the binding depended on event timing (up to 0.2).
         if {![catch {package require tkutils::tkuwheel}]} {
             set sf [::tkutils::tkuscrolledframe::scrollableframe $path.sf]
-            catch {::tkutils::tkuwheel::redirect $sf $sf -orient y -dynamic 1}
+            if {![catch {::tkutils::tkuwheel::redirect $sf $sf -orient y -dynamic 1}]} {
+                set state($path,wheel) $sf
+            }
         }
     } else {
         ttk::frame $path
@@ -178,6 +184,10 @@ proc ::tkutils::tkulauncher::_populate {path} {
         set content [expr {[info exists state($path,content)] ? $state($path,content) : $path}]
         foreach c [winfo children $content] { destroy $c }
         _fillList $path $content $items 0
+        # scroll mode: wheel over the new buttons scrolls the panel
+        if {[info exists state($path,wheel)]} {
+            catch {::tkutils::tkuwheel::redirect $state($path,wheel) $content -orient y}
+        }
     }
     # re-apply right-click editing to freshly created child buttons
     if {[info exists state($path,editable)] && $state($path,editable)} {
@@ -688,7 +698,7 @@ proc ::tkutils::tkulauncher::_loadIni {text} {
 # type; otherwise it is a program to exec.
 #   Firefox = app: firefox
 #   Manual  = url: https://tcl.tk
-#   Home    = open: /home/greg
+#   Home    = open: /home/user
 proc ::tkutils::tkulauncher::_iniEntry {label value} {
     set value [string trim $value]
     if {[regexp {^(app|url|open|file|system)\s*:\s*(.*)$} $value -> t rest]} {
@@ -1996,4 +2006,4 @@ proc ::tkutils::tkulauncher::systemIds {} {
     return [lsort [dict keys $sysCat]]
 }
 
-package provide tkutils::tkulauncher 0.2
+package provide tkutils::tkulauncher 0.3

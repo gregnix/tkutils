@@ -58,7 +58,7 @@ A list of dicts, each with a `type`:
 ```tcl
 {type app  label "Firefox" cmd {firefox} icon path dir path tooltip text}  ;# run a program
 {type url       label "Manual"   target https://tcl.tk}  ;# open a URL
-{type open      label "Home"     target /home/greg}      ;# open a file/folder
+{type open      label "Home"     target /home/user}      ;# open a file/folder
 {type separator}                                          ;# a divider
 {type menu      label "Internet" items {...}}            ;# a submenu / section
 {type system    id taskmanager}                         ;# an environment-aware system tool
@@ -123,7 +123,7 @@ Manual  = url: https://tcl.tk
 
 [System]
 Terminal = xterm
-Home     = open: /home/greg
+Home     = open: /home/user
 TaskMgr  = system: taskmanager
 ```
 

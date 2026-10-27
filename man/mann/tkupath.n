@@ -1,7 +1,7 @@
 .TH tkupath n 0.3 tkutils
 .SH tkutils::tkupath
 .PP
-A breadcrumb path bar. Shows a path as a row of clickable segments: \fB/home/greg/docs\fR becomes \fB[/] [home] [greg] [docs]\fR. Clicking a segment fires a callback with the path up to and including that segment, so a file manager can navigate to any ancestor in one click. Tk 8.6+ and 9.x.
+A breadcrumb path bar. Shows a path as a row of clickable segments: \fB/srv/daten/docs\fR becomes \fB[/] [srv] [daten] [docs]\fR. Clicking a segment fires a callback with the path up to and including that segment, so a file manager can navigate to any ancestor in one click. Tk 8.6+ and 9.x.
 .SS API
 .CS
 ::tkutils::tkupath::widget  path ?options?
@@ -21,21 +21,21 @@ package require tkutils::tkupath
     -onnavigate {apply {p { puts "go $p" }}}
 pack .bar -fill x
 
-::tkutils::tkupath::setPath .bar /home/greg/docs
+::tkutils::tkupath::setPath .bar /srv/daten/docs
 .CE
 .PP
-Clicking \fBgreg\fR shows \fB/home/greg\fR in the bar and then fires the callback with \fB/home/greg\fR; the caller decides what navigation means (change a directory listing, re\-root a tree). The bar has already updated itself, so the callback does not need \fBsetPath\fR \- only a navigation that ends somewhere else (a redirect, a failed change) calls \fBsetPath\fR with the real location.
+Clicking \fBdaten\fR shows \fB/srv/daten\fR in the bar and then fires the callback with \fB/srv/daten\fR; the caller decides what navigation means (change a directory listing, re\-root a tree). The bar has already updated itself, so the callback does not need \fBsetPath\fR \- only a navigation that ends somewhere else (a redirect, a failed change) calls \fBsetPath\fR with the real location.
 .SS "Windows paths"
 .PP
 A drive path shows the drive as the first segment, a UNC path the share; backslashes count as \fB/\fR. The targets are real paths:
 .TS
 l l l.
 path	segments	targets
-\fBS:/gregor/daten\fR	\fBS:\fR \fBgregor\fR \fBdaten\fR	\fBS:/\fR \fBS:/gregor\fR \fBS:/gregor/daten\fR
+\fBS:/projekte/daten\fR	\fBS:\fR \fBprojekte\fR \fBdaten\fR	\fBS:/\fR \fBS:/projekte\fR \fBS:/projekte/daten\fR
 \fB//srv/share/x\fR	\fB//srv/share\fR \fBx\fR	\fB//srv/share/\fR \fB//srv/share/x\fR
 .TE
 .PP
-Up to 0.2 the root \fB/\fR was put in front of every target (\fB/S:/gregor\fR), which Windows reads as a path on the current drive. Since 0.3.
+Up to 0.2 the root \fB/\fR was put in front of every target (\fB/S:/projekte\fR), which Windows reads as a path on the current drive. Since 0.3.
 .SS "See also"
 .PP
 \fBtkufiletree\fR, \fBtkufilelist\fR, \fBtkutab\fR

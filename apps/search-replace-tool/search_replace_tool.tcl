@@ -1007,7 +1007,7 @@ proc ::srtool::populateTree {} {
     array set dirNodes {}
     # Der Pfad RELATIV zur Suchwurzel. Vorher stand dort der absolute,
     # und ohne Horizontal-Rollbalken war er abgeschnitten -- bei
-    # /home/greg/Project/2026/code/... sah man von der Spalte nichts
+    # /home/user/projekte/2026/code/... sah man von der Spalte nichts
     # ausser dem Anfang, der bei allen Knoten gleich ist.
     set wurzel [file normalize $::srtool::opt(dir)]
     set dirNodes [dict create]

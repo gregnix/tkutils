@@ -3,7 +3,16 @@ package require tcltest
 namespace import ::tcltest::*
 set here [file dirname [file normalize [info script]]]
 tcl::tm::path add [file normalize [file join $here .. lib tm]]
-catch {tcl::tm::path add [file normalize [file join $here .. .. tclutils lib tm]]}
+# tclutils: $env(TCLUTILS_TM), otherwise a sibling tclutils* checkout
+if {[info exists ::env(TCLUTILS_TM)]} {
+    tcl::tm::path add $::env(TCLUTILS_TM)
+} else {
+    foreach _c [lsort -decreasing [glob -nocomplain -type d [file join \
+            [file dirname [file dirname $here]] tclutils* lib tm]]] {
+        tcl::tm::path add $_c
+        break
+    }
+}
 testConstraint hasTk  [expr {![catch {package require Tk}]}]
 testConstraint hasTbl [expr {![catch {package require tablelist_tile}]}]
 
@@ -24,7 +33,8 @@ test tkutltools-1.2 {tunum backend present} -constraints {hasTk hasTbl} -body {
 # tablelist_tile) followed by tkutltools (classic tablelist) failed.
 proc ::childLoad {script} {
     set tm [file normalize [file join $::here .. lib tm]]
-    set tcu [file normalize [file join $::here .. .. tclutils lib tm]]
+    set tcu [lindex [lsort -decreasing [glob -nocomplain -type d [file join \
+        [file dirname [file dirname $::here]] tclutils* lib tm]]] 0]
     if {[info exists ::env(TCLUTILS_TM)]} { set tcu $::env(TCLUTILS_TM) }
     set code [string map [list @TM@ $tm @TCU@ $tcu] {
         tcl::tm::path add @TM@

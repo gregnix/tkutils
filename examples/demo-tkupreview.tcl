@@ -15,7 +15,7 @@ set ::samples {
     text     {notes.txt}          {Plain text preview.\nLine two.\nLine three.}
     markdown {README.md}          {# Title\n\nSome **bold** and *italic* text, and a list:\n\n- one\n- two\n- three}
     json     {config.json}        {{"name":"demo","count":3,"tags":["a","b"]}}
-    ini      {settings.ini}       {[main]\nname = demo\ncount = 3\n\n[paths]\nhome = /home/greg}
+    ini      {settings.ini}       {[main]\nname = demo\ncount = 3\n\n[paths]\nhome = /home/user}
     csv      {data.csv}           {name,city,age\nAnna,Berlin,29\nBjoern,Hamburg,41}
     hex      {bytes}              {ABC\x00\x01\x02 hello}
     message  {}                   {Select a file to preview.}

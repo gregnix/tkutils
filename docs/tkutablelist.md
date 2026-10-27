@@ -5,7 +5,9 @@ rows/columns API, click-to-sort headers, editable cells, selection helpers,
 per-column configuration, optional frozen title columns, CSV loading via
 tclutils `tucsv`, and display of a tclutils `tunotes` store.
 
-OPTIONAL widget -- NOT in the tkutils umbrella. Require it directly once
+OPTIONAL widget -- not listed in the tkutils umbrella itself, but
+`tkutils::tkufilelist` (in the umbrella) requires it, so loading the umbrella
+loads it too and needs Tablelist. Standalone: require it directly once
 Tablelist is installed (e.g. `apt install tklib`):
 
 ```tcl
