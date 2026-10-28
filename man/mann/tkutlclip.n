@@ -1,10 +1,10 @@
-.TH tkutlclip n 0.2 tkutils
+.TH tkutlclip n 0.3 tkutils
 .SH tkutils::tkutlclip
 .PP
 Copy \fBtablelist\fR rows to the clipboard as TSV or CSV — the common "Ctrl+C copies the selection as spreadsheet\-pasteable text" behaviour that tablelist itself does not provide. Library\-neutral.
 .SS Package
 .CS
-package require tkutils::tkutlclip 0.2
+package require tkutils::tkutlclip 0.3
 .CE
 .PP
 Requires \fBTk\fR and \fBtablelist\fR. Uses \fBtclutils::tucsv\fR for CSV quoting when available (falls back to a built\-in quoter otherwise).
@@ -16,7 +16,7 @@ Requires \fBTk\fR and \fBtablelist\fR. Uses \fBtclutils::tucsv\fR for CSV quotin
 ::tkutils::tkutlclip::installBindings tbl ?options?
 .CE
 .PP
-\fBtbl\fR is the tablelist widget. \fBcopySelection\fR/\fBcopyAll\fR return the number of rows copied; \fBasText\fR returns the built string without touching the clipboard.
+\fBtbl\fR is the tablelist widget. \fBcopySelection\fR/\fBcopyAll\fR return the number of rows copied; \fBcopyAll\fR copies only viewable rows (not hidden, parents expanded); \fBasText\fR returns the built string without touching the clipboard.
 .SS Options
 .TS
 l l l.
@@ -25,6 +25,7 @@ Option	Default	Meaning
 \fB\-header\fR	\fB0\fR	prepend column titles as the first line
 \fB\-formatted\fR	\fB1\fR	use displayed values (\fBgetformatted\fR) vs raw cells
 \fB\-columns\fR	\fBvisible\fR	\fBvisible\fR (skip hidden columns) or \fBall\fR
+\fB\-separator\fR	\fB,\fR	CSV field separator, one character (e.g. \fB;\fR); TSV always uses a tab
 .TE
 .SS Usage
 .CS
@@ -50,7 +51,7 @@ set tsv [::tkutils::tkutlclip::asText .t {0 1 2} -header 1]
 .IP \(bu
 TSV replaces embedded tabs/newlines with spaces so pasted cells stay aligned. Use CSV when cells may contain those characters and you need them preserved.
 .IP \(bu
-\fBinstallBindings\fR binds \fB<<Copy>>\fR on the tablelist body, so it coexists with normal text\-entry copy in edited cells.
+\fBinstallBindings\fR binds \fB<<Copy>>\fR on the tablelist body tag and ends with \fBbreak\fR, so Tablelist's own \fB<<Copy>>\fR does not overwrite the clipboard. Edit windows keep their normal text copy. Options are checked at once.
 .SS "Error codes"
 .PP
-\fB\-errorcode {TKUTILS TKUTLCLIP <REASON>}\fR (\fBOPTION\fR, \fBFORMAT\fR, \fBCOLUMNS\fR).
+\fB\-errorcode {TKUTILS TKUTLCLIP <REASON>}\fR (\fBOPTION\fR, \fBFORMAT\fR, \fBCOLUMNS\fR, \fBSEPARATOR\fR).

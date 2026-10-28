@@ -1,4 +1,4 @@
-.TH tkutlsort n 0.2 tkutils
+.TH tkutlsort n 0.3 tkutils
 .SH tkutils::tkutlsort
 .PP
 Type\-aware column sorting for a \fBtablelist\fR widget.
@@ -6,15 +6,17 @@ Type\-aware column sorting for a \fBtablelist\fR widget.
 tablelist sorts columns as dictionary/ASCII text by default, which mis\-orders numeric and currency columns — e.g. \fB"1.234,56 €"\fR sorts before \fB"2,50 €"\fR. \fBtkutlsort\fR sets the correct \fB\-sortmode\fR per column, including a \fBnum\fR mode that compares human\-formatted numbers via \fBtclutils::tunum\fR. Library\-neutral.
 .SS Package
 .CS
-package require tkutils::tkutlsort 0.2
+package require tkutils::tkutlsort 0.3
 .CE
 .PP
 Requires \fBtablelist\fR. Uses \fBtclutils::tunum\fR for the \fBnum\fR sort mode (falls back to a built\-in parser when tunum is not on the path).
 .SS Commands
 .CS
-::tkutils::tkutlsort::column  tbl col type ?cmd?
-::tkutils::tkutlsort::columns tbl {col type col type ...}
+::tkutils::tkutlsort::column  tbl col type ?cmd? ?-empty first|last?
+::tkutils::tkutlsort::columns tbl {col type col type ...} ?-empty first|last?
 .CE
+.PP
+\fB\-empty\fR applies to \fBinteger\fR, \fBreal\fR and \fBnum\fR: empty and unparsable cells go first or last in \fBboth\fR sort directions. Without it \fBinteger\fR and \fBreal\fR use tablelist's own mode, which raises an error on empty cells. \fBcolumns\fR passes \fB\-empty\fR only to \fBinteger\fR, \fBreal\fR and \fBnum\fR columns.
 .SS "Sort types"
 .TS
 l l l.
@@ -46,6 +48,11 @@ Custom comparator:
 proc cmpLen {a b} { expr {[string length $a] - [string length $b]} }
 ::tkutils::tkutlsort::column .t 0 command cmpLen
 .CE
+.PP
+Empty cells at the end, ascending or descending:
+.CS
+::tkutils::tkutlsort::column .t 2 integer -empty last
+.CE
 .SS Notes
 .IP \(bu
 \fBnum\fR parses EU (\fB1.234,56\fR) and US (\fB1,234.56\fR) grouping and strips currency symbols; unparsable cells (empty, text) sort after all numbers.
@@ -53,4 +60,4 @@ proc cmpLen {a b} { expr {[string length $a] - [string length $b]} }
 Sorting itself is still triggered the normal tablelist way (\fBsortbycolumn\fR, label\-click, \fB\-labelcommand\fR etc.); \fBtkutlsort\fR only configures \fIhow\fR each column compares.
 .SS "Error codes"
 .PP
-\fB\-errorcode {TKUTILS TKUTLSORT <REASON>}\fR (\fBTYPE\fR, \fBCMD\fR, \fBSPEC\fR).
+\fB\-errorcode {TKUTILS TKUTLSORT <REASON>}\fR (\fBTYPE\fR, \fBCMD\fR, \fBSPEC\fR, \fBOPTION\fR, \fBEMPTY\fR).

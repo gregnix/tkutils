@@ -10,7 +10,7 @@ compares human-formatted numbers via `tclutils::tunum`. Library-neutral.
 ## Package
 
 ```tcl
-package require tkutils::tkutlsort 0.2
+package require tkutils::tkutlsort 0.3
 ```
 
 Requires `tablelist`. Uses `tclutils::tunum` for the `num` sort mode (falls back
@@ -19,9 +19,14 @@ to a built-in parser when tunum is not on the path).
 ## Commands
 
 ```tcl
-::tkutils::tkutlsort::column  tbl col type ?cmd?
-::tkutils::tkutlsort::columns tbl {col type col type ...}
+::tkutils::tkutlsort::column  tbl col type ?cmd? ?-empty first|last?
+::tkutils::tkutlsort::columns tbl {col type col type ...} ?-empty first|last?
 ```
+
+`-empty` applies to `integer`, `real` and `num`: empty and unparsable cells
+go first or last in **both** sort directions. Without it `integer` and `real`
+use tablelist's own mode, which raises an error on empty cells. `columns`
+passes `-empty` only to `integer`, `real` and `num` columns.
 
 ## Sort types
 
@@ -57,6 +62,12 @@ proc cmpLen {a b} { expr {[string length $a] - [string length $b]} }
 ::tkutils::tkutlsort::column .t 0 command cmpLen
 ```
 
+Empty cells at the end, ascending or descending:
+
+```tcl
+::tkutils::tkutlsort::column .t 2 integer -empty last
+```
+
 ## Notes
 
 - `num` parses EU (`1.234,56`) and US (`1,234.56`) grouping and strips currency
@@ -67,4 +78,4 @@ proc cmpLen {a b} { expr {[string length $a] - [string length $b]} }
 
 ## Error codes
 
-`-errorcode {TKUTILS TKUTLSORT <REASON>}` (`TYPE`, `CMD`, `SPEC`).
+`-errorcode {TKUTILS TKUTLSORT <REASON>}` (`TYPE`, `CMD`, `SPEC`, `OPTION`, `EMPTY`).

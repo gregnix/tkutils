@@ -23,8 +23,8 @@ set w [::tkutils::tkutablelist::widget .w ?-columns {t...}? ?-stretch all? \
 # -exportselection defaults to 0 (PRIMARY not cleared by menus); use 1 for Tk-like export
 
 # rows
-::tkutils::tkutablelist::insert    $w row
-::tkutils::tkutablelist::setRows   $w rows
+::tkutils::tkutablelist::insert    $w row ?id?
+::tkutils::tkutablelist::setRows   $w rows ?-ids idList?
 ::tkutils::tkutablelist::rows      $w
 ::tkutils::tkutablelist::getRow    $w index
 ::tkutils::tkutablelist::setRow    $w index row
@@ -46,7 +46,13 @@ set w [::tkutils::tkutablelist::widget .w ?-columns {t...}? ?-stretch all? \
 # selection
 ::tkutils::tkutablelist::selection    $w        ;# selected row indices
 ::tkutils::tkutablelist::selectedRows $w        ;# selected rows
-::tkutils::tkutablelist::selectRows   $w {i...}
+::tkutils::tkutablelist::selectRows   $w {i...}   ;# first row active and visible
+
+# stable row ids (row -name)
+::tkutils::tkutablelist::rowId       $w index     ;# -> id or ""
+::tkutils::tkutablelist::findId      $w id        ;# -> index or -1
+::tkutils::tkutablelist::selectedIds $w
+::tkutils::tkutablelist::selectIds   $w {id...}   ;# -> ids found
 
 # sorting / data sources
 ::tkutils::tkutablelist::sortBy   $w col ?-increasing|-decreasing?
@@ -55,14 +61,37 @@ set w [::tkutils::tkutablelist::widget .w ?-columns {t...}? ?-stretch all? \
 ::tkutils::tkutablelist::tableWidget $w
 
 # CSV export / edit hook
-::tkutils::tkutablelist::toCsv   $w ?-header 0|1?           ;# -> CSV text
-::tkutils::tkutablelist::saveCsv $w file ?-header 0|1?
+::tkutils::tkutablelist::toCsv   $w ?-header 0|1? ?-all 0|1? ?-formatted 0|1? ?tucsv options?
+::tkutils::tkutablelist::saveCsv $w file ?toCsv options? ?-encoding utf-8?
 ::tkutils::tkutablelist::editEndCommand $w cmd             ;# cmd: path row col text -> new text
 ```
 
 # selection / activation callbacks
 ::tkutils::tkutablelist::selectCommand $w ?cmd?           ;# get or set
 ::tkutils::tkutablelist::doubleCommand $w ?cmd?           ;# get or set
+```
+
+## Row ids, sorting, CSV
+
+Row indices change when the user sorts. `insert … id` and `setRows … -ids`
+store an id in the row's `-name`; `findId`, `selectedIds` and `selectIds` work
+with ids. `setRows` inserts all rows in one `insertlist` and re-applies the
+current sort order. With `-ids`, the list needs one id per row.
+
+With `-sortable 1` a header click calls `tablelist::sortByColumn` (toggles the
+order, shows the arrow, sends `<<TablelistColumnSorted>>`); Shift+click adds
+further sort columns (`tablelist::addToSortColumns`).
+
+`toCsv` exports what the user sees: viewable rows and visible columns, raw
+cell values. `-all 1` takes every row and column, `-formatted 1` the displayed
+values. Other options go to `tclutils::tucsv::text`, e.g. `-delimiter ;` or
+`-profile excel-de` (`;`, CRLF, BOM). `saveCsv` writes UTF-8 unless
+`-encoding` says otherwise.
+
+```tcl
+::tkutils::tkutablelist::setRows $w $rows -ids $ids
+::tkutils::tkutablelist::selectIds $w [list $currentId]
+::tkutils::tkutablelist::saveCsv $w out.csv -profile excel-de
 ```
 
 ## Row / cell formatting
@@ -143,6 +172,9 @@ Editing: with `-editable 1` (or `configureColumn $w col -editable 1`),
 double-click a cell to edit it; `rows`/`getRow` then reflect the new value.
 
 ## Errors
+
+`setRows` raises `{TKUTILS TKUTABLELIST OPTION <opt>}` for an unknown option
+and `{TKUTILS TKUTABLELIST IDS}` when the number of ids does not match.
 
 Unknown widget options raise `{TKUTILS TKUTABLELIST OPTION <opt>}` with the message `unknown option "<opt>"` and a second line `Known:` listing the valid options (since 2026-10-20; before without the option name).
 

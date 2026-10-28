@@ -1,0 +1,60 @@
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+set here [file dirname [file normalize [info script]]]
+tcl::tm::path add [file normalize [file join $here .. lib tm]]
+# tclutils: $env(TCLUTILS_TM), otherwise a sibling tclutils* checkout
+if {[info exists ::env(TCLUTILS_TM)]} {
+    tcl::tm::path add $::env(TCLUTILS_TM)
+} else {
+    foreach _c [lsort -decreasing [glob -nocomplain -type d [file join \
+            [file dirname [file dirname $here]] tclutils* lib tm]]] {
+        tcl::tm::path add $_c
+        break
+    }
+}
+testConstraint hasTk  [expr {![catch {package require Tk}]}]
+testConstraint hasTbl [expr {![catch {package require tablelist_tile}]}]
+if {[testConstraint hasTbl]} { package require tkutils::tkutlgroup 0.1 }
+set ::orders {
+    {{Tämo GmbH} Schrauben 100 200}
+    {{Quarz KG}  Muttern    50  50}
+    {{Tämo GmbH} Dübel      20  60,5}
+    {{Quarz KG}  Schrauben  10  20}
+}
+proc mkTbl {} {
+    catch {destroy .t}
+    tablelist::tablelist .t -treecolumn 0 \
+        -columns {12 Kunde left 10 Artikel left 6 Menge right 8 Betrag right 4 N right}
+    return .t
+}
+test tkutlgroup-1.1 {group builds parents with sums and count} -constraints {hasTk hasTbl} -body {
+    mkTbl
+    set p [::tkutils::tkutlgroup::group .t $::orders 0 -sum {2 3} -count 4]
+    list [llength $p] [.t get [lindex $p 0]] [.t get [lindex $p 1]] \
+        [.t childcount [lindex $p 0]] [lindex [.t get [lindex [.t childkeys [lindex $p 0]] 0]] 0]
+} -result {2 {{Tämo GmbH} {} 120 260.50 2} {{Quarz KG} {} 60 70 2} 2 {}}
+test tkutlgroup-1.2 {ungroup restores the flat rows} -constraints {hasTk hasTbl} -body {
+    mkTbl
+    ::tkutils::tkutlgroup::group .t $::orders 0 -sum {2}
+    lsort [::tkutils::tkutlgroup::ungroup .t]
+} -result [lsort [lmap r $::orders {list {*}$r {}}]]
+test tkutlgroup-1.3 {-blank 0 keeps the key; -expand 0 collapses} -constraints {hasTk hasTbl} -body {
+    mkTbl
+    set p [::tkutils::tkutlgroup::group .t $::orders 0 -blank 0 -expand 0]
+    list [lindex [.t get [lindex [.t childkeys [lindex $p 0]] 0]] 0] \
+        [llength [.t getfullkeys 0 end -viewable]]
+} -result {{Tämo GmbH} 2}
+test tkutlgroup-1.4 {sorting keeps the groups} -constraints {hasTk hasTbl} -body {
+    mkTbl
+    .t columnconfigure 2 -sortmode integer
+    ::tkutils::tkutlgroup::group .t $::orders 0 -sum {2}
+    .t sortbycolumn 2 -increasing
+    lmap k [.t getfullkeys 0 end] {lindex [.t get $k] 0}
+} -result {{Quarz KG} {} {} {Tämo GmbH} {} {}}
+test tkutlgroup-1.5 {bad column and option} -constraints {hasTk hasTbl} -body {
+    mkTbl
+    list [catch {::tkutils::tkutlgroup::group .t $::orders 9} e] $e \
+        [catch {::tkutils::tkutlgroup::group .t $::orders 0 -x 1}]
+} -result {1 {bad column "9": must be 0..4} 1}
+cleanupTests

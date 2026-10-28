@@ -26,7 +26,7 @@ namespace eval ::tkutils::tkutablelist {
         selection selectedRows selectRows configureColumn fromNotes \
         configureRow configureCell insertChild expand collapse \
         toCsv saveCsv editEndCommand selectCommand doubleCommand \
-        footerWidget footerSet footerSum
+        footerWidget footerSet footerSum rowId findId selectedIds selectIds
     variable state
 }
 
@@ -130,7 +130,10 @@ proc ::tkutils::tkutablelist::widget {path args} {
         -xscrollcommand [list ::tkutils::tkutablelist::_xscroll $path]
     if {$o(-stripes) ne ""} { $tbl configure -stripebackground $o(-stripes) }
     if {$o(-sortable)} {
-        $tbl configure -labelcommand [list ::tkutils::tkutablelist::_sortClick $path]
+        # Tablelist's own sorter: toggles the order, shows the arrow, sends
+        # <<TablelistColumnSorted>>; Shift-click adds further sort columns.
+        $tbl configure -labelcommand tablelist::sortByColumn \
+            -labelcommand2 tablelist::addToSortColumns
     }
     # selection + double-click dispatchers (always bound; guarded on empty cmd)
     bind $tbl <<TablelistSelect>> [list ::tkutils::tkutablelist::_select $path]
@@ -256,15 +259,71 @@ proc ::tkutils::tkutablelist::tableWidget {path} { return $path.tbl }
 
 # --- rows ---
 
-proc ::tkutils::tkutablelist::insert {path row} {
+# insert path row ?id? -- append a row; id (optional) becomes its -name, the
+# stable reference used by findId/selectedIds/selectIds.
+proc ::tkutils::tkutablelist::insert {path row {id ""}} {
     $path.tbl insert end $row
+    if {$id ne ""} { $path.tbl rowconfigure end -name $id }
     return [$path.tbl size]
 }
-proc ::tkutils::tkutablelist::setRows {path rows} {
+# setRows path rows ?-ids idList? -- replace all rows in one insertlist,
+# give them ids, and re-apply the user's current sort order.
+proc ::tkutils::tkutablelist::setRows {path rows args} {
+    set ids {}
+    foreach {k v} $args {
+        switch -- $k {
+            -ids    { set ids $v }
+            default {
+                return -code error -errorcode [list TKUTILS TKUTABLELIST OPTION $k] \
+                    "unknown option \"$k\": must be -ids"
+            }
+        }
+    }
+    if {[llength $ids] && [llength $ids] != [llength $rows]} {
+        return -code error -errorcode {TKUTILS TKUTABLELIST IDS} \
+            "-ids needs one id per row ([llength $rows] rows, [llength $ids] ids)"
+    }
     set tbl $path.tbl
     $tbl delete 0 end
-    foreach r $rows { $tbl insert end $r }
+    set keys [$tbl insertlist end $rows]
+    foreach k $keys id $ids {
+        if {$id ne ""} { $tbl rowconfigure $k -name $id }
+    }
+    $tbl refreshsorting
     return [$tbl size]
+}
+
+# --- stable row ids (row -name) ---
+
+proc ::tkutils::tkutablelist::rowId {path index} {
+    return [$path.tbl rowcget $index -name]
+}
+# Current row index of an id, or -1.
+proc ::tkutils::tkutablelist::findId {path id} {
+    return [$path.tbl findrowname $id -descend]
+}
+proc ::tkutils::tkutablelist::selectedIds {path} {
+    set out {}
+    foreach i [$path.tbl curselection] {
+        set id [$path.tbl rowcget $i -name]
+        if {$id ne ""} { lappend out $id }
+    }
+    return $out
+}
+# Select the rows with these ids (missing ids are skipped), make the first
+# one active and visible. Returns the ids that were found.
+proc ::tkutils::tkutablelist::selectIds {path ids} {
+    set tbl $path.tbl
+    $tbl selection clear 0 end
+    set found {}
+    foreach id $ids {
+        set i [$tbl findrowname $id -descend]
+        if {$i < 0} continue
+        if {![llength $found]} { $tbl activate $i; $tbl see $i }
+        $tbl selection set $i
+        lappend found $id
+    }
+    return $found
 }
 proc ::tkutils::tkutablelist::rows {path} { return [$path.tbl get 0 end] }
 proc ::tkutils::tkutablelist::clear {path} { $path.tbl delete 0 end; return }
@@ -361,6 +420,10 @@ proc ::tkutils::tkutablelist::selectRows {path indices} {
     set tbl $path.tbl
     $tbl selection clear 0 end
     foreach i $indices { $tbl selection set $i }
+    if {[llength $indices]} {
+        $tbl activate [lindex $indices 0]
+        $tbl see [lindex $indices 0]
+    }
     return $indices
 }
 
@@ -370,12 +433,10 @@ proc ::tkutils::tkutablelist::sortBy {path col {order -increasing}} {
     $path.tbl sortbycolumn $col $order
     return $col
 }
+# Kept for code that set it as -labelcommand itself; the widget now uses
+# tablelist::sortByColumn.
 proc ::tkutils::tkutablelist::_sortClick {path tbl col} {
-    set order -increasing
-    if {[$tbl sortcolumn] == $col && [$tbl sortorder] eq "increasing"} {
-        set order -decreasing
-    }
-    $tbl sortbycolumn $col $order
+    tablelist::sortByColumn $tbl $col
 }
 
 # --- data sources ---
@@ -383,7 +444,7 @@ proc ::tkutils::tkutablelist::_sortClick {path tbl col} {
 # Load CSV text via tucsv. With -header 1 (default) the first row becomes the
 # column titles. Extra args (e.g. -delimiter) pass through to tucsv::parse.
 proc ::tkutils::tkutablelist::loadCsv {path csv args} {
-    package require tclutils::tucsv 0.1
+    package require tclutils::tucsv 0.2
     set header 1
     if {[dict exists $args -header]} {
         set header [dict get $args -header]
@@ -489,28 +550,65 @@ proc ::tkutils::tkutablelist::doubleCommand {path args} {
     return $state($path,doublecmd)
 }
 
-# Return the table as CSV text via tucsv. With -header 1 (default) the column
-# titles are written as the first row. Extra args pass to tucsv::text.
+# Return the table as CSV text via tucsv. Exports what the user sees: viewable
+# rows (no hidden rows, no collapsed children) and visible columns, with raw
+# cell values. Options: -header 0|1 (default 1), -all 1 (every row and
+# column), -formatted 1 (displayed values); the rest goes to tucsv::text
+# (-delimiter, -profile excel-de, ...).
 proc ::tkutils::tkutablelist::toCsv {path args} {
-    package require tclutils::tucsv 0.1
-    set header 1
-    if {[dict exists $args -header]} {
-        set header [dict get $args -header]
-        dict unset args -header
+    package require tclutils::tucsv 0.2
+    lassign [_csvOpts $args] o args
+    set tbl $path.tbl
+    if {[dict get $o -all]} {
+        set keys [$tbl getfullkeys 0 end]
+        set cols {}
+        for {set c 0} {$c < [$tbl columncount]} {incr c} { lappend cols $c }
+    } else {
+        set keys [$tbl getfullkeys 0 end -viewable]
+        set cols {}
+        for {set c 0} {$c < [$tbl columncount]} {incr c} {
+            if {![$tbl columncget $c -hide]} { lappend cols $c }
+        }
     }
-    set data [rows $path]
-    if {$header} { set data [linsert $data 0 [columns $path]] }
+    set data {}
+    if {[dict get $o -header]} {
+        lappend data [lmap c $cols {$tbl columncget $c -title}]
+    }
+    foreach k $keys {
+        set row [expr {[dict get $o -formatted] ? [$tbl getformatted $k] : [$tbl get $k]}]
+        lappend data [lmap c $cols {lindex $row $c}]
+    }
     return [::tclutils::tucsv::text $data {*}$args]
 }
 
-# Write the table to a CSV file. Options as for toCsv.
+proc ::tkutils::tkutablelist::_csvOpts {argList} {
+    set o [dict create -header 1 -all 0 -formatted 0]
+    set rest {}
+    foreach {k v} $argList {
+        if {[dict exists $o $k]} { dict set o $k $v } else { lappend rest $k $v }
+    }
+    return [list $o $rest]
+}
+
+# Write the table to a CSV file (UTF-8; -profile excel-de adds ";" and a BOM,
+# -encoding chooses another encoding). Options as for toCsv.
 proc ::tkutils::tkutablelist::saveCsv {path file args} {
-    set csv [toCsv $path {*}$args]
+    package require tclutils::tucsv 0.2
+    lassign [_csvOpts $args] o rest
+    set enc utf-8
+    set textArgs {}
+    foreach {k v} $rest {
+        if {$k eq "-encoding"} { set enc $v } else { lappend textArgs $k $v }
+    }
+    set csv [toCsv $path {*}$o {*}$textArgs]
     set ch [open $file w]
-    fconfigure $ch -translation lf
-    puts -nonewline $ch $csv
-    close $ch
+    try {
+        fconfigure $ch -translation lf -encoding $enc
+        puts -nonewline $ch $csv
+    } finally {
+        close $ch
+    }
     return $file
 }
 
-package provide tkutils::tkutablelist 0.4
+package provide tkutils::tkutablelist 0.5

@@ -1,0 +1,50 @@
+.TH tkusysinfo n 0.1 tkutils
+.SH tkutils::tkusysinfo
+.PP
+A view of \fBtclutils::tusysinfo\fR: operating system, CPU, memory, computer model, disks and monitors as a tree, plus a "Screen" section from Tk itself (size in pixels and millimetres, DPI, \fBtk scaling\fR, colour depth, windowing system). Buttons: Refresh, Copy (text report to the clipboard), Save (text or JSON). Plain Tk (\fBttk::treeview\fR), no Tablelist.
+.PP
+Not in the \fBtkutils\fR umbrella: it needs \fBtclutils::tusysinfo\fR 0.1 from tclutils 0.69.0, while the umbrella still works with tclutils 0.64.0.
+.CS
+package require tkutils::tkusysinfo 0.1
+.CE
+.SS API
+.CS
+set w [::tkutils::tkusysinfo::widget .si ?options?]
+::tkutils::tkusysinfo::refresh $w                 ;# collect again -> info dict
+::tkutils::tkusysinfo::data    $w                 ;# last info dict
+::tkutils::tkusysinfo::report  $w ?-anonymize 0|1? ;# text report
+::tkutils::tkusysinfo::json    $w                 ;# JSON
+::tkutils::tkusysinfo::save    $w file ?-format text|json? ?-anonymize 0|1?
+::tkutils::tkusysinfo::screen  win                ;# Tk screen data as a dict
+.CE
+.TS
+l l l.
+Option	Default	Meaning
+\fB\-sections\fR	all	\fBtusysinfo\fR sections: \fBos cpu memory machine disks displays\fR
+\fB\-serials\fR	\fB0\fR	\fB1\fR shows serial numbers
+\fB\-timeout\fR	\fB10000\fR	limit in ms for one platform program
+\fB\-autoload\fR	\fB1\fR	collect when the widget is built
+\fB\-height\fR	\fB16\fR	visible rows
+\fB\-buttons\fR	\fB1\fR	\fB0\fR hides the button bar
+.TE
+.PP
+The info dict is the one from \fBtusysinfo::collect\fR with an extra key \fBscreen\fR. \fBreport\fR is \fBtusysinfo::report\fR plus a "Screen (Tk)" section; \fBjson\fR includes \fBscreen\fR.
+.SS Usage
+.CS
+package require Tk
+package require tkutils::tkusysinfo
+pack [::tkutils::tkusysinfo::widget .si] -fill both -expand 1
+.CE
+.PP
+Without the slow macOS \fBsystem_profiler\fR call:
+.CS
+::tkutils::tkusysinfo::widget .si -sections {os cpu memory}
+.CE
+.SS Notes
+.IP \(bu
+Tk sees one screen: with several monitors \fBpixels\fR is the whole desktop of the X screen (Linux) or the main monitor (Windows, macOS). The monitors themselves come from their EDID under "Monitors".
+.IP \(bu
+Collecting runs in the event loop of the caller; on macOS it takes a few seconds, the cursor shows \fBwatch\fR meanwhile.
+.SS Errors
+.PP
+Unknown option: \fB{TKUTILS TKUSYSINFO OPTION <opt>}\fR with the known ones (\fBtkuopts\fR). Bad save format: \fB{TKUTILS TKUSYSINFO FORMAT}\fR. Errors of \fBtusysinfo\fR pass through.

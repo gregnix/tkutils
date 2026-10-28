@@ -15,7 +15,7 @@ if {[info exists ::env(TCLUTILS_TM)]} {
 }
 testConstraint hasTk  [expr {![catch {package require Tk}]}]
 testConstraint hasTbl [expr {![catch {package require tablelist_tile}]}]
-if {[testConstraint hasTbl]} { package require tkutils::tkutltree }
+if {[testConstraint hasTbl]} { package require tkutils::tkutltree 0.3 }
 set ::data {
     {name Root size 0 children {
         {name sub size 0 children {{name a size 12} {name b size 34}}}
@@ -42,4 +42,71 @@ test tkutltree-1.2 {toData idempotent} -constraints {hasTk hasTbl} -body {
 test tkutltree-1.3 {fields required} -constraints {hasTk hasTbl} -body {
     mkTbl; catch {::tkutils::tkutltree::fromData .t $::data} e; set e
 } -match glob -result {*-fields is required*}
+set ::idData {
+    {id r name Root children {
+        {id s name sub children {{id a name a} {id b name b}}}
+        {id i name img}
+    }}
+}
+test tkutltree-2.1 {-idfield sets row names; findId finds nested rows} -constraints {hasTk hasTbl} -body {
+    mkTbl
+    set keys [::tkutils::tkutltree::fromData .t $::idData -fields {name} -idfield id]
+    list [llength $keys] [.t rowcget [lindex $keys 0] -name] \
+        [expr {[::tkutils::tkutltree::findId .t b] >= 0}] [::tkutils::tkutltree::findId .t zz]
+} -result {1 r 1 -1}
+test tkutltree-2.2 {toData -idfield round trip} -constraints {hasTk hasTbl} -body {
+    mkTbl
+    ::tkutils::tkutltree::fromData .t $::idData -fields {name} -idfield id
+    expr {[::tkutils::tkutltree::toData .t -fields {name} -idfield id] eq
+          [::tkutils::tkutltree::toData .t -fields {name} -idfield id]
+          && [dict get [lindex [::tkutils::tkutltree::toData .t -fields {name} -idfield id] 0] id] eq "r"}
+} -result 1
+test tkutltree-2.3 {-expand levels} -constraints {hasTk hasTbl} -body {
+    mkTbl
+    ::tkutils::tkutltree::fromData .t $::idData -fields {name} -idfield id -expand none
+    set none [llength [.t getfullkeys 0 end -viewable]]
+    mkTbl
+    ::tkutils::tkutltree::fromData .t $::idData -fields {name} -idfield id -expand 1
+    set one [llength [.t getfullkeys 0 end -viewable]]
+    mkTbl
+    ::tkutils::tkutltree::fromData .t $::idData -fields {name} -idfield id -expand all
+    list $none $one [llength [.t getfullkeys 0 end -viewable]]
+} -result {1 3 5}
+test tkutltree-2.4 {bad -expand} -constraints {hasTk hasTbl} -body {
+    mkTbl
+    catch {::tkutils::tkutltree::fromData .t $::idData -fields {name} -expand some} e
+    set e
+} -result {bad -expand "some": must be none, all or a level count}
+test tkutltree-2.5 {reveal expands ancestors} -constraints {hasTk hasTbl} -body {
+    mkTbl
+    ::tkutils::tkutltree::fromData .t $::idData -fields {name} -idfield id -expand none
+    set before [llength [.t getfullkeys 0 end -viewable]]
+    set i [::tkutils::tkutltree::reveal .t [::tkutils::tkutltree::findId .t b]]
+    list $before [lindex [.t get $i] 0] [llength [.t getfullkeys 0 end -viewable]]
+} -result {1 b 5}
+proc loadKids {tbl key} {
+    incr ::loads
+    set id [$tbl rowcget $key -name]
+    # only the top node has lazy children: a search must not descend forever
+    set lz [expr {$id eq "top"}]
+    return [list [list id $id.1 name $id-child lazy $lz] [list id $id.2 name leaf]]
+}
+test tkutltree-3.1 {lazy: arrow on empty node, children loaded once on expand} -constraints {hasTk hasTbl} -body {
+    mkTbl; set ::loads 0
+    ::tkutils::tkutltree::lazy .t loadKids -fields {name} -idfield id
+    set k [::tkutils::tkutltree::fromData .t {{id top name Top lazy 1}} \
+        -fields {name} -idfield id -lazykey lazy]
+    set before [.t childcount $k]
+    .t expand $k -partly
+    .t collapse $k; .t expand $k -partly
+    list $before [.t childcount $k] $::loads [.t isexpanded $k]
+} -result {0 2 1 1}
+test tkutltree-3.2 {lazy: searchcolumn -descend loads via -populatecommand} -constraints {hasTk hasTbl} -body {
+    mkTbl; set ::loads 0
+    ::tkutils::tkutltree::lazy .t loadKids -fields {name} -idfield id
+    ::tkutils::tkutltree::fromData .t {{id top name Top lazy 1}} \
+        -fields {name} -idfield id -lazykey lazy
+    set i [.t searchcolumn 0 leaf -descend]
+    list [expr {$i >= 0}] [expr {$::loads >= 1}]
+} -result {1 1}
 cleanupTests

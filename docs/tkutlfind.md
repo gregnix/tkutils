@@ -8,7 +8,7 @@ cells and lets you step through them with next/prev. Complements
 ## Package
 
 ```tcl
-package require tkutils::tkutlfind 0.2
+package require tkutils::tkutlfind 0.3
 ```
 
 Requires `Tk` and `tablelist`.
@@ -35,6 +35,7 @@ Requires `Tk` and `tablelist`.
 | `-nocase`      | `1`         | case-insensitive matching                    |
 | `-highlightbg` | `#ffe9a8`   | background for matching cells                |
 | `-highlightfg` | `{}`        | optional foreground for matching cells       |
+| `-hidden`      | `0`         | also search hidden rows                      |
 
 ## Usage
 
@@ -63,8 +64,13 @@ Search only one column with a regular expression:
 
 - Matching uses the **displayed** values (`getformatted`), so it finds what the
   user sees (e.g. formatted numbers from `tkutlfmt`).
-- Re-run `find` after sorting/filtering, since row indices change.
-- `clear` restores the cells' original background (and foreground if set).
+- Matches are kept as row keys: after the user sorts, `matches`, `next` and
+  `prev` give the current row indices. Rows deleted since `find` are
+  skipped. Re-run `find` after the cell contents change.
+- Hidden rows (for example from `tkutlfilter`) are skipped unless
+  `-hidden 1`. A match inside a collapsed tree node is revealed (its
+  ancestors expanded) when `next`/`prev` reaches it.
+- `clear` restores the cell colours that were set before `find`.
 
 ## Error codes
 

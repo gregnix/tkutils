@@ -23,6 +23,12 @@
 #
 # The state is a plain Tcl dict (safe to store as text / in JSON / a config).
 #
+# Columns are identified by their -name (or "#" + title when unnamed), so a
+# state still fits after columns were moved: restore puts them back into the
+# saved order with movecolumn and applies width/hide to the right column. The
+# sort is saved as the full sortcolumnlist/sortorderlist (multi-column sorts).
+# States written by tkutlstate 0.3 (version 1, index based) are still read.
+#
 # Tcl 8.6-
 package require Tcl 8.6-
 package require Tk
@@ -48,6 +54,22 @@ proc ::tkutils::tkutlstate::_err {reason msg} {
     return -code error -errorcode [list TKUTILS TKUTLSTATE $reason] $msg
 }
 
+# Column identifier: -name, else "#title".
+proc ::tkutils::tkutlstate::_colId {tbl c} {
+    set n ""; catch {set n [$tbl columncget $c -name]}
+    if {$n ne ""} { return $n }
+    set t ""; catch {set t [$tbl columncget $c -title]}
+    return "#$t"
+}
+
+# Current column index for an identifier, or -1.
+proc ::tkutils::tkutlstate::_findCol {tbl id} {
+    for {set c 0} {$c < [$tbl columncount]} {incr c} {
+        if {[_colId $tbl $c] eq $id} { return $c }
+    }
+    return -1
+}
+
 # Capture the current column layout as a dict.
 proc ::tkutils::tkutlstate::save {tbl} {
     set n [$tbl columncount]
@@ -55,24 +77,57 @@ proc ::tkutils::tkutlstate::save {tbl} {
     for {set c 0} {$c < $n} {incr c} {
         set w 0; catch {set w [$tbl columncget $c -width]}
         set h 0; catch {set h [$tbl columncget $c -hide]}
-        lappend cols [dict create width $w hide $h]
+        lappend cols [dict create id [_colId $tbl $c] width $w hide $h]
     }
-    set d [dict create version 1 ncols $n columns $cols]
-    catch {dict set d columnorder [$tbl cget -columnorder]}
-    catch {
-        set sc [$tbl sortcolumn]
-        dict set d sortcolumn $sc
-        if {$sc >= 0} { dict set d sortorder [$tbl sortorder] }
-    }
+    set d [dict create version 2 ncols $n columns $cols]
+    set ids {}
+    foreach c [$tbl sortcolumnlist] { lappend ids [_colId $tbl $c] }
+    dict set d sort [dict create columns $ids orders [$tbl sortorderlist]]
     return $d
 }
 
-# Apply a previously saved state. Columns beyond the saved/current count are
-# left untouched, so it degrades gracefully if the table changed.
+# Apply a previously saved state. Columns that no longer exist are skipped,
+# new columns are left untouched, so it degrades gracefully if the table
+# changed.
 proc ::tkutils::tkutlstate::restore {tbl state} {
-    if {![dict exists $state ncols] || ![dict exists $state columns]} {
+    if {[catch {dict exists $state ncols}] || ![dict exists $state ncols]
+            || ![dict exists $state columns]} {
         _err STATE "not a tkutlstate dict"
     }
+    set version 1
+    if {[dict exists $state version]} { set version [dict get $state version] }
+    if {$version < 2} { return [_restoreV1 $tbl $state] }
+
+    # 1. order: bring each saved column to its saved position
+    set pos 0
+    foreach cd [dict get $state columns] {
+        set c [_findCol $tbl [dict get $cd id]]
+        if {$c < 0} continue
+        if {$c != $pos} { $tbl movecolumn $c $pos }
+        incr pos
+    }
+    # 2. width and hidden state, by identifier
+    foreach cd [dict get $state columns] {
+        set c [_findCol $tbl [dict get $cd id]]
+        if {$c < 0} continue
+        catch {$tbl columnconfigure $c -width [dict get $cd width]}
+        catch {$tbl columnconfigure $c -hide  [dict get $cd hide]}
+    }
+    # 3. sort (possibly by several columns)
+    if {[dict exists $state sort columns]} {
+        set cols {}; set orders {}
+        foreach id [dict get $state sort columns] o [dict get $state sort orders] {
+            set c [_findCol $tbl $id]
+            if {$c < 0} break
+            lappend cols $c; lappend orders $o
+        }
+        if {[llength $cols]} { catch {$tbl sortbycolumnlist $cols $orders} }
+    }
+    return $tbl
+}
+
+# Version 1 states (tkutlstate 0.3): plain column indices, single sort column.
+proc ::tkutils::tkutlstate::_restoreV1 {tbl state} {
     set n     [$tbl columncount]
     set saved [dict get $state ncols]
     set cols  [dict get $state columns]
@@ -81,9 +136,6 @@ proc ::tkutils::tkutlstate::restore {tbl state} {
         set cd [lindex $cols $c]
         catch {$tbl columnconfigure $c -width [dict get $cd width]}
         catch {$tbl columnconfigure $c -hide  [dict get $cd hide]}
-    }
-    if {[dict exists $state columnorder]} {
-        catch {$tbl configure -columnorder [dict get $state columnorder]}
     }
     if {[dict exists $state sortcolumn]} {
         set sc [dict get $state sortcolumn]
@@ -143,8 +195,8 @@ proc ::tkutils::tkutlstate::restoreVia {tbl key getPrefix} {
 
 # -------- debounced autosave --------
 
-# Persist automatically (debounced) whenever the user resizes or reorders a
-# column. Uses "+" so existing bindings on those events are left intact.
+# Persist automatically (debounced) whenever the user resizes, moves, hides or
+# sorts columns. Uses "+" so existing bindings on those events are left intact.
 proc ::tkutils::tkutlstate::autosave {tbl key setPrefix args} {
     variable enabled
     set delay 400
@@ -155,7 +207,9 @@ proc ::tkutils::tkutlstate::autosave {tbl key setPrefix args} {
         }
     }
     set enabled($tbl) 1
-    foreach ev {<<TablelistColumnResized>> <<TablelistColumnMoved>>} {
+    foreach ev {<<TablelistColumnResized>> <<TablelistColumnMoved>>
+                <<TablelistColHiddenStateChanged>> <<TablelistColumnSorted>>
+                <<TablelistColumnsSorted>>} {
         bind $tbl $ev \
             +[list ::tkutils::tkutlstate::_schedule $tbl $key $setPrefix $delay]
     }
@@ -196,4 +250,4 @@ proc ::tkutils::tkutlstate::_onDestroy {tbl} {
     unset -nocomplain enabled($tbl)
 }
 
-package provide tkutils::tkutlstate 0.3
+package provide tkutils::tkutlstate 0.4

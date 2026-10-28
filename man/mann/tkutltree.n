@@ -1,10 +1,10 @@
-.TH tkutltree n 0.2 tkutils
+.TH tkutltree n 0.3 tkutils
 .SH tkutils::tkutltree
 .PP
 Convert between nested data and a \fBtablelist\fR tree, with \fBfree column mapping\fR. A node is a dict of named fields plus an optional list of child nodes; \fB\-fields\fR maps field names to columns in order, so each tree row carries several columns — not just a key/value pair. Library\-neutral.
 .SS Package
 .CS
-package require tkutils::tkutltree 0.2
+package require tkutils::tkutltree 0.3
 .CE
 .PP
 Requires \fBTk\fR and \fBtablelist\fR. The tablelist should have a tree column (\fB\-treecolumn\fR).
@@ -24,9 +24,12 @@ set data {
 Each node is a dict: \fB<field> <value> ...\fR plus an optional \fBchildren\fR (configurable via \fB\-childrenkey\fR) holding a list of child nodes. The top level is a list of nodes.
 .SS Commands
 .CS
-::tkutils::tkutltree::fromData tbl data -fields {f ...} ?-childrenkey children? ?-parent root?
-::tkutils::tkutltree::toData   tbl       -fields {f ...} ?-childrenkey children? ?-node root?
+::tkutils::tkutltree::fromData tbl data -fields {f ...} ?options?   ;# -> top-level keys
+::tkutils::tkutltree::toData   tbl       -fields {f ...} ?-childrenkey children? ?-node root? ?-idfield f?
 ::tkutils::tkutltree::clear    tbl ?-node root?
+::tkutils::tkutltree::lazy     tbl loadCmd -fields {f ...} ?options?
+::tkutils::tkutltree::reveal   tbl index      ;# expand ancestors, see; -> row index
+::tkutils::tkutltree::findId   tbl id         ;# -> row index or -1
 .CE
 .IP \(bu
 \fB\-fields\fR (required) — field names in column order. Field \fIi\fR fills column \fIi\fR; missing fields become empty cells.
@@ -34,6 +37,28 @@ Each node is a dict: \fB<field> <value> ...\fR plus an optional \fBchildren\fR (
 \fB\-childrenkey\fR — the node key holding child nodes (default \fBchildren\fR).
 .IP \(bu
 \fB\-parent\fR\fB / \fR\fB\-node\fR — a tablelist node reference (full key) to build under / read from (default \fBroot\fR, the whole tree).
+.IP \(bu
+\fB\-idfield f\fR — the value of field \fBf\fR becomes the row's \fB\-name\fR (a stable id for \fBfindId\fR, \fBfindrowname \-descend\fR); \fBtoData\fR writes it back.
+.IP \(bu
+\fB\-expand none|all|N\fR — collapse everything, expand everything, or show \fBN\fR levels. Without it rows are inserted as tablelist does (expanded).
+.IP \(bu
+\fB\-lazykey f\fR — a node with a true field \fBf\fR and no children gets an expand arrow; its children are loaded by \fBlazy\fR.
+.PP
+\fBfromData\fR inserts each level with one \fBinsertchildlist\fR.
+.SS "Lazy loading"
+.CS
+proc loadDir {tbl key} {
+    set dir [$tbl rowcget $key -name]
+    lmap f [glob -nocomplain -directory $dir *] {
+        list path $f name [file tail $f] lazy [file isdirectory $f]
+    }
+}
+::tkutils::tkutltree::lazy .t loadDir -fields {name} -idfield path -lazykey lazy
+::tkutils::tkutltree::fromData .t [list [list path $top name $top lazy 1]] \
+    -fields {name} -idfield path -lazykey lazy
+.CE
+.PP
+\fBlazy\fR sets the table's \fB\-expandcommand\fR and \fB\-populatecommand\fR. The first expand of a lazy node, or a \fBsearchcolumn \-descend\fR that reaches it, calls \fBloadCmd tbl key\fR once; the returned nodes are inserted with the options given to \fBlazy\fR. Nodes returned with a true \fB\-lazykey\fR field are lazy again.
 .SS Usage
 .CS
 package require Tk
@@ -60,4 +85,4 @@ The number of \fB\-fields\fR should match the number of columns you want filled;
 Use a different \fB\-childrenkey\fR if your data already uses \fBchildren\fR for something else.
 .SS "Error codes"
 .PP
-\fB\-errorcode {TKUTILS TKUTLTREE <REASON>}\fR (\fBFIELDS\fR, \fBOPTION\fR).
+\fB\-errorcode {TKUTILS TKUTLTREE <REASON>}\fR (\fBFIELDS\fR, \fBOPTION\fR, \fBEXPAND\fR).

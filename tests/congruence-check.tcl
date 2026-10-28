@@ -27,6 +27,9 @@ set family {
     tkutlfind   tkutils  TKU
     tkutlstate  tkutils  TKU
     tkutltree   tkutils  TKU
+    tkutlfilter tkutils  TKU
+    tkutlgroup  tkutils  TKU
+    tkutldrag   tkutils  TKU
     tunum       tclutils TCU
 }
 
@@ -39,7 +42,7 @@ proc roots {which} {
 proc paths {name nsdir which} {
     set r [roots $which]
     return [dict create \
-        module [file join $r lib tm $nsdir $name-0.1.tm] \
+        module [lindex [glob -nocomplain [file join $r lib tm $nsdir $name-*.tm]] 0] \
         doc    [file join $r docs $name.md] \
         demo   [file join $r examples demo-$name.tcl] \
         man    [file join $r man mann $name.n] \
@@ -54,7 +57,7 @@ foreach {name nsdir which} $family {
     set p [paths $name $nsdir $which]
     set line [format "%-12s" $name]
     foreach c $cols {
-        if {[file exists [dict get $p $c]]} {
+        if {[dict get $p $c] ne "" && [file exists [dict get $p $c]]} {
             append line [format " %-6s" ok]
         } else {
             append line [format " %-6s" MISS]

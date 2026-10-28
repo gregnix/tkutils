@@ -1,5 +1,51 @@
 # Changelog
 
+## 0.49.0 - 2026-10-28
+
+Recommended pairing: tclutils 0.69.0 + tkutils 0.49.0 + ctrlutils 0.4
+(`tkutablelist` CSV export needs `tucsv` 0.2 from tclutils 0.69.0).
+
+Module versions: `tkutablelist` 0.5, `tkutlclip` 0.3, `tkutlsort` 0.3,
+`tkutlstate` 0.4, `tkutlfind` 0.3, `tkutltree` 0.3, `tkutltools` 0.3; new
+`tkutlfilter`, `tkutlgroup`, `tkutldrag`, `tkusysinfo` 0.1. When copying over an older
+tree, delete `tkutils-0.48.0.tm`, `tkutablelist-0.4.tm`, `tkutlclip-0.2.tm`,
+`tkutlsort-0.2.tm`, `tkutlstate-0.3.tm`, `tkutlfind-0.2.tm`,
+`tkutltree-0.2.tm`, `tkutltools-0.2.tm`.
+
+- `tkutlclip`: `installBindings` had no effect; Tablelist's own `<<Copy>>`
+  overwrote the clipboard. Binding now ends with `break`. `copyAll` skips
+  hidden rows. New `-separator`; `copySelection` checks its options also with an
+  empty selection. Tests `tkutlclip-1.3`–`2.4`.
+- `tkutlstate`: state version 2 keeps column order, identifies columns by
+  `-name` (or title) and stores multi-column sort. Version-1 states still
+  restore. Autosave also on hide and sort. Tests `tkutlstate-4.1`–`4.4`.
+- `tkutablelist`: row ids (`insert … id`, `setRows -ids`, `rowId`,
+  `findId`, `selectedIds`, `selectIds`); `setRows` uses `insertlist` and
+  keeps the sort order; header click via `tablelist::sortByColumn`,
+  Shift+click adds sort columns; `selectRows` shows the first row; `toCsv`
+  exports only viewable rows and visible columns (`-all`, `-formatted`,
+  tucsv options); `saveCsv` writes UTF-8 (`-encoding`). Tests
+  `tkutablelist-8.1`–`9.4`.
+- `tkutlsort`: `-empty first|last` for `integer`, `real`, `num`; empty cells
+  stay in place in both directions. Tests `tkutlsort-2.1`–`2.5`.
+- `tkutlfind`: matches kept as row keys (right after sorting, deleted rows
+  skipped); hidden rows skipped (`-hidden 1`); `next`/`prev` expand
+  collapsed ancestors; `clear` restores earlier cell colours. Tests
+  `tkutlfind-2.1`–`2.6`.
+- `tkutltree`: `fromData` uses `insertchildlist`, returns the top-level
+  keys; `-idfield`, `-expand none|all|N`, `-lazykey`; new `lazy`, `reveal`,
+  `findId`. Tests `tkutltree-2.1`–`3.2`.
+- New `tkutlfilter` (hide non-matching rows, `-where` per column, `later`),
+  `tkutlgroup` (group rows into a tree with sums), `tkutldrag` (reorder rows
+  with the mouse). Docs, man pages, demos, tests.
+- `tkutltools` 0.3 loads the new modules and versions.
+- New `tkusysinfo`: view of `tclutils::tusysinfo` (OS, hardware, monitors)
+  plus Tk's screen data; copy, save as text or JSON. Needs tclutils
+  0.69.0, so not in the umbrella. Doc, man, demo, tests.
+- `tests/congruence-check.tcl`: finds modules of any version (was `-0.1.tm`
+  only, so every module showed MISS); covers the new modules.
+- `docs/guide/tkutils-modules.md` regenerated.
+
 ## 0.48.0 - 2026-10-27
 
 Recommended pairing: tclutils 0.68.0 + tkutils 0.48.0 + ctrlutils 0.4.

@@ -1,0 +1,48 @@
+.TH tkutlgroup n 0.1 tkutils
+.SH tkutils::tkutlgroup
+.PP
+Group flat rows into a \fBtablelist\fR tree: one parent row per value of a key column, the original rows as its children, with optional sums and a member count in the parent row. Library\-neutral.
+.SS Package
+.CS
+package require tkutils::tkutlgroup 0.1
+.CE
+.PP
+Requires \fBTk\fR and \fBtablelist\fR. Uses \fBtclutils::tunum\fR to read formatted numbers (\fB1.234,56\fR) in sum columns when it is on the path.
+.SS Commands
+.CS
+::tkutils::tkutlgroup::group   tbl rows keyCol ?options?  ;# -> parent keys
+::tkutils::tkutlgroup::ungroup tbl                        ;# -> flat rows
+.CE
+.PP
+\fBgroup\fR appends to the table; call \fB$tbl delete 0 end\fR first to replace its contents. \fBungroup\fR returns the member rows in display order with the key column filled in again.
+.SS Options
+.TS
+l l l.
+Option	Default	Meaning
+\fB\-sum\fR	\fB{}\fR	columns to total in the parent row
+\fB\-count\fR	\fB{}\fR	column for the number of members
+\fB\-blank\fR	\fB1\fR	leave the key column empty in the child rows
+\fB\-format\fR	\fB%.2f\fR	Tcl \fBformat\fR for sums that are not integers
+\fB\-font\fR	bold default	font of the parent rows
+\fB\-expand\fR	\fB1\fR	\fB0\fR collapses the groups
+.TE
+.SS Usage
+.CS
+package require Tk
+package require tablelist_tile
+package require tkutils::tkutlgroup
+
+tablelist::tablelist .t -treecolumn 0 \
+    -columns {16 Customer left 12 Article left 6 Qty right 10 Amount right 4 N right}
+::tkutils::tkutlgroup::group .t $orders 0 -sum {2 3} -count 4
+.CE
+.SS Notes
+.IP \(bu
+Groups appear in the order their keys first occur in \fBrows\fR.
+.IP \(bu
+Sorting keeps the groups: tablelist sorts the parent rows by their own cells (the sums) and the children inside each parent.
+.IP \(bu
+Cells in a \fB\-sum\fR column that are no number count as 0.
+.SS "Error codes"
+.PP
+\fB\-errorcode {TKUTILS TKUTLGROUP <REASON>}\fR (\fBOPTION\fR, \fBCOLUMN\fR).

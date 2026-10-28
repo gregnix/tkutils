@@ -7,7 +7,7 @@ tablelist itself does not provide. Library-neutral.
 ## Package
 
 ```tcl
-package require tkutils::tkutlclip 0.2
+package require tkutils::tkutlclip 0.3
 ```
 
 Requires `Tk` and `tablelist`. Uses `tclutils::tucsv` for CSV quoting when
@@ -23,7 +23,8 @@ available (falls back to a built-in quoter otherwise).
 ```
 
 `tbl` is the tablelist widget. `copySelection`/`copyAll` return the number of
-rows copied; `asText` returns the built string without touching the clipboard.
+rows copied; `copyAll` copies only viewable rows (not hidden, parents
+expanded); `asText` returns the built string without touching the clipboard.
 
 ## Options
 
@@ -33,6 +34,7 @@ rows copied; `asText` returns the built string without touching the clipboard.
 | `-header`    | `0`       | prepend column titles as the first line            |
 | `-formatted` | `1`       | use displayed values (`getformatted`) vs raw cells |
 | `-columns`   | `visible` | `visible` (skip hidden columns) or `all`           |
+| `-separator` | `,`       | CSV field separator, one character (e.g. `;`); TSV always uses a tab |
 
 ## Usage
 
@@ -61,9 +63,10 @@ set tsv [::tkutils::tkutlclip::asText .t {0 1 2} -header 1]
 
 - TSV replaces embedded tabs/newlines with spaces so pasted cells stay aligned.
   Use CSV when cells may contain those characters and you need them preserved.
-- `installBindings` binds `<<Copy>>` on the tablelist body, so it coexists with
-  normal text-entry copy in edited cells.
+- `installBindings` binds `<<Copy>>` on the tablelist body tag and ends with
+  `break`, so Tablelist's own `<<Copy>>` does not overwrite the clipboard.
+  Edit windows keep their normal text copy. Options are checked at once.
 
 ## Error codes
 
-`-errorcode {TKUTILS TKUTLCLIP <REASON>}` (`OPTION`, `FORMAT`, `COLUMNS`).
+`-errorcode {TKUTILS TKUTLCLIP <REASON>}` (`OPTION`, `FORMAT`, `COLUMNS`, `SEPARATOR`).

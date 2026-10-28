@@ -16,6 +16,12 @@
 #   -mode    substring|exact|glob|regexp   (default substring)
 #   -nocase  0|1      (default 1)
 #   -highlightbg COLOR (default #ffe9a8)   -highlightfg COLOR (default {})
+#   -hidden  0|1      also search hidden rows (default 0)
+#
+# Matches are kept as row keys, so next/prev/matches stay right after the
+# user sorts. Rows are given as current indices. A match inside a collapsed
+# tree node is revealed (ancestors expanded) when next/prev reaches it.
+# clear restores the cell colours that were set before find.
 #
 # Tcl 8.6-
 package require Tcl 8.6-
@@ -76,45 +82,61 @@ proc ::tkutils::tkutlfind::_match {mode nocase needle hay} {
 proc ::tkutils::tkutlfind::find {tbl query args} {
     variable state
     array set o {-columns {} -mode substring -nocase 1 \
-                 -highlightbg #ffe9a8 -highlightfg {}}
+                 -highlightbg #ffe9a8 -highlightfg {} -hidden 0}
     foreach {k v} $args {
         if {![info exists o($k)]} { _err OPTION "unknown option \"$k\"" }
         set o($k) $v
     }
+    if {$o(-mode) ni {substring exact glob regexp}} {
+        _err MODE "unknown mode \"$o(-mode)\""
+    }
     clear $tbl
+    # forget the state when the widget goes (a new widget may reuse the path)
+    if {![string match *tkutlfind* [bind $tbl <Destroy>]]} {
+        bind $tbl <Destroy> +[list array unset ::tkutils::tkutlfind::state $tbl,*]
+    }
     if {$query eq ""} { return 0 }
     set cols $o(-columns)
     if {[llength $cols] == 0} { set cols [_visibleCols $tbl] }
 
     set hits {}
-    set colored {}
-    set nrows [$tbl size]
-    for {set r 0} {$r < $nrows} {incr r} {
-        set rowData [$tbl getformatted $r]
+    set saved {}
+    foreach key [$tbl getfullkeys 0 end] {
+        if {!$o(-hidden) && [$tbl rowcget $key -hide]} continue
+        set rowData [$tbl getformatted $key]
         foreach c $cols {
             set v ""
             if {[llength $rowData] > $c} { set v [lindex $rowData $c] }
             if {[_match $o(-mode) $o(-nocase) $query $v]} {
-                lappend hits [list $r $c]
-                $tbl cellconfigure $r,$c -background $o(-highlightbg)
+                lappend hits [list $key $c]
+                lappend saved [list $key $c \
+                    [$tbl cellcget $key,$c -background] \
+                    [$tbl cellcget $key,$c -foreground]]
+                $tbl cellconfigure $key,$c -background $o(-highlightbg)
                 if {$o(-highlightfg) ne ""} {
-                    $tbl cellconfigure $r,$c -foreground $o(-highlightfg)
+                    $tbl cellconfigure $key,$c -foreground $o(-highlightfg)
                 }
-                lappend colored $r,$c
             }
         }
     }
-    set state($tbl,hits)    $hits
-    set state($tbl,colored) $colored
-    set state($tbl,idx)     -1
-    set state($tbl,hlfg)    $o(-highlightfg)
+    set state($tbl,hits)  $hits
+    set state($tbl,saved) $saved
+    set state($tbl,idx)   -1
     return [llength $hits]
 }
 
+# Current {row col} of every match, in the order of the last find.
 proc ::tkutils::tkutlfind::matches {tbl} {
     variable state
-    if {[info exists state($tbl,hits)]} { return $state($tbl,hits) }
-    return {}
+    if {![info exists state($tbl,hits)]} { return {} }
+    set out {}
+    foreach h $state($tbl,hits) {
+        lassign $h key c
+        set r [_row $tbl $key]
+        if {$r < 0} continue   ;# row deleted meanwhile
+        lappend out [list $r $c]
+    }
+    return $out
 }
 
 proc ::tkutils::tkutlfind::next {tbl} { return [_step $tbl 1] }
@@ -126,27 +148,52 @@ proc ::tkutils::tkutlfind::_step {tbl dir} {
         return {}
     }
     set n [llength $state($tbl,hits)]
-    set i [expr {($state($tbl,idx) + $dir) % $n}]
-    if {$i < 0} { incr i $n }
-    set state($tbl,idx) $i
-    lassign [lindex $state($tbl,hits) $i] r c
-    catch {$tbl seecell $r,$c}
-    catch {$tbl activate $r}
-    return [list $r $c]
+    set i $state($tbl,idx)
+    for {set tries 0} {$tries < $n} {incr tries} {
+        set i [expr {($i + $dir) % $n}]
+        if {$i < 0} { incr i $n }
+        lassign [lindex $state($tbl,hits) $i] key c
+        if {[_row $tbl $key] < 0} continue
+        set state($tbl,idx) $i
+        _reveal $tbl $key
+        set r [$tbl index $key]
+        catch {$tbl seecell $r,$c}
+        catch {$tbl activate $r}
+        return [list $r $c]
+    }
+    return {}
 }
 
-# Remove all highlights set by the last find.
+# Current index of a row key, -1 once the row is gone.
+proc ::tkutils::tkutlfind::_row {tbl key} {
+    if {[catch {$tbl index $key} r] || $r < 0 || $r >= [$tbl size]} { return -1 }
+    return $r
+}
+
+# Expand the collapsed ancestors of a tree row (no-op in a flat table).
+proc ::tkutils::tkutlfind::_reveal {tbl key} {
+    if {[catch {$tbl parentkey $key} p]} return
+    set chain {}
+    while {$p ne "root" && $p ne ""} {
+        set chain [linsert $chain 0 $p]
+        set p [$tbl parentkey $p]
+    }
+    foreach a $chain {
+        if {![$tbl isexpanded $a]} { $tbl expand $a -partly }
+    }
+}
+
+# Remove all highlights set by the last find; earlier cell colours return.
 proc ::tkutils::tkutlfind::clear {tbl} {
     variable state
-    if {[info exists state($tbl,colored)]} {
-        set fg [expr {[info exists state($tbl,hlfg)] ? $state($tbl,hlfg) : ""}]
-        foreach cell $state($tbl,colored) {
-            catch {$tbl cellconfigure $cell -background ""}
-            if {$fg ne ""} { catch {$tbl cellconfigure $cell -foreground ""} }
+    if {[info exists state($tbl,saved)]} {
+        foreach s $state($tbl,saved) {
+            lassign $s key c bg fg
+            catch {$tbl cellconfigure $key,$c -background $bg -foreground $fg}
         }
     }
     array unset state $tbl,*
     return
 }
 
-package provide tkutils::tkutlfind 0.2
+package provide tkutils::tkutlfind 0.3

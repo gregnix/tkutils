@@ -15,6 +15,10 @@
 #   -header 0|1       prepend column titles (default 0)
 #   -formatted 0|1    use displayed values (default 1) vs raw cell values
 #   -columns visible|all   include hidden columns or not (default visible)
+#   -separator CHAR   CSV field separator (default ",", e.g. ";" for Excel-de)
+#
+# Rows: copySelection takes the selected rows, copyAll the viewable rows
+# (hidden rows and collapsed tree children are skipped).
 #
 # CSV uses tclutils::tucsv when available (proper quoting); otherwise a built-in
 # minimal quoter. TSV replaces embedded tabs/newlines with spaces so the result
@@ -44,18 +48,20 @@ proc ::tkutils::tkutlclip::_err {reason msg} {
 
 proc ::tkutils::tkutlclip::_opts {argsVar} {
     upvar 1 $argsVar args
-    array set o {-format tsv -header 0 -formatted 1 -columns visible}
+    array set o {-format tsv -header 0 -formatted 1 -columns visible -separator ,}
     foreach {k v} $args {
         switch -- $k {
             -format    { set o(-format) $v }
             -header    { set o(-header) $v }
             -formatted { set o(-formatted) $v }
             -columns   { set o(-columns) $v }
+            -separator { set o(-separator) $v }
             default    { _err OPTION "unknown option \"$k\"" }
         }
     }
     if {$o(-format) ni {tsv csv}} { _err FORMAT "format must be tsv or csv" }
     if {$o(-columns) ni {visible all}} { _err COLUMNS "columns must be visible or all" }
+    if {[string length $o(-separator)] != 1} { _err SEPARATOR "separator must be one character" }
     return [array get o]
 }
 
@@ -86,7 +92,7 @@ proc ::tkutils::tkutlclip::asText {tbl rows args} {
             set t ""; catch {set t [$tbl columncget $c -title]}
             lappend titles $t
         }
-        lappend lines [_joinRow $titles $o(-format)]
+        lappend lines [_joinRow $titles $o(-format) $o(-separator)]
     }
     foreach r $rows {
         if {$o(-formatted)} {
@@ -100,17 +106,17 @@ proc ::tkutils::tkutlclip::asText {tbl rows args} {
             if {[llength $rowData] > $c} { set v [lindex $rowData $c] }
             lappend cells $v
         }
-        lappend lines [_joinRow $cells $o(-format)]
+        lappend lines [_joinRow $cells $o(-format) $o(-separator)]
     }
     return [join $lines \n]
 }
 
-proc ::tkutils::tkutlclip::_joinRow {cells format} {
+proc ::tkutils::tkutlclip::_joinRow {cells format {sep ,}} {
     if {$format eq "csv"} {
         if {![catch {package require tclutils::tucsv}]} {
-            return [::tclutils::tucsv::joinLine $cells]
+            return [::tclutils::tucsv::joinLine $cells -delimiter $sep]
         }
-        return [_csvLine $cells]
+        return [_csvLine $cells $sep]
     }
     # tsv: strip tab/newline so paste stays aligned
     set out {}
@@ -121,19 +127,20 @@ proc ::tkutils::tkutlclip::_joinRow {cells format} {
 }
 
 # Minimal CSV line quoter (RFC-4180 style) used when tucsv is absent.
-proc ::tkutils::tkutlclip::_csvLine {cells} {
+proc ::tkutils::tkutlclip::_csvLine {cells {sep ,}} {
     set out {}
     foreach v $cells {
-        if {[string match {*[",\n\r]*} $v]} {
+        if {[string first $sep $v] >= 0 || [regexp {["\n\r]} $v]} {
             set v \"[string map [list \" \"\"] $v]\"
         }
         lappend out $v
     }
-    return [join $out ,]
+    return [join $out $sep]
 }
 
 # Copy the currently selected rows. Returns the number of rows copied.
 proc ::tkutils::tkutlclip::copySelection {tbl args} {
+    _opts args   ;# bad options are an error even with an empty selection
     set rows [$tbl curselection]
     if {[llength $rows] == 0} { return 0 }
     set text [asText $tbl $rows {*}$args]
@@ -142,22 +149,25 @@ proc ::tkutils::tkutlclip::copySelection {tbl args} {
     return [llength $rows]
 }
 
-# Copy all rows. Returns the number of rows copied.
+# Copy all viewable rows (no hidden rows, no collapsed children). Returns the
+# number of rows copied.
 proc ::tkutils::tkutlclip::copyAll {tbl args} {
-    set n [$tbl size]
-    set rows {}
-    for {set r 0} {$r < $n} {incr r} { lappend rows $r }
+    set rows [$tbl getfullkeys 0 end -viewable]
     set text [asText $tbl $rows {*}$args]
     clipboard clear -displayof $tbl
     clipboard append -displayof $tbl $text
-    return $n
+    return [llength $rows]
 }
 
-# Bind <<Copy>> (Ctrl+C) on the tablelist body to copySelection.
+# Bind <<Copy>> (Ctrl+C) on the tablelist body to copySelection. The binding
+# sits on the body's binding tag and ends with "break": otherwise Tablelist's
+# own <<Copy>> binding (class TablelistBody) runs afterwards and replaces the
+# clipboard with its plain TSV.
 proc ::tkutils::tkutlclip::installBindings {tbl args} {
-    set body [$tbl bodypath]
-    bind $body <<Copy>> [list ::tkutils::tkutlclip::copySelection $tbl {*}$args]
+    _opts args   ;# validate now, not on the first Ctrl+C
+    bind [$tbl bodytag] <<Copy>> \
+        "[list ::tkutils::tkutlclip::copySelection $tbl {*}$args]; break"
     return $tbl
 }
 
-package provide tkutils::tkutlclip 0.2
+package provide tkutils::tkutlclip 0.3

@@ -1,10 +1,10 @@
-.TH tkutlstate n 0.3 tkutils
+.TH tkutlstate n 0.4 tkutils
 .SH tkutils::tkutlstate
 .PP
 Save and restore a \fBtablelist\fR's column layout — widths, hidden state, display order and the active sort — so an application can persist how the user arranged a table between sessions. Library\-neutral.
 .SS Package
 .CS
-package require tkutils::tkutlstate 0.1
+package require tkutils::tkutlstate 0.4
 .CE
 .PP
 Requires \fBTk\fR and \fBtablelist\fR.
@@ -22,13 +22,15 @@ Requires \fBTk\fR and \fBtablelist\fR.
 .PP
 \fBtbl\fR is a raw tablelist. For a \fBtkutils::tkutablelist\fR wrapper, pass \fB[tkutils::tkutablelist::tableWidget $w]\fR.
 .PP
-\fBsaveVia\fR/\fBrestoreVia\fR are \fBstorage\-neutral\fR: you inject a setter/getter command \fIprefix\fR and the module appends the key (and, for the setter, the state dict). They work against a file, an array, or a database settings table without the module knowing the backend. \fBautosave\fR persists automatically \-\- debounced \-\- whenever the user resizes or reorders a column.
+\fBsaveVia\fR/\fBrestoreVia\fR are \fBstorage\-neutral\fR: you inject a setter/getter command \fIprefix\fR and the module appends the key (and, for the setter, the state dict). They work against a file, an array, or a database settings table without the module knowing the backend. \fBautosave\fR persists automatically \-\- debounced \-\- whenever the user resizes, moves, hides or sorts a column.
 .PP
 The state is a plain Tcl dict, e.g.
 .CS
-version 1 ncols 4 columns {{width 20 hide 0} ...} columnorder {...} \
-    sortcolumn 1 sortorder decreasing
+version 2 ncols 3 columns {{id name width 20 hide 0} {id #Size ...} ...} \
+    sort {columns {name} orders {increasing}}
 .CE
+.PP
+\fBcolumns\fR lists the columns in display order. Each column is identified by its \fB\-name\fR, or by \fB#\fR plus its title when it has no name; width and hidden state follow the column, not its index. \fBsort\fR holds all sort columns (multi\-column sort included).
 .PP
 so it is safe to store as text, embed in a config, or convert to JSON.
 .SS Usage
@@ -67,7 +69,9 @@ set st [::tkutils::tkutlstate::save .t]
 .IP \(bu
 \fBrestore\fR only touches columns that exist in both the saved state and the current table, so it degrades gracefully when the table definition changed.
 .IP \(bu
-\fBcolumnorder\fR is captured/applied when the tablelist build supports it (wrapped in \fBcatch\fR).
+Give columns a \fB\-name\fR so a renamed title does not lose its width.
+.IP \(bu
+Version\-1 states (saved by 0.1–0.3, index based) are still restored.
 .IP \(bu
 Save the state \fIafter\fR the user is done arranging (e.g. on window close), not on every column resize.
 .SS "Error codes"

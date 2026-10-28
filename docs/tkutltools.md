@@ -7,7 +7,7 @@ Umbrella for the tablelist extension family. Requiring this one package pulls in
 ## Package
 
 ```tcl
-package require tkutils::tkutltools 0.2
+package require tkutils::tkutltools 0.3
 ```
 
 It is kept **separate** from the main `tkutils` umbrella, which by design loads
@@ -24,7 +24,10 @@ require `tkutltools` only where tablelist is available.
 | `tkutils::tkutlfooter` | synced footer + autosum/autoagg |
 | `tkutils::tkutlfind`   | incremental find + highlight |
 | `tkutils::tkutlstate`  | save/restore column layout |
-| `tkutils::tkutltree`   | nested data ↔ multi-column tree |
+| `tkutils::tkutltree`   | nested data ↔ multi-column tree, lazy loading |
+| `tkutils::tkutlfilter` | filter by hiding rows |
+| `tkutils::tkutlgroup`  | group flat rows into a tree with sums |
+| `tkutils::tkutldrag`   | reorder rows with the mouse |
 | `tclutils::tunum`      | shared number parse/sum backend |
 
 ## Usage

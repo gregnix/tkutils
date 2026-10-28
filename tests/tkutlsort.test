@@ -15,7 +15,7 @@ if {[info exists ::env(TCLUTILS_TM)]} {
 }
 testConstraint hasTk  [expr {![catch {package require Tk}]}]
 testConstraint hasTbl [expr {![catch {package require tablelist_tile}]}]
-if {[testConstraint hasTbl]} { package require tkutils::tkutlsort }
+if {[testConstraint hasTbl]} { package require tkutils::tkutlsort 0.3 }
 proc mkTbl {} {
     catch {destroy .t}
     tablelist::tablelist .t -columns {16 A left 14 P right}
@@ -33,4 +33,42 @@ test tkutlsort-1.2 {unknown type errors} -constraints {hasTk hasTbl} -body {
     catch {::tkutils::tkutlsort::column .t 1 bogus} e
     set e
 } -match glob -result {*unknown sort type*}
+proc mkEmpty {} {
+    catch {destroy .t}
+    tablelist::tablelist .t -columns {4 A 6 N 6 B}
+    foreach r {{a 10 x} {b {} y} {c 2 x} {d 33 y} {e {} x}} {.t insert end $r}
+    return .t
+}
+proc colN {} { lmap r [.t get 0 end] {lindex $r 1} }
+test tkutlsort-2.1 {integer -empty last: empties last in both directions} -constraints {hasTk hasTbl} -body {
+    mkEmpty
+    ::tkutils::tkutlsort::column .t 1 integer -empty last
+    .t sortbycolumn 1 -increasing; set up [colN]
+    .t sortbycolumn 1 -decreasing
+    list $up [colN]
+} -result {{2 10 33 {} {}} {33 10 2 {} {}}}
+test tkutlsort-2.2 {real -empty first} -constraints {hasTk hasTbl} -body {
+    mkEmpty
+    ::tkutils::tkutlsort::column .t 1 real -empty first
+    .t sortbycolumn 1 -decreasing
+    colN
+} -result {{} {} 33 10 2}
+test tkutlsort-2.3 {-empty honoured in a multi-column sort} -constraints {hasTk hasTbl} -body {
+    mkEmpty
+    ::tkutils::tkutlsort::column .t 1 integer -empty last
+    .t sortbycolumnlist {2 1} {increasing decreasing}
+    lmap r [.t get 0 end] {lindex $r 0}
+} -result {a c e d b}
+test tkutlsort-2.4 {bad -empty value and unknown option} -constraints {hasTk hasTbl} -body {
+    mkEmpty
+    list [catch {::tkutils::tkutlsort::column .t 1 integer -empty middle} e1] $e1 \
+        [catch {::tkutils::tkutlsort::column .t 1 integer -x 1} e2] $e2
+} -result {1 {bad -empty "middle": must be first or last} 1 {unknown option "-x": must be -empty}}
+test tkutlsort-2.5 {command type with cmd still works; columns passes -empty} -constraints {hasTk hasTbl} -body {
+    mkEmpty
+    ::tkutils::tkutlsort::column .t 0 command {string compare}
+    ::tkutils::tkutlsort::columns .t {0 string 1 integer} -empty first
+    .t sortbycolumn 1 -increasing
+    list [.t columncget 0 -sortmode] [colN]
+} -result {dictionary {{} {} 2 10 33}}
 cleanupTests

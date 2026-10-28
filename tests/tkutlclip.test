@@ -31,4 +31,40 @@ test tkutlclip-1.2 {asText csv quotes comma} -constraints {hasTk hasTbl} -body {
     mkTbl
     string match {*"Pear, x"*} [::tkutils::tkutlclip::asText .t {0 1} -format csv]
 } -result 1
+test tkutlclip-1.3 {csv with -separator ;} -constraints {hasTk hasTbl} -body {
+    mkTbl
+    ::tkutils::tkutlclip::asText .t {0 1} -format csv -separator ";"
+} -result "Apple;3\nPear, x;5"
+test tkutlclip-1.4 {bad separator} -constraints {hasTk hasTbl} -body {
+    mkTbl
+    ::tkutils::tkutlclip::asText .t {0} -separator ";;"
+} -returnCodes error -match glob -result {separator must be one character}
+test tkutlclip-2.1 {copyAll skips hidden rows} -constraints {hasTk hasTbl} -body {
+    mkTbl
+    .t insert end {Plum 7}
+    .t rowconfigure 1 -hide 1
+    list [::tkutils::tkutlclip::copyAll .t] [clipboard get]
+} -result [list 2 "Apple\t3\nPlum\t7"]
+test tkutlclip-2.2 {installBindings: Ctrl+C gives our format, not Tablelist's TSV} \
+        -constraints {hasTk hasTbl} -body {
+    mkTbl
+    pack .t; update
+    ::tkutils::tkutlclip::installBindings .t -format csv -separator ";"
+    .t selection set 0 1
+    focus -force [.t bodypath]; update
+    clipboard clear; clipboard append XXX
+    event generate [.t bodypath] <<Copy>>
+    update
+    clipboard get
+} -cleanup { pack forget .t } -result "Apple;3\nPear, x;5"
+test tkutlclip-2.3 {installBindings rejects bad options at once} -constraints {hasTk hasTbl} -body {
+    mkTbl
+    ::tkutils::tkutlclip::installBindings .t -format xls
+} -returnCodes error -result {format must be tsv or csv}
+test tkutlclip-2.4 {copySelection checks options with an empty selection} -constraints {hasTk hasTbl} -body {
+    catch {destroy .t}
+    tablelist::tablelist .t -columns {6 A left}
+    .t insert end {x}
+    list [catch {::tkutils::tkutlclip::copySelection .t -separator ab} e] $e
+} -result {1 {separator must be one character}}
 cleanupTests

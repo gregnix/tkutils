@@ -1,10 +1,10 @@
-.TH tkutlfind n 0.2 tkutils
+.TH tkutlfind n 0.3 tkutils
 .SH tkutils::tkutlfind
 .PP
 Incremental find with match highlighting for a \fBtablelist\fR widget. Unlike a filter (which hides non\-matching rows), \fBtkutlfind\fR highlights the matching cells and lets you step through them with next/prev. Complements \fBtkutils::tkufilterbar\fR. Library\-neutral.
 .SS Package
 .CS
-package require tkutils::tkutlfind 0.2
+package require tkutils::tkutlfind 0.3
 .CE
 .PP
 Requires \fBTk\fR and \fBtablelist\fR.
@@ -27,6 +27,7 @@ Option	Default	Meaning
 \fB\-nocase\fR	\fB1\fR	case\-insensitive matching
 \fB\-highlightbg\fR	\fB#ffe9a8\fR	background for matching cells
 \fB\-highlightfg\fR	\fB{}\fR	optional foreground for matching cells
+\fB\-hidden\fR	\fB0\fR	also search hidden rows
 .TE
 .SS Usage
 .CS
@@ -52,9 +53,11 @@ Search only one column with a regular expression:
 .IP \(bu
 Matching uses the \fBdisplayed\fR values (\fBgetformatted\fR), so it finds what the user sees (e.g. formatted numbers from \fBtkutlfmt\fR).
 .IP \(bu
-Re\-run \fBfind\fR after sorting/filtering, since row indices change.
+Matches are kept as row keys: after the user sorts, \fBmatches\fR, \fBnext\fR and \fBprev\fR give the current row indices. Rows deleted since \fBfind\fR are skipped. Re\-run \fBfind\fR after the cell contents change.
 .IP \(bu
-\fBclear\fR restores the cells' original background (and foreground if set).
+Hidden rows (for example from \fBtkutlfilter\fR) are skipped unless \fB\-hidden 1\fR. A match inside a collapsed tree node is revealed (its ancestors expanded) when \fBnext\fR/\fBprev\fR reaches it.
+.IP \(bu
+\fBclear\fR restores the cell colours that were set before \fBfind\fR.
 .SS "Error codes"
 .PP
 \fB\-errorcode {TKUTILS TKUTLFIND <REASON>}\fR (\fBMODE\fR, \fBOPTION\fR).

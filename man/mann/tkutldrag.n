@@ -1,0 +1,50 @@
+.TH tkutldrag n 0.1 tkutils
+.SH tkutils::tkutldrag
+.PP
+Let the user reorder \fBtablelist\fR rows with the mouse and get a callback after each move. Wraps tablelist's \fB\-movablerows\fR. Library\-neutral.
+.SS Package
+.CS
+package require tkutils::tkutldrag 0.1
+.CE
+.PP
+Requires \fBTk\fR and \fBtablelist\fR.
+.SS Commands
+.CS
+::tkutils::tkutldrag::enable  tbl ?options?   ;# -> select mode now in use
+::tkutils::tkutldrag::disable tbl
+::tkutils::tkutldrag::order   tbl ?parent?    ;# -> ids of the children of parent
+.CE
+.PP
+\fBorder\fR returns the row ids (\fB\-name\fR) of the children of \fBparent\fR (default \fBroot\fR) in display order; rows without a name give their key. Store it to keep a user\-defined order.
+.SS Options
+.TS
+l l l.
+Option	Default	Meaning
+\fB\-command\fR	\fB{}\fR	called after a move as \fBcmd tbl id parent position\fR
+\fB\-samelevel\fR	\fB1\fR	only reorder among siblings, never a new parent
+\fB\-acceptchild\fR	\fB{}\fR	own \fB\-acceptchildcommand\fR (overrides \fB\-samelevel\fR)
+\fB\-acceptdrop\fR	\fB{}\fR	own \fB\-acceptdropcommand\fR (overrides \fB\-samelevel\fR)
+.TE
+.SS Usage
+.CS
+package require Tk
+package require tablelist_tile
+package require tkutils::tkutldrag
+
+proc moved {tbl id parent pos} {
+    saveOrder [::tkutils::tkutldrag::order $tbl]
+}
+::tkutils::tkutldrag::enable .t -command moved
+.CE
+.SS Notes
+.IP \(bu
+\fB\-movablerows\fR works only with select mode \fBsingle\fR or \fBmultiple\fR. \fBenable\fR changes \fBbrowse\fR to \fBsingle\fR and \fBextended\fR to \fBmultiple\fR.
+.IP \(bu
+With \fB\-samelevel 1\fR a row in a tree can be dropped only before a sibling; the end of a child list other than the top level is not a drop target.
+.IP \(bu
+Escape cancels a drag (tablelist).
+.IP \(bu
+A table sorted by column shows its sort order; after the user drags a row, call \fB$tbl resetsortinfo\fR if the arrow should go.
+.SS "Error codes"
+.PP
+\fB\-errorcode {TKUTILS TKUTLDRAG OPTION}\fR.

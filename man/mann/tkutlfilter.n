@@ -1,0 +1,67 @@
+.TH tkutlfilter n 0.1 tkutils
+.SH tkutils::tkutlfilter
+.PP
+Filter a \fBtablelist\fR by hiding the rows that do not match. The rows stay in the widget, so row ids (\fB\-name\fR), attributes, embedded windows and the selection of visible rows are kept. Library\-neutral.
+.SS Package
+.CS
+package require tkutils::tkutlfilter 0.1
+.CE
+.PP
+Requires \fBTk\fR and \fBtablelist\fR.
+.SS Commands
+.CS
+::tkutils::tkutlfilter::filter tbl query ?options?     ;# -> number of matching rows
+::tkutils::tkutlfilter::later  tbl ms query ?options?  ;# filter after ms of quiet
+::tkutils::tkutlfilter::clear  tbl                     ;# show the filtered rows again
+::tkutils::tkutlfilter::query  tbl                     ;# -> current query or ""
+.CE
+.PP
+A row is shown when it matches the query in one of the searched columns, every \fB\-where\fR condition and the \fB\-command\fR. An empty query without \fB\-where\fR or \fB\-command\fR clears the filter. \fBlater\fR sends \fB<<TkutlFilterApplied>>\fR to the table after filtering.
+.SS Options
+.TS
+l l l.
+Option	Default	Meaning
+\fB\-columns\fR	all visible	columns the query is searched in
+\fB\-mode\fR	\fBsubstring\fR	\fBsubstring\fR, \fBexact\fR, \fBglob\fR, \fBregexp\fR
+\fB\-nocase\fR	\fB1\fR	case\-insensitive matching
+\fB\-where\fR	\fB{}\fR	\fB{col text ...}\fR: per\-column conditions, all must match
+\fB\-command\fR	\fB{}\fR	own test, called as \fBcmd tbl key row\fR, returns 0 or 1
+.TE
+.PP
+In \fB\-where\fR, \fBcol\fR is a column index, a column \fB\-name\fR or a column title. The dict that \fBtkutils::tkufilterbar\fR passes to its \fB\-command\fR fits directly.
+.SS Usage
+.CS
+package require Tk
+package require tablelist_tile
+package require tkutils::tkutlfilter
+
+ttk::entry .e -textvariable q
+bind .e <KeyRelease> { ::tkutils::tkutlfilter::later .t 300 $q }
+.CE
+.PP
+Per\-column filter bar:
+.CS
+set bar [::tkutils::tkufilterbar::widget .fb \
+    -command {apply {{f} { ::tkutils::tkutlfilter::filter .t "" -where $f }}}]
+::tkutils::tkufilterbar::setColumns $bar {Name City}
+.CE
+.PP
+Own condition:
+.CS
+proc adults {tbl key row} { expr {[lindex $row 2] >= 18} }
+::tkutils::tkutlfilter::filter .t "" -command adults
+.CE
+.SS Notes
+.IP \(bu
+Matching uses the displayed values (\fBgetformatted\fR); \fB\-command\fR gets the raw row (\fBget\fR).
+.IP \(bu
+Rows the application hid itself (\fB\-hide 1\fR) stay hidden and are not counted; \fBclear\fR shows only the rows the filter hid.
+.IP \(bu
+In a tree a parent stays visible while one of its descendants matches. Collapsed nodes stay collapsed.
+.IP \(bu
+\fBsize\fR and \fBget 0 end\fR still count every row; use \fBgetfullkeys 0 end \-viewable\fR or \fBget 0 end \-viewable\fR for the visible ones. \fBtkutablelist::toCsv\fR and \fBtkutlclip::copyAll\fR export only the visible rows.
+.IP \(bu
+Each change sends \fB<<TablelistRowHiddenStateChanged>>\fR.
+.SS "Error codes"
+.PP
+\fB\-errorcode {TKUTILS TKUTLFILTER <REASON>}\fR (\fBOPTION\fR, \fBMODE\fR, \fBREGEXP\fR, \fBWHERE\fR, \fBCOLUMN\fR).

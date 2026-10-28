@@ -72,7 +72,7 @@ Example:
 $ tclsh tools/check-modules.tcl ../tkutils -require test,doc,man
 Module hygiene check: tkutils
 Root:     /home/user/lib/tcltk/tkutils
-Umbrella: tkutils-0.48.0.tm (53 modules listed)
+Umbrella: tkutils-0.49.0.tm (53 modules listed)
 Required: test doc man
 
 NAME                 VERSION    TEST DOC  MAN  BIN  DEMO UMBR

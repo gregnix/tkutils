@@ -15,7 +15,7 @@ if {[info exists ::env(TCLUTILS_TM)]} {
 }
 testConstraint hasTk  [expr {![catch {package require Tk}]}]
 testConstraint hasTbl [expr {![catch {package require tablelist_tile}]}]
-if {[testConstraint hasTbl]} { package require tkutils::tkutlfind }
+if {[testConstraint hasTbl]} { package require tkutils::tkutlfind 0.3 }
 proc mkTbl {} {
     catch {destroy .t}
     tablelist::tablelist .t -columns {14 A left 14 K left}
@@ -36,4 +36,40 @@ test tkutlfind-1.3 {clear removes highlight} -constraints {hasTk hasTbl} -body {
     mkTbl; ::tkutils::tkutlfind::find .t apfel; ::tkutils::tkutlfind::clear .t
     .t cellcget 0,0 -background
 } -result {}
+test tkutlfind-2.1 {matches follow the rows after sorting} -constraints {hasTk hasTbl} -body {
+    mkTbl; ::tkutils::tkutlfind::find .t apfel
+    .t sortbycolumn 0 -decreasing
+    list [lsort [::tkutils::tkutlfind::matches .t]] [lindex [.t get [lindex [::tkutils::tkutlfind::next .t] 0]] 0]
+} -result {{{2 0} {3 0}} Apfel}
+test tkutlfind-2.2 {clear restores an earlier cell colour} -constraints {hasTk hasTbl} -body {
+    mkTbl; .t cellconfigure 0,0 -background red
+    ::tkutils::tkutlfind::find .t apfel
+    set during [.t cellcget 0,0 -background]
+    ::tkutils::tkutlfind::clear .t
+    list $during [.t cellcget 0,0 -background]
+} -result {{#ffe9a8} red}
+test tkutlfind-2.3 {hidden rows skipped unless -hidden 1} -constraints {hasTk hasTbl} -body {
+    mkTbl; .t rowconfigure 3 -hide 1
+    list [::tkutils::tkutlfind::find .t apfel] [::tkutils::tkutlfind::find .t apfel -hidden 1]
+} -result {1 2}
+test tkutlfind-2.4 {deleted row is skipped} -constraints {hasTk hasTbl} -body {
+    mkTbl; ::tkutils::tkutlfind::find .t apfel
+    .t delete 0
+    list [::tkutils::tkutlfind::matches .t] [::tkutils::tkutlfind::next .t]
+} -result {{{2 0}} {2 0}}
+test tkutlfind-2.5 {next reveals a match in a collapsed node} -constraints {hasTk hasTbl} -body {
+    catch {destroy .t}
+    tablelist::tablelist .t -columns {14 A left} -treecolumn 0
+    set p [.t insertchild root end {Obst}]
+    .t insertchild $p end {Apfel}
+    .t collapse $p
+    ::tkutils::tkutlfind::find .t apfel
+    set r [::tkutils::tkutlfind::next .t]
+    list $r [.t isexpanded $p]
+} -result {{1 0} 1}
+test tkutlfind-2.6 {bad mode errors before clearing} -constraints {hasTk hasTbl} -body {
+    mkTbl
+    catch {::tkutils::tkutlfind::find .t x -mode fuzzy} e
+    set e
+} -result {unknown mode "fuzzy"}
 cleanupTests

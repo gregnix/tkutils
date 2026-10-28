@@ -81,4 +81,49 @@ test tkutlstate-3.4 {cancelAutosave stops further persistence} -constraints {has
     set ::auto
 } -result {}
 
+proc mkNamed {} {
+    catch {destroy .t}
+    tablelist::tablelist .t -columns {10 A left 10 B right 10 C left}
+    foreach c {0 1 2} n {a b c} { .t columnconfigure $c -name $n }
+    .t insert end {x 2 p}; .t insert end {y 1 q}; .t insert end {x 1 r}
+    return .t
+}
+proc layout {} {
+    list [lmap c {0 1 2} {.t columncget $c -name}] \
+         [.t columncget b -width] [.t columncget c -hide] \
+         [lmap c [.t sortcolumnlist] {.t columncget $c -name}] [.t sortorderlist]
+}
+test tkutlstate-4.1 {moved columns: order, width and hide follow the column name} \
+        -constraints {hasTk hasTbl} -body {
+    mkNamed
+    .t movecolumn c 0
+    .t columnconfigure b -width -120
+    .t columnconfigure c -hide 1
+    .t sortbycolumnlist {a b} {increasing decreasing}
+    set s [::tkutils::tkutlstate::save .t]
+    mkNamed
+    ::tkutils::tkutlstate::restore .t $s
+    layout
+} -result {{c a b} -120 1 {a b} {increasing decreasing}}
+test tkutlstate-4.2 {unknown and new columns are tolerated} -constraints {hasTk hasTbl} -body {
+    mkNamed
+    .t movecolumn b 0
+    set s [::tkutils::tkutlstate::save .t]
+    catch {destroy .t}
+    tablelist::tablelist .t -columns {10 A left 10 B right 10 D left}
+    foreach c {0 1 2} n {a b d} { .t columnconfigure $c -name $n }
+    ::tkutils::tkutlstate::restore .t $s
+    lmap c {0 1 2} {.t columncget $c -name}
+} -result {b a d}
+test tkutlstate-4.3 {version 1 states (0.3) are still applied} -constraints {hasTk hasTbl} -body {
+    mkTbl
+    ::tkutils::tkutlstate::restore .t {version 1 ncols 3 columns {{width 20 hide 0} {width 10 hide 0} {width 10 hide 1}} sortcolumn 1 sortorder decreasing}
+    list [.t columncget 0 -width] [.t columncget 2 -hide] [.t sortcolumn] [.t sortorder]
+} -result {20 1 1 decreasing}
+test tkutlstate-4.4 {autosave also reacts to sorting} -constraints {hasTk hasTbl} -body {
+    mkTbl
+    ::tkutils::tkutlstate::autosave .t k [list ::recA] -delay 10
+    expr {[bind .t <<TablelistColumnSorted>>] ne ""}
+} -result 1
+
 cleanupTests

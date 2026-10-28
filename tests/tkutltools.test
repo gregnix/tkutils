@@ -19,7 +19,8 @@ testConstraint hasTbl [expr {![catch {package require tablelist_tile}]}]
 test tkutltools-1.1 {umbrella loads whole family} -constraints {hasTk hasTbl} -body {
     package require tkutils::tkutltools
     set missing {}
-    foreach m {tkutlsort tkutlfmt tkutlclip tkutlfooter tkutlfind tkutlstate tkutltree} {
+    foreach m {tkutlsort tkutlfmt tkutlclip tkutlfooter tkutlfind tkutlstate tkutltree
+               tkutlfilter tkutlgroup tkutldrag} {
         if {[catch {package present tkutils::$m}]} { lappend missing $m }
     }
     set missing

@@ -8,7 +8,7 @@
 # present.
 #
 # Family:
-#   tkutls ort / clip / fmt / footer / find / state / tree
+#   tkutlsort / clip / fmt / footer / find / state / tree / filter / group / drag
 #
 # Tcl 8.6-
 package require Tcl 8.6-
@@ -25,12 +25,15 @@ if {[catch {package present tablelist}] && [catch {package present tablelist_til
 
 package require tclutils::tunum 0.1
 
-package require tkutils::tkutlsort   0.2
+package require tkutils::tkutlsort   0.3
 package require tkutils::tkutlfmt    0.1
-package require tkutils::tkutlclip   0.2
+package require tkutils::tkutlclip   0.3
 package require tkutils::tkutlfooter 0.3
-package require tkutils::tkutlfind   0.2
-package require tkutils::tkutlstate  0.1
-package require tkutils::tkutltree   0.2
+package require tkutils::tkutlfind   0.3
+package require tkutils::tkutlstate  0.4
+package require tkutils::tkutltree   0.3
+package require tkutils::tkutlfilter 0.1
+package require tkutils::tkutlgroup  0.1
+package require tkutils::tkutldrag   0.1
 
-package provide tkutils::tkutltools 0.2
+package provide tkutils::tkutltools 0.3
