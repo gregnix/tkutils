@@ -69,4 +69,4 @@ package require tkutils::tkucalc 0.2
 # clickable calendar widget
 package require tkutils::tkucalendar 0.2
 
-package provide tkutils 0.47.0
+package provide tkutils 0.48.0

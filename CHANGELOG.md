@@ -1,9 +1,12 @@
 # Changelog
 
-## Unreleased
+## 0.48.0 - 2026-10-27
 
-Module versions: `tkulauncher` 0.3, `tkuload` 0.3 (delete
-`tkulauncher-0.2.tm`, `tkuload-0.2.tm`).
+Recommended pairing: tclutils 0.68.0 + tkutils 0.48.0 + ctrlutils 0.4.
+
+Module versions: `tkulauncher` 0.3, `tkuload` 0.3. When copying over an
+older tree, delete `tkutils-0.47.0.tm`, `tkulauncher-0.2.tm`,
+`tkuload-0.2.tm`.
 
 - `tkulauncher`: with `-scroll 1` the buttons are bound to the wheel when
   they are built; after `reload` new buttons had no wheel binding, and

@@ -17,7 +17,7 @@ Screenshot-Modus (rendert einen Tab und beendet sich):
 tclsh tkdevtools.tcl --shot out.png ?toolKey?      # z. B. themes, colors, regexp
 ```
 
-Benoetigt Tcl/Tk 8.6+ (inkl. 9.x), **tclutils 0.64.0 oder neuer** (aktuell 0.66.0) (`tucolor`, `tustr`,
+Benoetigt Tcl/Tk 8.6+ (inkl. 9.x), **tclutils 0.64.0 oder neuer** (aktuell 0.68.0) (`tucolor`, `tustr`,
 `tudate`, `tupkgfinder` 0.2, `tuappinfo`, `tupath`, `tunum` 0.4), aus tkutils `tkutablelist` 0.4 und
 `tkuunits`, und das **Tablelist**-Megawidget (aus tklib, z. B.
 `apt install tklib`). Die
