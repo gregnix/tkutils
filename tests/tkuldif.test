@@ -89,4 +89,24 @@ test tkuldif-2.4 {toText round-trips} -constraints ldif -body {
     ::tclutils::tuldif::get [lindex $e 0] cn
 } -result Alicia
 
+proc _bytes {f} { set ch [open $f rb]; set b [read $ch]; close $ch; return $b }
+test tkuldif-3.1 {save and loadFile in UTF-8 whatever the system encoding} -constraints ldif -setup {
+    ::set f [makeFile {} tkuldif-3.1.ldif]
+    ::set enc [encoding system]
+} -body {
+    catch {destroy .l}; set w [::tkutils::tkuldif::widget .l]
+    ::tkutils::tkuldif::loadText $w "dn: cn=J\u00f6rg,dc=x\ncn: J\u00f6rg\n"
+    encoding system iso8859-1
+    ::tkutils::tkuldif::save $w $f
+    catch {destroy .l2}; set w2 [::tkutils::tkuldif::widget .l2]
+    ::tkutils::tkuldif::loadFile $w2 $f
+    encoding system $enc
+    list [expr {[::tkutils::tkuldif::toText $w2] eq [::tkutils::tkuldif::toText $w]}] \
+         [string match "*J\u00f6rg*" [lindex [::tkutils::tkuldif::entries $w2] 0]]
+} -cleanup {
+    encoding system $enc
+    removeFile tkuldif-3.1.ldif
+    catch {destroy .l .l2}
+} -result {1 1}
+
 cleanupTests

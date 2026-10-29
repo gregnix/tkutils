@@ -1,5 +1,5 @@
-# tkutils::tkueditor -- text editor widget (v0.2 PROTOTYPE)
-# Description: text editor widget (v0.2 PROTOTYPE)
+# tkutils::tkueditor -- text editor widget
+# Description: text editor widget
 # Category: Tk · widgets
 #
 # Editable text widget with file load/save, search, modified tracking, an
@@ -15,7 +15,13 @@
 #   refreshStatus   $w        -> recompute position/modified/encoding fields
 #   loadFile $w path ?-encoding ENC?   saveFile $w ?path? ?-encoding ENC? ?-eol S?
 #   encoding $w ?ENC?         -> get/set the encoding used by load/save
-#   eol      $w ?lf|crlf?     -> get/set the line-ending style for save
+#   eol      $w ?lf|crlf|cr?  -> get/set the line-ending style for save
+#
+# 0.3: line endings. loadFile counts CRLF, LF and lone CR. One kind (or
+# none) -> that style. Several kinds -> style "mixed" (status bar "Mixed"):
+# saving an unchanged buffer writes the file as it was; after edits the
+# majority style is written and the status bar says so. Up to 0.2 a single
+# CRLF turned every LF into CRLF and a lone CR became LF for good.
 # The toolbar reuses tkutils::tkutoolbar (+ tkuicon icons, text fallback);
 # the status bar reuses tkutils::tkustatus. Both are built only when enabled,
 # so the bare widget keeps its light dependency set. Encoding conversion uses
@@ -254,7 +260,7 @@ proc ::tkutils::tkueditor::refreshStatus {path} {
         [expr {[$path.t edit modified] ? "modified" : ""}]
     ::tkutils::tkustatus::setField $sb enc $state($path,encoding)
     ::tkutils::tkustatus::setField $sb eol \
-        [expr {$state($path,eol) eq "crlf" ? "CRLF" : "LF"}]
+        [dict get {lf LF crlf CRLF cr CR mixed Mixed} $state($path,eol)]
     return ""
 }
 
@@ -292,6 +298,23 @@ proc ::tkutils::tkueditor::getText {path} {
 # original style is remembered so save can restore it. Pass -encoding to
 # override the encoding per call; both encoding and EOL style are remembered.
 
+# Line-ending style of a text: {style majority}; style lf|crlf|cr|mixed,
+# majority the most frequent kind (lf when there are none; ties: crlf, lf, cr)
+proc ::tkutils::tkueditor::_eolStyle {raw} {
+    set crlf [regexp -all {\r\n} $raw]
+    set cr   [expr {[regexp -all {\r} $raw] - $crlf}]
+    set lf   [expr {[regexp -all {\n} $raw] - $crlf}]
+    set kinds {}
+    foreach {k n} [list crlf $crlf lf $lf cr $cr] { if {$n > 0} { lappend kinds $k } }
+    set major lf
+    set best 0
+    foreach {k n} [list crlf $crlf lf $lf cr $cr] {
+        if {$n > $best} { set best $n; set major $k }
+    }
+    if {[llength $kinds] > 1} { return [list mixed $major] }
+    return [list $major $major]
+}
+
 # Load $filename into the buffer. Option: -encoding ENC (default: the editor's
 # current encoding). Detects and remembers the file's EOL style; the buffer is
 # always LF-normalised. Remembers the file and its encoding.
@@ -309,9 +332,13 @@ proc ::tkutils::tkueditor::loadFile {path filename args} {
     }
     set raw [::tclutils::tuiconv::readFile $filename $enc]
     # Remember the file's line-ending style, then normalise the buffer to LF.
-    set state($path,eol) [expr {[string first "\r\n" $raw] >= 0 ? "crlf" : "lf"}]
-    regsub -all {\r\n?} $raw "\n" raw
-    setText $path $raw
+    lassign [_eolStyle $raw] style major
+    set state($path,eol)      $style
+    set state($path,eolMajor) $major
+    set state($path,raw)      [expr {$style eq "mixed" ? $raw : ""}]
+    regsub -all {\r\n?} $raw "\n" text
+    set state($path,loaded)   [expr {$style eq "mixed" ? $text : ""}]
+    setText $path $text
     set state($path,file)     $filename
     set state($path,encoding) $enc
     catch {refreshStatus $path}
@@ -346,15 +373,34 @@ proc ::tkutils::tkueditor::saveFile {path args} {
         return -code error -errorcode {TKUTILS TKEDITOR NOFILE} \
             "no filename given and no current file"
     }
+    if {$eol ni {lf crlf cr mixed}} {
+        return -code error -errorcode {TKUTILS TKEDITOR EOL} \
+            "eol must be lf, crlf or cr: $eol"
+    }
     set data [getText $path]
-    if {$eol eq "crlf"} { set data [string map [list "\n" "\r\n"] $data] }
+    set msg [file tail $fn]
+    if {$eol eq "mixed"} {
+        if {[info exists state($path,loaded)] && $data eq $state($path,loaded)} {
+            # unchanged: the file as it was, every line end kept
+            set data $state($path,raw)
+            set eol mixed
+        } else {
+            set eol $state($path,eolMajor)
+            append msg " (mixed line ends written as [string toupper $eol])"
+        }
+    }
+    switch -- $eol {
+        crlf { set data [string map [list "\n" "\r\n"] $data] }
+        cr   { set data [string map [list "\n" "\r"] $data] }
+    }
     ::tclutils::tuiconv::writeFile $fn $data $enc
     set state($path,file)     $fn
     set state($path,encoding) $enc
     set state($path,eol)      $eol
+    if {$eol ne "mixed"} { set state($path,raw) ""; set state($path,loaded) "" }
     $path.t edit modified 0
     catch {refreshStatus $path}
-    setStatus $path [file tail $fn]
+    setStatus $path $msg
     return $fn
 }
 
@@ -383,9 +429,9 @@ proc ::tkutils::tkueditor::eol {path args} {
         return $state($path,eol)
     }
     set s [lindex $args 0]
-    if {$s ni {lf crlf}} {
+    if {$s ni {lf crlf cr}} {
         return -code error -errorcode {TKUTILS TKEDITOR EOL} \
-            "eol must be lf or crlf: $s"
+            "eol must be lf, crlf or cr: $s"
     }
     set state($path,eol) $s
     catch {refreshStatus $path}
@@ -634,4 +680,4 @@ proc ::tkutils::tkueditor::_updateMenu {path} {
     }
 }
 
-package provide tkutils::tkueditor 0.2
+package provide tkutils::tkueditor 0.3

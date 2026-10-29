@@ -92,17 +92,24 @@ proc ::tkutils::tkuical::_ingest {path comps} {
         set state($path,calProps) [dict get $cal props]
         set other {}
         set evs {}
+        # order: E for the next event, O for the next other component, so
+        # save writes the components in the order they were read
+        set order {}
         foreach sub [dict get $cal components] {
             if {[string equal -nocase [dict get $sub type] VEVENT]} {
                 lappend evs $sub
+                lappend order E
             } else {
                 lappend other $sub
+                lappend order O
             }
         }
+        set state($path,calOrder) $order
         set state($path,calOther) $other
         set state($path,events) $evs
     } else {
         set state($path,calProps) {}
+        set state($path,calOrder) {}
         set state($path,calOther) {}
         set state($path,events) [::tclutils::tuical::find $comps VEVENT]
     }
@@ -111,8 +118,24 @@ proc ::tkutils::tkuical::_ingest {path comps} {
 
 proc ::tkutils::tkuical::_calComp {path} {
     variable state
-    set comps $state($path,calOther)
-    foreach ev $state($path,events) { lappend comps $ev }
+    set others $state($path,calOther)
+    set evs $state($path,events)
+    set order {}
+    if {[info exists state($path,calOrder)]} { set order $state($path,calOrder) }
+    set comps {}
+    set oi 0
+    set ei 0
+    foreach k $order {
+        if {$k eq "O" && $oi < [llength $others]} {
+            lappend comps [lindex $others $oi]
+            incr oi
+        } elseif {$k eq "E" && $ei < [llength $evs]} {
+            lappend comps [lindex $evs $ei]
+            incr ei
+        }
+    }
+    # what is left: other components first, then added events
+    lappend comps {*}[lrange $others $oi end] {*}[lrange $evs $ei end]
     return [dict create type VCALENDAR props $state($path,calProps) components $comps]
 }
 
@@ -139,6 +162,7 @@ proc ::tkutils::tkuical::loadText {path ics} {
 
 proc ::tkutils::tkuical::loadFile {path file} {
     set ch [open $file r]
+    fconfigure $ch -encoding utf-8
     set txt [read $ch]
     close $ch
     return [loadText $path $txt]
@@ -221,7 +245,8 @@ proc ::tkutils::tkuical::toText {path} {
 }
 proc ::tkutils::tkuical::save {path file} {
     set ch [open $file w]
-    fconfigure $ch -translation crlf
+    # the text already has CRLF line ends (RFC 5545 / 6350): write it as is
+    fconfigure $ch -translation lf -encoding utf-8
     puts -nonewline $ch [toText $path]
     close $ch
     return $file
@@ -268,4 +293,4 @@ proc ::tkutils::tkuical::_uiDel {path} {
     }
 }
 
-package provide tkutils::tkuical 0.2
+package provide tkutils::tkuical 0.3

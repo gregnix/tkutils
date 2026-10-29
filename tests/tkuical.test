@@ -81,4 +81,27 @@ test tkuical-2.4 {toText keeps calendar props and edits} -constraints ical -body
          [::tclutils::tuical::property [lindex [::tclutils::tuical::find $cal VEVENT] 0] SUMMARY]
 } -result {2.0 B}
 
+proc _bytes {f} { set ch [open $f rb]; set b [read $ch]; close $ch; return $b }
+test tkuical-3.1 {save: CRLF once, UTF-8 also with another system encoding; loadFile reads it back} -constraints ical -setup {
+    ::set f [makeFile {} tkuical-3.1.ics]
+    ::set enc [encoding system]
+} -body {
+    catch {destroy .ic}; set w [::tkutils::tkuical::widget .ic]
+    ::tkutils::tkuical::loadText $w "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:x\r\nBEGIN:VEVENT\r\nUID:a\r\nDTSTART;TZID=Europe/Berlin:20261028T080000\r\nSUMMARY:Fr\u00fchst\u00fcck\\, Tor\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"
+    encoding system iso8859-1
+    ::tkutils::tkuical::save $w $f
+    ::set b [_bytes $f]
+    catch {destroy .ic2}; set w2 [::tkutils::tkuical::widget .ic2]
+    ::tkutils::tkuical::loadFile $w2 $f
+    encoding system $enc
+    list [string first "\r\r\n" $b] [string match "*\r\nEND:VCALENDAR*" $b] \
+         [expr {[string first [encoding convertto utf-8 "Fr\u00fchst\u00fcck"] $b] >= 0}] \
+         [expr {[string first "TZID=Europe/Berlin" $b] >= 0}] \
+         [::tclutils::tuical::property [lindex [::tclutils::tuical::find [::tclutils::tuical::parse [::tkutils::tkuical::toText $w2]] VEVENT] 0] SUMMARY]
+} -cleanup {
+    encoding system $enc
+    removeFile tkuical-3.1.ics
+    catch {destroy .ic .ic2}
+} -result [list -1 1 1 1 "Fr\u00fchst\u00fcck\\, Tor"]
+
 cleanupTests

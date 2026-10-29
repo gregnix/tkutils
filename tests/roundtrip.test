@@ -1,0 +1,90 @@
+# Round trips with the files in data/roundtrip: loadFile, save, compare the
+# files. tkuical, tkuvcard.
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+set haveTk 1
+if {[catch {package require Tk 8.6-}]} { set haveTk 0 }
+set here [file dirname [file normalize [info script]]]
+set tmDir [file normalize [file join $here .. lib tm]]
+tcl::tm::path add $tmDir
+if {[info exists ::env(TCLUTILS_TM)]} {
+    tcl::tm::path add $::env(TCLUTILS_TM)
+} else {
+    set _tkuRoot [file dirname [file dirname $tmDir]]
+    foreach _c [lsort -decreasing [glob -nocomplain [file join [file dirname $_tkuRoot] tclutils*/lib/tm]]] {
+        tcl::tm::path add $_c
+        break
+    }
+}
+set haveEng [expr {$haveTk
+    && ![catch {package require tclutils::tuical 0.2}]
+    && ![catch {package require tclutils::tuvcard 0.2}]}]
+testConstraint rt $haveEng
+if {$haveEng} {
+    package require tkutils::tkuical
+    package require tkutils::tkuvcard
+}
+
+set ::RT [file join $here data roundtrip]
+proc rtBytes {file} {
+    set ch [open $file rb]
+    set d [read $ch]
+    close $ch
+    return $d
+}
+# the text without line folding (CRLF + space/tab)
+proc rtUnfold {s} { return [regsub -all {\r\n[ \t]} $s ""] }
+
+set n 0
+foreach f {google thunderbird} {
+    test roundtrip-ics-$f.1 "$f.ics: loadFile, save writes the same bytes" -constraints rt -body {
+        set w .rt[incr ::n]
+        ::tkutils::tkuical::widget $w
+        ::tkutils::tkuical::loadFile $w [file join $::RT $f.ics]
+        set out [makeFile {} rt-$f.ics]
+        ::tkutils::tkuical::save $w $out
+        string equal [rtBytes $out] [rtBytes [file join $::RT $f.ics]]
+    } -cleanup {
+        destroy $w
+        removeFile rt-$f.ics
+    } -result 1
+}
+
+test roundtrip-ics-outlook.1 {outlook.ics: same file up to line folding} -constraints rt -body {
+    set w .rt[incr ::n]
+    ::tkutils::tkuical::widget $w
+    ::tkutils::tkuical::loadFile $w [file join $::RT outlook.ics]
+    set out [makeFile {} rt-outlook.ics]
+    ::tkutils::tkuical::save $w $out
+    string equal [rtUnfold [rtBytes $out]] [rtUnfold [rtBytes [file join $::RT outlook.ics]]]
+} -cleanup {
+    destroy $w
+    removeFile rt-outlook.ics
+} -result 1
+
+test roundtrip-ics-order {a to-do after the event stays after it, also after an edit} -constraints rt -body {
+    set w .rt[incr ::n]
+    ::tkutils::tkuical::widget $w
+    ::tkutils::tkuical::loadFile $w [file join $::RT thunderbird.ics]
+    ::tkutils::tkuical::setField $w 0 summary Neu
+    ::tkutils::tkuical::addEvent $w Zusatz
+    set t [::tkutils::tkuical::toText $w]
+    lmap {- c} [regexp -all -inline {BEGIN:(VEVENT|VTODO)} $t] {set c}
+} -cleanup {
+    destroy $w
+} -result {VEVENT VTODO VEVENT}
+
+test roundtrip-vcf.1 {phone.vcf: loadFile, save writes the same bytes} -constraints rt -body {
+    set w .rt[incr ::n]
+    ::tkutils::tkuvcard::widget $w
+    ::tkutils::tkuvcard::loadFile $w [file join $::RT phone.vcf]
+    set out [makeFile {} rt-phone.vcf]
+    ::tkutils::tkuvcard::save $w $out
+    string equal [rtBytes $out] [rtBytes [file join $::RT phone.vcf]]
+} -cleanup {
+    destroy $w
+    removeFile rt-phone.vcf
+} -result 1
+
+cleanupTests

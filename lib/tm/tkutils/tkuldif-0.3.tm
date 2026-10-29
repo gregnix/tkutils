@@ -105,6 +105,7 @@ proc ::tkutils::tkuldif::loadText {path ldif} {
 
 proc ::tkutils::tkuldif::loadFile {path file} {
     set ch [open $file r]
+    fconfigure $ch -encoding utf-8
     set txt [read $ch]
     close $ch
     return [loadText $path $txt]
@@ -169,7 +170,7 @@ proc ::tkutils::tkuldif::toText {path} {
 }
 proc ::tkutils::tkuldif::save {path file} {
     set ch [open $file w]
-    fconfigure $ch -translation lf
+    fconfigure $ch -translation lf -encoding utf-8
     puts $ch [toText $path]
     close $ch
     return $file
@@ -228,4 +229,4 @@ proc ::tkutils::tkuldif::_uiDelEntry {path} {
     }
 }
 
-package provide tkutils::tkuldif 0.2
+package provide tkutils::tkuldif 0.3

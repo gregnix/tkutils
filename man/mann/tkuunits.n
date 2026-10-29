@@ -2,7 +2,7 @@
 .SH tkutils::tkuunits
 .PP
 Convert screen distances between px, pt, mm, cm and inch. Tk accepts the units itself (\fBwinfo fpixels . 10m\fR), but turning pixels back into millimetres, or one unit into another, is left to the caller. Useful for label and print previews. Pure Tk, Tcl/Tk 8.6+ / 9.x.
-.SS "Commands"
+.SS Commands
 .CS
 ::tkutils::tkuunits::units                          ;# -> px pt mm cm inch
 ::tkutils::tkuunits::toPixels value unit ?window?   ;# -> float pixels

@@ -124,4 +124,30 @@ test tkutical-3.7 {invalid -date -> TKUTILS TKUTICAL DATE} -constraints tical -b
     dict get $o -errorcode
 } -result {TKUTILS TKUTICAL DATE}
 
+testConstraint tical11 [expr {$haveTk && $haveTical
+    && [package vcompare [package present tical::view::month] 1.1] >= 0}]
+
+test tkutical-3.1 {-events: appointments and series are drawn; setEvents/getEvents} -constraints tical11 -body {
+    destroy .w
+    ::tkutils::tkutical::widget .w -year 2025 -month 10 -events {
+        {summary A dtstart 2025-10-14T09:00}
+        {summary S dtstart 2025-10-06T18:00 rrule {freq WEEKLY count 4}}
+    }
+    ::set n1 [llength [.w.c find withtag event]]
+    ::tkutils::tkutical::setEvents .w {{summary B dtstart 2025-10-20}}
+    ::set n2 [llength [.w.c find withtag event]]
+    ::tkutils::tkutical::setEvents .w {}
+    list [expr {$n1 >= 5}] [expr {$n2 >= 1 && $n2 < $n1}] [llength [.w.c find withtag event]] \
+         [::tkutils::tkutical::getEvents .w]
+} -cleanup { destroy .w } -result {1 1 0 {}}
+
+test tkutical-3.2 {-events kept across navigation and view change} -constraints tical11 -body {
+    destroy .w
+    ::tkutils::tkutical::widget .w -date 2025-10-14 -view week \
+        -events {{summary S dtstart 2025-10-06T18:00 rrule {freq WEEKLY}}}
+    ::set a [llength [.w.c find withtag event]]
+    ::tkutils::tkutical::next .w
+    list $a [llength [.w.c find withtag event]]
+} -cleanup { destroy .w } -result {1 1}
+
 cleanupTests

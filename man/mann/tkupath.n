@@ -24,7 +24,7 @@ pack .bar -fill x
 ::tkutils::tkupath::setPath .bar /srv/daten/docs
 .CE
 .PP
-Clicking \fBdaten\fR shows \fB/srv/daten\fR in the bar and then fires the callback with \fB/srv/daten\fR; the caller decides what navigation means (change a directory listing, re\-root a tree). The bar has already updated itself, so the callback does not need \fBsetPath\fR \- only a navigation that ends somewhere else (a redirect, a failed change) calls \fBsetPath\fR with the real location.
+Clicking \fBdaten\fR shows \fB/srv/daten\fR in the bar and then fires the callback with \fB/srv/daten\fR; the caller decides what navigation means (change a directory listing, re\-root a tree). The bar has already updated itself, so the callback does not need \fBsetPath\fR \-\- only a navigation that ends somewhere else (a redirect, a failed change) calls \fBsetPath\fR with the real location.
 .SS "Windows paths"
 .PP
 A drive path shows the drive as the first segment, a UNC path the share; backslashes count as \fB/\fR. The targets are real paths:

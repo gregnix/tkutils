@@ -54,7 +54,7 @@ test tkunotes-1.4 {commit persists editor edits} -constraints notes -body {
     set r [::tkutils::tkunotes::addRoot $w "Old" "oldbody"]
     ::tkutils::tkunotes::select $w $r
     set ::tkutils::tkunotes::state($w,title) "New Title"
-    set ::tkutils::tkunotes::state($w,tags) "a b"
+    set ::tkutils::tkunotes::state($w,tags) "a, b"
     $w.pw.r.content delete 1.0 end
     $w.pw.r.content insert end "fresh body"
     ::tkutils::tkunotes::commit $w
@@ -161,5 +161,32 @@ test tkunotes-2.4 {subtree + saveSubtree round-trip} -constraints haveTk -body {
     set n2 [::tclutils::tunotes::count [::tclutils::tunotes::load $ffile]]
     list $n1 $n2
 } -result {2 2}
+
+test tkunotes-3.1 {tags separated by commas; a tag with a space stays one tag (0.3)} -constraints notes -body {
+    catch {destroy .n}
+    set w [::tkutils::tkunotes::widget .n]
+    set r [::tkutils::tkunotes::addRoot $w "T" "x" [list "Arbeit B\u00fcro" privat]]
+    ::tkutils::tkunotes::select $w $r
+    set shown $::tkutils::tkunotes::state($w,tags)
+    set ::tkutils::tkunotes::state($w,tags) "Arbeit B\u00fcro,  privat, , privat"
+    ::tkutils::tkunotes::commit $w
+    list $shown [dict get [::tclutils::tunotes::get [::tkutils::tkunotes::store $w] $r] tags]
+} -cleanup { catch {destroy .n} } -result [list "Arbeit B\u00fcro, privat" [list "Arbeit B\u00fcro" privat]]
+
+test tkunotes-3.2 {Save button: editor into the store and into the file} -constraints notes -body {
+    catch {destroy .n}
+    set f [file join [makeDirectory nd3] notes.json]
+    set w [::tkutils::tkunotes::widget .n]
+    set r [::tkutils::tkunotes::addRoot $w "T" "alt"]
+    ::tkutils::tkunotes::save $w $f
+    ::tkutils::tkunotes::select $w $r
+    $w.pw.r.content delete 1.0 end
+    $w.pw.r.content insert end "neuer Text J\u00f6rg"
+    set ::tkutils::tkunotes::state($w,tags) "Arbeit B\u00fcro"
+    $w.bar.save invoke
+    set st [::tclutils::tunotes::load $f]
+    set n [::tclutils::tunotes::get $st $r]
+    list [dict get $n content] [dict get $n tags]
+} -cleanup { catch {destroy .n} } -result [list "neuer Text J\u00f6rg" [list "Arbeit B\u00fcro"]]
 
 cleanupTests

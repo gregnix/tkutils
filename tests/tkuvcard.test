@@ -141,4 +141,39 @@ test tkuvcard-photo-3 {card without photo shows placeholder} -constraints vcard 
     destroy .v; set r
 } -result {(no photo)}
 
+proc _bytes {f} { set ch [open $f rb]; set b [read $ch]; close $ch; return $b }
+test tkuvcard-3.1 {save: CRLF once, UTF-8; loadFile reads it back} -constraints vcard -setup {
+    ::set f [makeFile {} tkuvcard-3.1.vcf]
+    ::set enc [encoding system]
+} -body {
+    catch {destroy .v}; set w [::tkutils::tkuvcard::widget .v]
+    ::tkutils::tkuvcard::loadText $w "BEGIN:VCARD\r\nVERSION:3.0\r\nFN:J\u00f6rg M\u00fcller\r\nTEL;TYPE=CELL;PREF=1:123\r\nEND:VCARD\r\n"
+    encoding system iso8859-1
+    ::tkutils::tkuvcard::save $w $f
+    ::set b [_bytes $f]
+    catch {destroy .v2}; set w2 [::tkutils::tkuvcard::widget .v2]
+    ::tkutils::tkuvcard::loadFile $w2 $f
+    encoding system $enc
+    list [string first "\r\r\n" $b] \
+         [expr {[string first [encoding convertto utf-8 "J\u00f6rg"] $b] >= 0}] \
+         [::tclutils::tuvcard::property [lindex [::tkutils::tkuvcard::cards $w2] 0] FN]
+} -cleanup {
+    encoding system $enc
+    removeFile tkuvcard-3.1.vcf
+    catch {destroy .v .v2}
+} -result "-1 1 {J\u00f6rg M\u00fcller}"
+
+test tkuvcard-3.2 {setProperty keeps PREF and other parameters; TYPE lists} -constraints vcard -body {
+    catch {destroy .v}; set w [::tkutils::tkuvcard::widget .v]
+    ::tkutils::tkuvcard::loadText $w "BEGIN:VCARD\r\nVERSION:3.0\r\nFN:A\r\nTEL;TYPE=CELL;PREF=1:123\r\nEND:VCARD\r\n"
+    ::set p {}
+    ::tkutils::tkuvcard::setProperty $w 0 2 TEL 456 CELL
+    lappend p [dict get [lindex [lindex [::tkutils::tkuvcard::cards $w] 0] 2] params]
+    ::tkutils::tkuvcard::setProperty $w 0 2 TEL 456 {WORK, VOICE}
+    lappend p [dict get [lindex [lindex [::tkutils::tkuvcard::cards $w] 0] 2] params]
+    ::tkutils::tkuvcard::setProperty $w 0 2 TEL 789 {}
+    lappend p [dict get [lindex [lindex [::tkutils::tkuvcard::cards $w] 0] 2] params]
+    lappend p [dict get [lindex [lindex [::tkutils::tkuvcard::cards $w] 0] 2] value]
+} -cleanup { catch {destroy .v} } -result {{TYPE CELL PREF 1} {PREF 1 TYPE WORK TYPE VOICE} {PREF 1} 789}
+
 cleanupTests

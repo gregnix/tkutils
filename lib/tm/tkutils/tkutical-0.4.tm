@@ -11,6 +11,12 @@
 # date's month and navigates by +/-1 month; the week view shows the ISO week of
 # that date and navigates by +/-7 days. Selection is view-agnostic.
 #
+# Appointments: -events LIST (or setEvents) takes events in the format of
+# tical::event (summary, dtstart, dtend, rrule ...); the views place them in
+# the cells, series on each of their days, and the canvas draws them (dots
+# in the month, titles in the week). Needs tical 1.1 or later; with an older
+# tical a non-empty list is an error {TKUTILS TKUTICAL EVENTS}.
+#
 # OPTIONAL widget: NOT part of the tkutils umbrella. Require it directly once
 # the `tical` packages are on the module path. Tcl/Tk 8.6+ and 9.x.
 
@@ -25,7 +31,7 @@ namespace eval ::tkutils {}
 namespace eval ::tkutils::tkutical {
     namespace export widget setMonth getMonth setDate getDate setView getView \
         next prev today refresh selectMode getSelection setSelection \
-        clearSelection canvasWidget
+        clearSelection canvasWidget setEvents getEvents
     variable state
 }
 
@@ -66,7 +72,7 @@ proc ::tkutils::tkutical::_validDate {iso} {
 # Build the calendar widget under $path.
 # Options: -view month|week -date YYYY-MM-DD -year Y -month M
 #          -weeknumbers 0|1 -fontsize N -holidays REGION
-#          -selectmode none|single|multiple -command CMD
+#          -selectmode none|single|multiple -command CMD -events LIST
 # Reference date precedence: -date, else -year/-month (1st of that month),
 # else today. CMD is called as `CMD $path $selection` on selection changes
 # (selection modes only). Returns $path.
@@ -74,7 +80,7 @@ proc ::tkutils::tkutical::widget {path args} {
     variable state
     array set o {
         -view month -date {} -year 0 -month 0 -weeknumbers 1 -fontsize 12
-        -holidays {} -selectmode single -command {}
+        -holidays {} -selectmode single -command {} -events {}
     }
     array set o [::tkutils::tkuopts::merge TKUTICAL [array get o] $args]
     if {$o(-view) ni {month week}} {
@@ -85,6 +91,7 @@ proc ::tkutils::tkutical::widget {path args} {
         return -code error -errorcode {TKUTILS TKUTICAL SELECTMODE} \
             "selectmode must be none|single|multiple"
     }
+    _checkEvents $o(-events)
     if {$o(-date) ne ""} {
         if {![_validDate $o(-date)]} {
             return -code error -errorcode {TKUTILS TKUTICAL DATE} \
@@ -104,6 +111,7 @@ proc ::tkutils::tkutical::widget {path args} {
     set state($path,fontsize)    $o(-fontsize)
     set state($path,holidays)    $o(-holidays)
     set state($path,command)     $o(-command)
+    set state($path,events)      $o(-events)
     bind $path <Destroy> [list ::tkutils::tkutical::_cleanup $path %W]
 
     ttk::frame $path.bar
@@ -146,6 +154,7 @@ proc ::tkutils::tkutical::_render {path} {
     variable state
     set hol {}
     if {$state($path,holidays) ne ""} { set hol [list -holidays $state($path,holidays)] }
+    if {[llength $state($path,events)]} { lappend hol -events $state($path,events) }
     if {$state($path,view) eq "week"} {
         set spec [tical::view::week::getData -date $state($path,date) {*}$hol]
     } else {
@@ -155,6 +164,28 @@ proc ::tkutils::tkutical::_render {path} {
     tical::render::canvas::draw $path.c $spec \
         -interactive 1 -fontsize $state($path,fontsize) \
         -weekNumbers $state($path,weeknumbers)
+}
+
+# -events needs views with -events (tical 1.1+)
+proc ::tkutils::tkutical::_checkEvents {events} {
+    if {[llength $events] && [package vcompare [package present tical::view::month] 1.1] < 0} {
+        return -code error -errorcode {TKUTILS TKUTICAL EVENTS} \
+            "-events needs tical 1.1 or later, loaded is tical::view::month\
+            [package present tical::view::month]"
+    }
+}
+
+# Appointments (tical::event format) shown in the calendar; redraws.
+proc ::tkutils::tkutical::setEvents {path events} {
+    variable state
+    _checkEvents $events
+    set state($path,events) $events
+    _render $path
+    return [llength $events]
+}
+proc ::tkutils::tkutical::getEvents {path} {
+    variable state
+    return $state($path,events)
 }
 
 # Re-render the current view (e.g. after toggling week numbers).
@@ -257,4 +288,4 @@ proc ::tkutils::tkutical::clearSelection {path} {
 # Expose the underlying canvas for advanced use.
 proc ::tkutils::tkutical::canvasWidget {path} { return $path.c }
 
-package provide tkutils::tkutical 0.3
+package provide tkutils::tkutical 0.4

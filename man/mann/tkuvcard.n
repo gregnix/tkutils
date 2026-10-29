@@ -1,4 +1,4 @@
-.TH tkuvcard n 0.2 tkutils
+.TH tkuvcard n 0.3 tkutils
 .SH tkutils::tkuvcard
 .PP
 vCard contact viewer. Each card is a tree node labelled with its FN; each property is a child row (Value + a Type hint from any TYPE parameter). Built on tclutils::tuvcard (requires tclutils 0.32.0+).
@@ -23,6 +23,10 @@ tkuvcard::removeProperty $w cardIndex propIndex
 tkuvcard::toText         $w           ;# current contacts as vCard text
 tkuvcard::save           $w file
 .CE
+.PP
+\fBtype\fR is a comma\-separated list of TYPE values (\fB"CELL, VOICE"\fR); \fB""\fR means no TYPE. \fBsetProperty\fR keeps the other parameters of the line (\fBPREF\fR, \fBLABEL\fR, \fBVALUE\fR ...) and, when \fBtype\fR equals the current TYPE values, those as they were (since 0.3; up to 0.2 every parameter but TYPE was lost).
+.PP
+Files: \fBloadFile\fR reads and \fBsave\fR writes UTF\-8, whatever the system encoding (since 0.3). \fBsave\fR writes the text of \fBtoText\fR unchanged, with CRLF line ends (up to 0.2 it wrote \fB\er\er\en\fR).
 .SS "Photo pane"
 .PP
 The widget shows a photo pane to the right of the tree. When a contact is selected, its \fBPHOTO\fR is rendered: inline PNG/GIF photos appear as a thumbnail (via \fBtuvcard::photo\fR + \fBtkutils::tkuimage\fR), URI photos are shown as text, and formats Tk cannot decode (e.g. JPEG without the Img extension) show a note. The \fB\-photosize\fR option (default 120) sets the thumbnail box in pixels.

@@ -1,4 +1,4 @@
-.TH tkuldif n 0.2 tkutils
+.TH tkuldif n 0.3 tkutils
 .SH tkutils::tkuldif
 .PP
 LDIF entry viewer. Each entry is a tree node labelled with its dn, with one child row per attribute value. Built on tclutils::tuldif (requires tclutils 0.31.0+).
@@ -23,3 +23,5 @@ tkuldif::removeAttr $w entryIndex pairIndex
 tkuldif::toText     $w        ;# current entries as LDIF
 tkuldif::save       $w file
 .CE
+.PP
+Files: \fBloadFile\fR reads and \fBsave\fR writes UTF\-8 with LF, whatever the system encoding (since 0.3).

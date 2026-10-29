@@ -27,6 +27,16 @@ tkuvcard::toText         $w           ;# current contacts as vCard text
 tkuvcard::save           $w file
 ```
 
+`type` is a comma-separated list of TYPE values (`"CELL, VOICE"`); `""`
+means no TYPE. `setProperty` keeps the other parameters of the line
+(`PREF`, `LABEL`, `VALUE` ...) and, when `type` equals the current TYPE
+values, those as they were (since 0.3; up to 0.2 every parameter but TYPE
+was lost).
+
+Files: `loadFile` reads and `save` writes UTF-8, whatever the system
+encoding (since 0.3). `save` writes the text of `toText` unchanged, with
+CRLF line ends (up to 0.2 it wrote `\r\r\n`).
+
 ## Photo pane
 
 The widget shows a photo pane to the right of the tree. When a contact is

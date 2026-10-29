@@ -1,4 +1,4 @@
-.TH tkutical n 0.3 tkutils
+.TH tkutical n 0.4 tkutils
 .SH "tkutils::tkutical  (optional widget)"
 .PP
 Month calendar widget that wraps the \fBtical\fR library. OPTIONAL: not in the tkutils umbrella; require it directly once \fBtical\fR is on the module path (\fBtical::view::month\fR + \fBtical::render::canvas\fR).
@@ -6,7 +6,7 @@ Month calendar widget that wraps the \fBtical\fR library. OPTIONAL: not in the t
 .CS
 set w [::tkutils::tkutical::widget .w ?-year Y? ?-month M? \
         ?-weeknumbers 0|1? ?-fontsize N? ?-holidays REGION? \
-        ?-selectmode none|single|multiple? ?-command CMD?]
+        ?-selectmode none|single|multiple? ?-command CMD? ?-events LIST?]
 ::tkutils::tkutical::setMonth   $w year month     ;# -> {y m}; throws on bad month
 ::tkutils::tkutical::getMonth   $w                ;# -> {y m}
 ::tkutils::tkutical::next       $w
@@ -22,9 +22,19 @@ set w [::tkutils::tkutical::widget .w ?-year Y? ?-month M? \
 ::tkutils::tkutical::getView    $w                ;# -> month|week
 ::tkutils::tkutical::setDate    $w iso            ;# set the focused date (YYYY-MM-DD)
 ::tkutils::tkutical::getDate    $w                ;# -> focused ISO date
+::tkutils::tkutical::setEvents  $w LIST           ;# appointments; redraws
+::tkutils::tkutical::getEvents  $w
 .CE
 .PP
-\fB\-command CMD\fR is called as \fBCMD $w $selection\fR on selection changes (selection modes only). Default \fB\-selectmode single\fR. Errorcodes: \fB{TKUTILS TKUTICAL MONTH}\fR, \fB{TKUTILS TKUTICAL SELECTMODE}\fR, \fB{TKUTILS TKUTICAL VIEW}\fR, \fB{TKUTILS TKUTICAL DATE}\fR.
+\fB\-command CMD\fR is called as \fBCMD $w $selection\fR on selection changes (selection modes only). Default \fB\-selectmode single\fR. Errorcodes: \fB{TKUTILS TKUTICAL MONTH}\fR, \fB{TKUTILS TKUTICAL SELECTMODE}\fR, \fB{TKUTILS TKUTICAL VIEW}\fR, \fB{TKUTILS TKUTICAL DATE}\fR, \fB{TKUTILS TKUTICAL EVENTS}\fR.
+.PP
+\fB\-events LIST\fR / \fBsetEvents\fR (since 0.4): appointments in the format of \fBtical::event\fR (\fBsummary\fR, \fBdtstart\fR, \fBdtend\fR, \fBrrule\fR ...). The views put them in the cells, a series on each of its days; the canvas draws dots in the month and titles in the week. They stay across navigation and view changes. Needs tical 1.1 or later; with tical 1.0.x a non\-empty list is an error \fB{TKUTILS TKUTICAL EVENTS}\fR.
+.CS
+::tkutils::tkutical::widget .cal -events {
+    {summary Zahnarzt dtstart 2025-10-14T09:00 dtend 2025-10-14T10:00}
+    {summary Sport dtstart 2025-10-07T18:00 rrule {freq WEEKLY byday {TU TH}}}
+}
+.CE
 .SS "Install / run"
 .IP \(bu
 Drop \fBlib/tm/tkutils/tkutical\-0.1.tm\fR into the tkutils tree (do NOT add it to the umbrella \-\- it is optional, like tkutablelist/tkusqlite).
@@ -34,6 +44,6 @@ Add the optional\-widgets row already prepared in README.md.
 Launcher: \fBbin/tkutical.tcl\fR (set \fBTICAL_DIR=/path/to/tical\fR or keep tical as a sibling repo). e.g.  \fBTICAL_DIR=.../tical wish bin/tkutical.tcl 2025 10\fR
 .SS Verification
 .IP \(bu
-tkutical.test: 8/8 on Tcl/Tk 9.0 (Xvfb).
+tkutical.test: 17/17 on Tcl/Tk 8.6 and 9.0 (Xvfb), tical 1.1.1.
 .IP \(bu
-With tical (or Tk) absent the suite SKIPS via the \fBtical\fR constraint (8 skipped, 0 failed) \-\- never breaks the tkutils runner, which already runs each test in its own process.
+With tical (or Tk) absent the suite SKIPS via the \fBtical\fR constraint (all skipped, 0 failed) \-\- never breaks the tkutils runner, which already runs each test in its own process.

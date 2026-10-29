@@ -89,4 +89,25 @@ test tkuini-2.4 {toText reflects edits} -constraints ini -body {
     ::tclutils::tuini::get [::tclutils::tuini::parse [::tkutils::tkuini::toText $w]] server host
 } -result 9.9.9.9
 
+proc _bytes {f} { set ch [open $f rb]; set b [read $ch]; close $ch; return $b }
+test tkuini-3.1 {save and loadFile in UTF-8 whatever the system encoding} -constraints ini -setup {
+    ::set f [makeFile {} tkuini-3.1.ini]
+    ::set enc [encoding system]
+} -body {
+    catch {destroy .i}; set w [::tkutils::tkuini::widget .i]
+    ::tkutils::tkuini::loadText $w "\[user\]\nname = J\u00f6rg\n"
+    encoding system iso8859-1
+    ::tkutils::tkuini::save $w $f
+    ::set b [_bytes $f]
+    catch {destroy .i2}; set w2 [::tkutils::tkuini::widget .i2]
+    ::tkutils::tkuini::loadFile $w2 $f
+    encoding system $enc
+    list [expr {[string first [encoding convertto utf-8 "J\u00f6rg"] $b] >= 0}] \
+         [string match "*J\u00f6rg*" [::tkutils::tkuini::toText $w2]]
+} -cleanup {
+    encoding system $enc
+    removeFile tkuini-3.1.ini
+    catch {destroy .i .i2}
+} -result {1 1}
+
 cleanupTests

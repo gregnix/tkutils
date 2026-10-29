@@ -158,6 +158,7 @@ proc ::tkutils::tkuini::loadText {path ini} {
 
 proc ::tkutils::tkuini::loadFile {path file} {
     set ch [open $file r]
+    fconfigure $ch -encoding utf-8
     set txt [read $ch]
     close $ch
     return [loadText $path $txt]
@@ -251,7 +252,7 @@ proc ::tkutils::tkuini::toText {path} {
 # Write the current document to a file.
 proc ::tkutils::tkuini::save {path file} {
     set ch [open $file w]
-    fconfigure $ch -translation lf
+    fconfigure $ch -translation lf -encoding utf-8
     puts $ch [toText $path]
     close $ch
     return $file
@@ -291,4 +292,4 @@ proc ::tkutils::tkuini::_uiDelSection {path} {
     removeSection $path $state($path,cur)
 }
 
-package provide tkutils::tkuini 0.2
+package provide tkutils::tkuini 0.3

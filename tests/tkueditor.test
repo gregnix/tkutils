@@ -366,4 +366,37 @@ test tkueditor-4.17 {toolbar Cut/Copy follow the selection} -constraints haveTk 
     list $before [$cb instate disabled]
 } -result {1 0}
 
+proc _eb {f} { set ch [open $f rb]; set b [read $ch]; close $ch; return $b }
+proc _ew {f b} { set ch [open $f wb]; puts -nonewline $ch $b; close $ch }
+
+test tkueditor-9.1 {line ends: one kind kept, lone CR kept, mixed unchanged written as it was (0.3)} -constraints haveTk -body {
+    catch {destroy .e}; ::tkutils::tkueditor::widget .e
+    set d [makeDirectory eol]
+    set r {}
+    foreach raw [list "J\u00f6rg\rZeile" "eins\r\nzwei\ndrei\r\n" "Fr\u00fch\r\nst\u00fcck\r\n" "a\nb\n"] {
+        set f [file join $d t.txt]
+        _ew $f [encoding convertto utf-8 $raw]
+        ::tkutils::tkueditor::loadFile .e $f
+        set st [::tkutils::tkueditor::eol .e]
+        ::tkutils::tkueditor::saveFile .e
+        lappend r $st [expr {[_eb $f] eq [encoding convertto utf-8 $raw]}]
+    }
+    set r
+} -cleanup { catch {destroy .e} } -result {cr 1 mixed 1 crlf 1 lf 1}
+
+test tkueditor-9.2 {mixed and edited: majority style, status says so} -constraints haveTk -body {
+    catch {destroy .e}; ::tkutils::tkueditor::widget .e
+    set f [file join [makeDirectory eol2] m.txt]
+    _ew $f "a\nb\nc\r\nd\n"
+    ::tkutils::tkueditor::loadFile .e $f
+    .e.t insert end "e\n"
+    ::tkutils::tkueditor::saveFile .e
+    list [_eb $f] [::tkutils::tkueditor::eol .e]
+} -cleanup { catch {destroy .e} } -result [list "a\nb\nc\nd\ne\n" lf]
+
+test tkueditor-9.3 {eol accepts cr; bad value is an error} -constraints haveTk -body {
+    catch {destroy .e}; ::tkutils::tkueditor::widget .e
+    list [::tkutils::tkueditor::eol .e cr] [catch {::tkutils::tkueditor::eol .e mac} m o] [dict get $o -errorcode]
+} -cleanup { catch {destroy .e} } -result {cr 1 {TKUTILS TKEDITOR EOL}}
+
 cleanupTests

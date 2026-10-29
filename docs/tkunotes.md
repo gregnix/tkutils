@@ -5,6 +5,11 @@ editor on the right, an action bar (New Root, New Child, Delete, Save) and a
 search box. All note logic and JSON persistence come from the tclutils engine
 `tunotes` (requires tclutils 0.30.0+); this widget only renders and edits.
 
+Tags field: tags separated by commas, `Arbeit Büro, privat` is two tags (up
+to 0.2 every word was a tag). The Save button takes the editor fields into the
+store (`commit`) and writes the JSON file: the `-file` or last loaded/saved
+file, else it asks for one (up to 0.2 it only did `commit`).
+
 ## API
 ```tcl
 set w [::tkutils::tkunotes::widget .w ?-file notes.json? ?-toolbar 0?]

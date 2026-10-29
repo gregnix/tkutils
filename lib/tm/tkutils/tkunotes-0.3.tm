@@ -9,6 +9,11 @@
 #
 # Per-widget state lives in `state`, keyed "$path,...". Tree item ids ARE the
 # note ids, so selection maps straight back to the store.
+#
+# Tags field: tags separated by commas ("Arbeit Büro, privat" is two tags;
+# up to 0.2 every word was a tag). The Save button (0.3) takes the editor
+# fields into the store and writes the JSON file: the -file / last loaded
+# or saved file, else it asks for one; commit alone only updates the store.
 
 package require Tcl 8.6-
 package require tkutils::tkuopts 0.1
@@ -156,7 +161,7 @@ proc ::tkutils::tkunotes::_loadEditor {path id} {
     variable state
     set note [::tclutils::tunotes::get $state($path,store) $id]
     set state($path,title) [dict get $note title]
-    set state($path,tags)  [join [dict get $note tags] " "]
+    set state($path,tags)  [join [dict get $note tags] ", "]
     set c $path.pw.r.content
     $c delete 1.0 end
     $c insert end [dict get $note content]
@@ -200,13 +205,23 @@ proc ::tkutils::tkunotes::commit {path {id ""}} {
     if {$id eq "" || ![::tclutils::tunotes::exists $state($path,store) $id]} {
         return ""
     }
-    set tags [regexp -all -inline {\S+} $state($path,tags)]
+    set tags [_splitTags $state($path,tags)]
     set content [$path.pw.r.content get 1.0 end-1c]
     ::tclutils::tunotes::update state($path,store) $id \
         $state($path,title) $content $tags
     refresh $path
     select $path $id
     return $id
+}
+
+# "Arbeit Büro, privat" -> {{Arbeit Büro} privat}
+proc ::tkutils::tkunotes::_splitTags {text} {
+    set out {}
+    foreach t [split $text ,] {
+        set t [string trim $t]
+        if {$t ne "" && $t ni $out} { lappend out $t }
+    }
+    return $out
 }
 
 proc ::tkutils::tkunotes::search {path query} {
@@ -263,8 +278,17 @@ proc ::tkutils::tkunotes::_uiDelete {path} {
     variable state
     if {$state($path,current) ne ""} { delete $path $state($path,current) }
 }
+# Save button: editor -> store, then the file (asks when there is none yet)
 proc ::tkutils::tkunotes::_uiSave {path} {
+    variable state
     commit $path
+    set file $state($path,file)
+    if {$file eq ""} {
+        set file [tk_getSaveFile -parent $path -defaultextension .json \
+            -filetypes {{{Notes (JSON)} .json} {{All files} *}}]
+        if {$file eq ""} return
+    }
+    save $path $file
 }
 proc ::tkutils::tkunotes::_uiSearch {path} {
     set hits [search $path [$path.bar.search get]]
@@ -333,4 +357,4 @@ proc ::tkutils::tkunotes::saveSubtree {path id file} {
     return $file
 }
 
-package provide tkutils::tkunotes 0.2
+package provide tkutils::tkunotes 0.3

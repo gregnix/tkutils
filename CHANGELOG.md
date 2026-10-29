@@ -6,11 +6,15 @@ Recommended pairing: tclutils 0.69.0 + tkutils 0.49.0 + ctrlutils 0.4
 (`tkutablelist` CSV export needs `tucsv` 0.2 from tclutils 0.69.0).
 
 Module versions: `tkutablelist` 0.5, `tkutlclip` 0.3, `tkutlsort` 0.3,
-`tkutlstate` 0.4, `tkutlfind` 0.3, `tkutltree` 0.3, `tkutltools` 0.3; new
+`tkutlstate` 0.4, `tkutlfind` 0.3, `tkutltree` 0.3, `tkutltools` 0.3,
+`tkuical`, `tkuvcard`, `tkuldif`, `tkuini`, `tkunotes`, `tkueditor` 0.3,
+`tkutical` 0.4; new
 `tkutlfilter`, `tkutlgroup`, `tkutldrag`, `tkusysinfo` 0.1. When copying over an older
 tree, delete `tkutils-0.48.0.tm`, `tkutablelist-0.4.tm`, `tkutlclip-0.2.tm`,
 `tkutlsort-0.2.tm`, `tkutlstate-0.3.tm`, `tkutlfind-0.2.tm`,
-`tkutltree-0.2.tm`, `tkutltools-0.2.tm`.
+`tkutltree-0.2.tm`, `tkutltools-0.2.tm`, `tkuical-0.2.tm`, `tkuvcard-0.2.tm`,
+`tkuldif-0.2.tm`, `tkuini-0.2.tm`, `tkutical-0.3.tm`, `tkunotes-0.2.tm`,
+`tkueditor-0.2.tm`.
 
 - `tkutlclip`: `installBindings` had no effect; Tablelist's own `<<Copy>>`
   overwrote the clipboard. Binding now ends with `break`. `copyAll` skips
@@ -42,6 +46,27 @@ tree, delete `tkutils-0.48.0.tm`, `tkutablelist-0.4.tm`, `tkutlclip-0.2.tm`,
 - New `tkusysinfo`: view of `tclutils::tusysinfo` (OS, hardware, monitors)
   plus Tk's screen data; copy, save as text or JSON. Needs tclutils
   0.69.0, so not in the umbrella. Doc, man, demo, tests.
+- `tkuical`, `tkuvcard`: `save` wrote `\r\r\n` (CRLF text through a CRLF
+  channel); now CRLF once. `tkuical`, `tkuvcard`, `tkuldif`, `tkuini`:
+  `loadFile` and `save` use UTF-8 whatever the system encoding. Tests
+  `tkuical-3.1`, `tkuvcard-3.1`, `tkuldif-3.1`, `tkuini-3.1`.
+- `tkuical`: `save` keeps the order of events and other components (to-dos
+  were moved before the events). New `tests/roundtrip.test` with files in
+  `tests/data/roundtrip`: `loadFile`, `save`, compare. Needs `tuical` and
+  `tuvcard` 0.2 (last line with CRLF).
+- `tkuvcard`: `setProperty` kept only TYPE (`PREF`, `LABEL` ... were lost);
+  other parameters stay, TYPE values as a comma list. Test `tkuvcard-3.2`.
+- `tkutical`: `-events`, `setEvents`, `getEvents` show appointments
+  (tical 1.1+), series on each of their days. Tests `tkutical-3.1`, `3.2`.
+- `tkusysinfo` doc: Tk screen and EDID monitors are not the same area.
+- `tkunotes`: the Save button wrote no file (only `commit`); now it writes
+  the JSON file and asks for one when there is none. Tags field separated
+  by commas, a tag may hold a space (every word was a tag). Tests
+  `tkunotes-1.4`, `3.1`, `3.2`.
+- `tkueditor`: line ends `lf`, `crlf`, `cr` and `mixed`; a mixed file saved
+  unchanged keeps every line end, after edits the most frequent one (one
+  CRLF made the whole file CRLF, a lone CR became LF). Tests
+  `tkueditor-9.1`–`9.3`.
 - `tests/congruence-check.tcl`: finds modules of any version (was `-0.1.tm`
   only, so every module showed MISS); covers the new modules.
 - `docs/guide/tkutils-modules.md` regenerated.

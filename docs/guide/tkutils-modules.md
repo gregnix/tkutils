@@ -16,7 +16,7 @@
 | `tkutils::tkudhash` | 0.1 | image-file front end for the perceptual dHash | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkudhash-0.1.tm` | tclutils::tudhash,Img |
 | `tkutils::tkudialog` | 0.3 | dialogs with copyable message text | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkudialog-0.3.tm` | msgcat,tkutils::tkuform |
 | `tkutils::tkudiff` | 0.1 | line diff viewer | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkudiff-0.1.tm` | tclutils::tudiff,tclutils::common |
-| `tkutils::tkueditor` | 0.2 | text editor widget (v0.2 PROTOTYPE) | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkueditor-0.2.tm` | tclutils::tuiconv,tkutils::tkuicon,tkutils::tkutoolbar,tkutils::tkustatus |
+| `tkutils::tkueditor` | 0.3 | text editor widget | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkueditor-0.3.tm` | tclutils::tuiconv,tkutils::tkuicon,tkutils::tkutoolbar,tkutils::tkustatus |
 | `tkutils::tkufiledialog` | 0.2 | modal open/save/directory dialogs on top of tkufilelist | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkufiledialog-0.2.tm` | tkutils::tkuopts,tkutils::tkufilelist,tkutils::tkupath,msgcat,tclutils::tuprovider |
 | `tkutils::tkufilelist` | 0.2 | a detail file list, filled from a storage provider | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkufilelist-0.2.tm` | tkutils::tkuopts,tkutils::tkutablelist,tclutils::tuprovider |
 | `tkutils::tkufiletree` | 0.2 | a lazy file-system tree built on tkutils::tkutree. | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkufiletree-0.2.tm` | tkutils::tkuopts,tkutils::tkutree |
@@ -25,22 +25,22 @@
 | `tkutils::tkufuzzy` | 0.1 | incremental fuzzy filter | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkufuzzy-0.1.tm` | tclutils::tufuzzy |
 | `tkutils::tkugeometry` | 0.1 | save and restore a toplevel's size, position and zoom state, kept on the screen | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkugeometry-0.1.tm` | tclutils::common,tclutils::tusettings |
 | `tkutils::tkuhexedit` | 0.1 | small Tk hex viewer/editor | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuhexedit-0.1.tm` | tclutils::tubin,tclutils::tuhexdump,tclutils::common |
-| `tkutils::tkuical` | 0.2 | iCalendar event viewer/editor | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuical-0.2.tm` | tkutils::tkuopts,tclutils::tuical |
+| `tkutils::tkuical` | 0.3 | iCalendar event viewer/editor | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuical-0.3.tm` | tkutils::tkuopts,tclutils::tuical |
 | `tkutils::tkuicon` | 0.1 | SVG icon loader / generator for toolbars (from uitoolkit) | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuicon-0.1.tm` | tksvg,tclutils::tusvg |
 | `tkutils::tkuimage` | 0.2 | image helpers and a scrollable/zoomable viewer widget for Tk | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuimage-0.2.tm` | imgtools |
-| `tkutils::tkuini` | 0.2 | INI viewer | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuini-0.2.tm` | tkutils::tkuopts,tclutils::tuini |
+| `tkutils::tkuini` | 0.3 | INI viewer | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuini-0.3.tm` | tkutils::tkuopts,tclutils::tuini |
 | `tkutils::tkujson` | 0.1 | JSON tree viewer | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkujson-0.1.tm` | tclutils::tujson,tclutils::common |
 | `tkutils::tkukeynav` | 0.1 | keyboard focus navigation helpers | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkukeynav-0.1.tm` |  |
 | `tkutils::tkulabeled` | 0.1 | labeled input composites (label + control in one) | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkulabeled-0.1.tm` |  |
 | `tkutils::tkulauncher` | 0.3 | an application launcher widget, as a menu or a list | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkulauncher-0.3.tm` | tkutils::tkuopts,tclutils::tuopen,tkutils::tkuscrolledframe,tkutils::tkuwheel,tkutils::tkuballoon,tclutils::tujson,tclutils::tuini,tkutils::tkutical,tkutils::tkucalendar,tkutils::tkucal,tkutils::tkucalc,tkutils::tkuform |
 | `tkutils::tkulayoutcanvas` | 0.1 | visual block layout designer on a Tk canvas | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkulayoutcanvas-0.1.tm` | tclutils::tulayout |
-| `tkutils::tkuldif` | 0.2 | LDIF entry viewer/editor | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuldif-0.2.tm` | tkutils::tkuopts,tclutils::tuldif |
+| `tkutils::tkuldif` | 0.3 | LDIF entry viewer/editor | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuldif-0.3.tm` | tkutils::tkuopts,tclutils::tuldif |
 | `tkutils::tkuload` | 0.3 | instantiate a tkudesigner `.tkd` layout as a live Tk widget tree (no code export) | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuload-0.3.tm` | tkutils::tkurender |
 | `tkutils::tkumarquee` | 0.1 | rubber-band (marquee) rectangle selection on a canvas | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkumarquee-0.1.tm` |  |
 | `tkutils::tkumd` | 0.1 | Markdown outline viewer | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkumd-0.1.tm` | tclutils::tumd,tclutils::common |
 | `tkutils::tkumdview` | 0.1 | Markdown viewer (headings outline + rendered preview) | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkumdview-0.1.tm` | tclutils::tumd |
 | `tkutils::tkumonthcanvas` | 0.5 | canvas calendar widget (month/quarter/year) OPTIONAL: requires tical (engine). | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkumonthcanvas-0.5.tm` | tical::config,tical::locale,tical::holidays,tical::holidays::de,tical::view::month |
-| `tkutils::tkunotes` | 0.2 | hierarchical notes widget | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkunotes-0.2.tm` | tkutils::tkuopts,tclutils::tunotes |
+| `tkutils::tkunotes` | 0.3 | hierarchical notes widget | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkunotes-0.3.tm` | tkutils::tkuopts,tclutils::tunotes |
 | `tkutils::tkunumentry` | 0.1 | numeric entry with validation, fixed decimals and optional min/max clamping | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkunumentry-0.1.tm` |  |
 | `tkutils::tkuopts` | 0.1 | merge options over defaults; an unknown option is an error that lists the known ones | System · runtime | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuopts-0.1.tm` |  |
 | `tkutils::tkupath` | 0.3 | a breadcrumb path bar with clickable segments | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkupath-0.3.tm` | tkutils::tkuopts |
@@ -56,7 +56,7 @@
 | `tkutils::tkutab` | 0.2 | a tabbed container with a "+" button and closeable tabs | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkutab-0.2.tm` | tkutils::tkuopts |
 | `tkutils::tkutablelist` | 0.5 | multi-column table (OPTIONAL: requires Tablelist) | Tk · tablelist | Y | Y | Y | tkutils | `lib/tm/tkutils/tkutablelist-0.5.tm` | tkutils::tkuopts,tablelist_tile,Tablelist,tclutils::tunum,tclutils::tucsv,tclutils::tunotes |
 | `tkutils::tkutags` | 0.1 | tag editor: tags shown as removable chips plus an input. | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkutags-0.1.tm` |  |
-| `tkutils::tkutical` | 0.3 | month/week calendar widget (OPTIONAL: requires tical) | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkutical-0.3.tm` | tkutils::tkuopts,tical::view::month,tical::view::week,tical::render::canvas |
+| `tkutils::tkutical` | 0.4 | month/week calendar widget (OPTIONAL: requires tical) | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkutical-0.4.tm` | tkutils::tkuopts,tical::view::month,tical::view::week,tical::render::canvas |
 | `tkutils::tkutimeentry` | 0.1 | time entry with hour/minute (optional second) spinboxes. | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkutimeentry-0.1.tm` |  |
 | `tkutils::tkutlclip` | 0.3 | copy tablelist rows to the clipboard as TSV or CSV. | Tk · tablelist | Y | Y | Y | tkutils | `lib/tm/tkutils/tkutlclip-0.3.tm` | tablelist_tile,tclutils::tucsv |
 | `tkutils::tkutldrag` | 0.1 | drag-and-drop row reordering for a tablelist, with a callback. | Tk · tablelist | Y | Y | Y | tkutils | `lib/tm/tkutils/tkutldrag-0.1.tm` | tablelist_tile |
@@ -74,7 +74,7 @@
 | `tkutils::tkutree` | 0.2 | a thin ttk::treeview wrapper for hierarchical data. | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkutree-0.2.tm` | tkutils::tkuopts |
 | `tkutils::tkuunits` | 0.1 | convert screen distances between px, pt, mm, cm and inch | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuunits-0.1.tm` |  |
 | `tkutils::tkuvalidate` | 0.1 | inline validation feedback for input widgets | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuvalidate-0.1.tm` | tkutils::tkuballoon,tclutils::tuvalidate |
-| `tkutils::tkuvcard` | 0.2 | vCard contact viewer | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuvcard-0.2.tm` | tkutils::tkuopts,tclutils::tuvcard,tkutils::tkuimage |
+| `tkutils::tkuvcard` | 0.3 | vCard contact viewer | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuvcard-0.3.tm` | tkutils::tkuopts,tclutils::tuvcard,tkutils::tkuimage |
 | `tkutils::tkuwheel` | 0.2 | forward mouse-wheel events to a scrollable target | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuwheel-0.2.tm` |  |
 | `tkutils::tkuwinico` | 0.1 | build Windows .ico files from Tk images (SVG or photo), alpha preserved | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuwinico-0.1.tm` | tclutils::tuico |
 | `tkutils::tkuxml` | 0.1 | XML tree viewer | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuxml-0.1.tm` | tdom,tclutils::common |

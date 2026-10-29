@@ -26,3 +26,6 @@ tkuldif::removeAttr $w entryIndex pairIndex
 tkuldif::toText     $w        ;# current entries as LDIF
 tkuldif::save       $w file
 ```
+
+Files: `loadFile` reads and `save` writes UTF-8 with LF, whatever the
+system encoding (since 0.3).

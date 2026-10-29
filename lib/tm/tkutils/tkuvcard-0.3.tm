@@ -129,6 +129,7 @@ proc ::tkutils::tkuvcard::loadText {path vcf} {
 
 proc ::tkutils::tkuvcard::loadFile {path file} {
     set ch [open $file r]
+    fconfigure $ch -encoding utf-8
     set txt [read $ch]
     close $ch
     return [loadText $path $txt]
@@ -155,8 +156,14 @@ proc ::tkutils::tkuvcard::count {path} {
 
 # --- editing ------------------------------------------------------------------
 
+# "CELL, VOICE" -> TYPE CELL TYPE VOICE; "" -> no parameter
 proc ::tkutils::tkuvcard::_typeParams {type} {
-    return [expr {$type eq "" ? {} : [list TYPE $type]}]
+    set out {}
+    foreach t [split $type ,] {
+        set t [string trim $t]
+        if {$t ne ""} { lappend out TYPE $t }
+    }
+    return $out
 }
 
 # Append a new card (with an FN) and return its index.
@@ -188,11 +195,24 @@ proc ::tkutils::tkuvcard::removeProperty {path cardIndex propIndex} {
     lset state($path,cards) $cardIndex $card
     _populate $path
 }
-# Replace the property at propIndex of a card.
+# Replace name and value of the property at propIndex of a card. Parameters
+# other than TYPE (PREF, LABEL, VALUE ...) are kept. type: TYPE values,
+# comma-separated ("CELL, VOICE"); "" removes TYPE; when it equals the
+# current TYPE values, those stay exactly as they were.
 proc ::tkutils::tkuvcard::setProperty {path cardIndex propIndex name value {type ""}} {
     variable state
     set card [lindex $state($path,cards) $cardIndex]
-    set card [::tclutils::tuvcard::setProperty $card $propIndex $name $value [_typeParams $type]]
+    set old [dict get [lindex $card $propIndex] params]
+    if {[string map {" " ""} $type] eq [string map {" " ""} [_typeHint $old]]} {
+        set params $old
+    } else {
+        set params {}
+        foreach {k v} $old {
+            if {![string equal -nocase $k TYPE]} { lappend params $k $v }
+        }
+        lappend params {*}[_typeParams $type]
+    }
+    set card [::tclutils::tuvcard::setProperty $card $propIndex $name $value $params]
     lset state($path,cards) $cardIndex $card
     _populate $path
 }
@@ -203,7 +223,8 @@ proc ::tkutils::tkuvcard::toText {path} {
 }
 proc ::tkutils::tkuvcard::save {path file} {
     set ch [open $file w]
-    fconfigure $ch -translation crlf
+    # the text already has CRLF line ends (RFC 5545 / 6350): write it as is
+    fconfigure $ch -translation lf -encoding utf-8
     puts -nonewline $ch [toText $path]
     close $ch
     return $file
@@ -305,4 +326,4 @@ proc ::tkutils::tkuvcard::_uiDelCard {path} {
     }
 }
 
-package provide tkutils::tkuvcard 0.2
+package provide tkutils::tkuvcard 0.3

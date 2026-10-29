@@ -8,14 +8,14 @@ normalised to LF in the buffer and restored on save.
 ## API
 ```tcl
 set w [::tkutils::tkueditor::widget .w ?-width N? ?-height N? ?-wrap mode? \
-          ?-toolbar bool? ?-statusbar bool? ?-encoding ENC? ?-eol lf|crlf?]
+          ?-toolbar bool? ?-statusbar bool? ?-encoding ENC? ?-eol lf|crlf|cr?]
 ::tkutils::tkueditor::setText     $w text       ;# replace buffer (clears modified)
 ::tkutils::tkueditor::getText     $w
 ::tkutils::tkueditor::loadFile    $w path ?-encoding ENC?
-::tkutils::tkueditor::saveFile    $w ?path? ?-encoding ENC? ?-eol lf|crlf?
+::tkutils::tkueditor::saveFile    $w ?path? ?-encoding ENC? ?-eol lf|crlf|cr?
 ::tkutils::tkueditor::currentFile $w
 ::tkutils::tkueditor::encoding    $w ?ENC?       ;# get/set encoding for load/save
-::tkutils::tkueditor::eol         $w ?lf|crlf?   ;# get/set line-ending style for save
+::tkutils::tkueditor::eol         $w ?lf|crlf|cr?   ;# get/set line-ending style for save
 ::tkutils::tkueditor::find        $w needle ?-from idx? ?-nocase?   ;# index or ""
 ::tkutils::tkueditor::findAll     $w needle ?-nocase?               ;# list of indices
 ::tkutils::tkueditor::findNext    $w needle ?-nocase?               ;# select+see next, wraps
@@ -57,10 +57,14 @@ elsewhere) and Tcl 9 (utf-8). Override per call with `-encoding`, or set it for
 the editor with `encoding $w ENC`; the value is remembered and reused on save.
 
 Because `tuiconv` does no end-of-line translation, the editor handles it
-itself. On load the file's style is detected, the buffer is normalised to LF
-(what a Tk text widget expects), and the original style is remembered. On save
-the buffer is converted back to that style. Read or change it with
-`eol $w ?lf|crlf?`, or override a single save with `saveFile $w path -eol crlf`.
+itself. On load the file's style is detected (`lf`, `crlf`, `cr`, or `mixed`
+when the file has several kinds), the buffer is normalised to LF (what a Tk
+text widget expects), and the original style is remembered. On save the
+buffer is converted back to that style. A `mixed` file saved unchanged is
+written as it was; after edits it gets the most frequent style and the status
+bar says so. Read or change the style with `eol $w ?lf|crlf|cr?`, or override
+a single save with `saveFile $w path -eol crlf`. (Up to 0.2 one CRLF made the
+whole file CRLF, and a lone CR became LF.)
 
 ```tcl
 ::tkutils::tkueditor::loadFile $w doc.txt -encoding cp1252  ;# load a legacy file

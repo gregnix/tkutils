@@ -1,15 +1,15 @@
 .TH tkudialog n 0.3 tkutils
 .SH tkutils::tkudialog
 .PP
-Dialogs whose \fBmessage text is selectable and copyable\fR (Ctrl\-C or the Copy button) \-\- unlike \fBtk_messageBox\fR. A generic, extensible builder plus ready\-made variants. Pure Tk; no tclutils engine required.
+Dialogs whose \fBmessage text is selectable and copyable\fR (Ctrl\-C or the Copy button) \-\- unlike \fBtk_messageBox\fR. A generic, extensible builder plus ready\-made variants. Pure Tk; no tclutils engine required. \fB0.3\fR adds keyboard defaults, structured button ids, optional \fBmsgcat\fR, and focus/grab restore.
 .SS "Generic / extensible"
 .CS
 # non-modal toplevel (embed or drive yourself)
 ::tkutils::tkudialog::build  $win ?-title t? ?-message m? ?-icon info|warning|error|question? \
-                                 ?-detail d? ?-buttons {...}? ?-default id? ?-cancel id? \
+                                 ?-detail d? ?-buttons {…}? ?-default id? ?-cancel id? \
                                  ?-entry 0|1? ?-initial s? ?-parent w? \
                                  ?-detailcollapsed 0|1? ?-width 48? ?-maxheight 20?
-# modal: builds, grabs, waits, returns the button id
+# modal: builds, grabs, waits, returns the button **id**
 ::tkutils::tkudialog::show    $win ?same options?
 ::tkutils::tkudialog::choose  $win id          ;# pick a button programmatically
 ::tkutils::tkudialog::result  $win             ;# chosen id, "" while open

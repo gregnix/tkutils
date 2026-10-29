@@ -1,18 +1,18 @@
-.TH tkueditor n 0.2 tkutils
+.TH tkueditor n 0.3 tkutils
 .SH tkutils::tkueditor
 .PP
 Text editor widget: an editable text area with file load/save, search, modified tracking, an optional toolbar and an optional status bar. Encoding\-aware file I/O goes through \fBtclutils::tuiconv\fR and defaults to utf\-8; line endings are normalised to LF in the buffer and restored on save.
 .SS API
 .CS
 set w [::tkutils::tkueditor::widget .w ?-width N? ?-height N? ?-wrap mode? \
-          ?-toolbar bool? ?-statusbar bool? ?-encoding ENC? ?-eol lf|crlf?]
+          ?-toolbar bool? ?-statusbar bool? ?-encoding ENC? ?-eol lf|crlf|cr?]
 ::tkutils::tkueditor::setText     $w text       ;# replace buffer (clears modified)
 ::tkutils::tkueditor::getText     $w
 ::tkutils::tkueditor::loadFile    $w path ?-encoding ENC?
-::tkutils::tkueditor::saveFile    $w ?path? ?-encoding ENC? ?-eol lf|crlf?
+::tkutils::tkueditor::saveFile    $w ?path? ?-encoding ENC? ?-eol lf|crlf|cr?
 ::tkutils::tkueditor::currentFile $w
 ::tkutils::tkueditor::encoding    $w ?ENC?       ;# get/set encoding for load/save
-::tkutils::tkueditor::eol         $w ?lf|crlf?   ;# get/set line-ending style for save
+::tkutils::tkueditor::eol         $w ?lf|crlf|cr?   ;# get/set line-ending style for save
 ::tkutils::tkueditor::find        $w needle ?-from idx? ?-nocase?   ;# index or ""
 ::tkutils::tkueditor::findAll     $w needle ?-nocase?               ;# list of indices
 ::tkutils::tkueditor::findNext    $w needle ?-nocase?               ;# select+see next, wraps
@@ -34,7 +34,7 @@ set w [::tkutils::tkueditor::widget .w ?-width N? ?-height N? ?-wrap mode? \
 .PP
 File I/O is encoding\-aware via \fBtclutils::tuiconv\fR. The default encoding is \fButf\-8\fR, so a document loads and saves identically under Tcl 8.6 (whose channels otherwise default to the system encoding \-\- cp1252 on Windows, latin\-1 elsewhere) and Tcl 9 (utf\-8). Override per call with \fB\-encoding\fR, or set it for the editor with \fBencoding $w ENC\fR; the value is remembered and reused on save.
 .PP
-Because \fBtuiconv\fR does no end\-of\-line translation, the editor handles it itself. On load the file's style is detected, the buffer is normalised to LF (what a Tk text widget expects), and the original style is remembered. On save the buffer is converted back to that style. Read or change it with \fBeol $w ?lf|crlf?\fR, or override a single save with \fBsaveFile $w path \-eol crlf\fR.
+Because \fBtuiconv\fR does no end\-of\-line translation, the editor handles it itself. On load the file's style is detected (\fBlf\fR, \fBcrlf\fR, \fBcr\fR, or \fBmixed\fR when the file has several kinds), the buffer is normalised to LF (what a Tk text widget expects), and the original style is remembered. On save the buffer is converted back to that style. A \fBmixed\fR file saved unchanged is written as it was; after edits it gets the most frequent style and the status bar says so. Read or change the style with \fBeol $w ?lf|crlf|cr?\fR, or override a single save with \fBsaveFile $w path \-eol crlf\fR. (Up to 0.2 one CRLF made the whole file CRLF, and a lone CR became LF.)
 .CS
 ::tkutils::tkueditor::loadFile $w doc.txt -encoding cp1252  ;# load a legacy file
 ::tkutils::tkueditor::encoding $w utf-8                      ;# convert on next save

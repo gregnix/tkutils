@@ -12,7 +12,7 @@ package require tkutils::tkudiff 0.1
 package require tkutils::tkumd 0.1
 package require tkutils::tkujson 0.1
 package require tkutils::tkucal 0.1
-package require tkutils::tkueditor 0.2
+package require tkutils::tkueditor 0.3
 package require tkutils::tkuzip 0.1
 package require tkutils::tkufuzzy 0.1
 package require tkutils::tkudialog 0.3
@@ -20,12 +20,12 @@ package require tkutils::tkubase64 0.1
 package require tkutils::tkustrings 0.1
 package require tkutils::tkutoolbar 0.2
 package require tkutils::tkustatus 0.2
-package require tkutils::tkunotes 0.2
+package require tkutils::tkunotes 0.3
 package require tkutils::tkuform 0.1
-package require tkutils::tkuical 0.2
-package require tkutils::tkuldif 0.2
-package require tkutils::tkuini 0.2
-package require tkutils::tkuvcard 0.2
+package require tkutils::tkuical 0.3
+package require tkutils::tkuldif 0.3
+package require tkutils::tkuini 0.3
+package require tkutils::tkuvcard 0.3
 package require tkutils::tkudateentry 0.1
 package require tkutils::tkutags 0.1
 package require tkutils::tkusearchbar 0.1

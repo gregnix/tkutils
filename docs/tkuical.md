@@ -28,3 +28,7 @@ tkuical::removeEventProperty $w index name
 tkuical::toText             $w        ;# current calendar as iCalendar text
 tkuical::save               $w file
 ```
+
+Files: `loadFile` reads and `save` writes UTF-8, whatever the system
+encoding (since 0.3). `save` writes the text of `toText` unchanged, with
+the CRLF line ends iCalendar asks for (up to 0.2 it wrote `\r\r\n`).

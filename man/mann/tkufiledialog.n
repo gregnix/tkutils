@@ -1,40 +1,49 @@
-'\"
-'\" tkufiledialog.n -- modal file/directory dialog
-.TH TKUFILEDIALOG n "0.2" "tkutils" "Tkutils Widgets"
-.SH NAME
-tkutils::tkufiledialog \- modal open/save/directory chooser
-.SH SYNOPSIS
-.nf
-\fBpackage require tkutils::tkufiledialog\fR ?0.2?
-.sp
-\fB::tkutils::tkufiledialog::open\fR ?\fIoptions\fR?
-\fB::tkutils::tkufiledialog::save\fR ?\fIoptions\fR?
-\fB::tkutils::tkufiledialog::directory\fR ?\fIoptions\fR?
-.fi
-.SH DESCRIPTION
-Provider-backed modal picker built from \fBtkupath\fR and \fBtkufilelist\fR.
-Returns a path (or a list with \fB\-multiple\fR), or empty if cancelled.
-.SH OPTIONS
-.TP
-\fB\-parent\fR \fIw\fR
-Transient parent toplevel.
-.TP
-\fB\-title\fR \fIt\fR
-Window title.
-.TP
-\fB\-initialdir\fR \fId\fR
-Start directory.
-.TP
-\fB\-provider\fR \fIp\fR
-A \fBtuprovider\fR (default: local).
-.TP
-\fB\-filetypes\fR \fIlist\fR
-As for \fBtk_getOpenFile\fR; first extension drives the list filter.
-.TP
-\fB\-multiple\fR \fI0|1\fR
-Open only: return a list of paths.
-.TP
-\fB\-initialfile\fR \fIname\fR / \fB\-defaultextension\fR \fI.ext\fR
-Save only.
-.SH SEE ALSO
-tkufilelist(n), tkupath(n), tkudialog(n)
+.TH tkufiledialog n 0.2 tkutils
+.SH tkutils::tkufiledialog
+.PP
+Modal \fBopen / save / directory\fR chooser on top of \fBtkupath\fR + \fBtkufilelist\fR. Same look as the explorer stack; local \fBtuprovider\fR by default, optional \fB\-provider\fR for ZIP/remote. Returns a path (or a list with \fB\-multiple\fR), or \fB""\fR / \fB{}\fR if cancelled. Tk 8.6+ and 9.x.
+.PP
+Not a full file manager — a compact dialog for “pick this file/folder”.
+.SS API
+.CS
+::tkutils::tkufiledialog::open      ?options?
+::tkutils::tkufiledialog::save      ?options?
+::tkutils::tkufiledialog::directory ?options?
+.CE
+.SS Options
+.TS
+l l.
+Option	Meaning
+\fB\-parent w\fR	toplevel for transient / placement
+\fB\-title t\fR	window title
+\fB\-initialdir d\fR	start directory (default: \fB$HOME\fR or \fBpwd\fR)
+\fB\-provider p\fR	\fBtuprovider\fR (default: fresh local)
+\fB\-filetypes {{Label {.ext}}…}\fR	type combobox → list filter (first ext used)
+\fB\-multiple 0|1\fR	open only: return a list of paths
+\fB\-showhidden 0|1\fR	show dotfiles
+\fB\-initialfile name\fR	save only: prefill name entry
+\fB\-defaultextension .ext\fR	save only: append if name has no extension
+.TE
+.SS Behaviour
+.IP \(bu
+Double\-click a \fBdirectory\fR → navigate; double\-click a \fBfile\fR → OK (open/save).
+.IP \(bu
+Escape / Cancel → empty result; OK / Return in the name field → confirm.
+.IP \(bu
+Directory mode lists folders only; OK returns the selected folder or the current path.
+.SS Use
+.CS
+package require tkutils::tkufiledialog
+
+set f [::tkutils::tkufiledialog::open -parent . \
+    -title "Open text" -initialdir [pwd] \
+    -filetypes {{Text {.txt .md}} {All *}}]
+
+set d [::tkutils::tkufiledialog::directory -parent . -initialdir /tmp]
+
+set s [::tkutils::tkufiledialog::save -parent . \
+    -initialfile out.txt -defaultextension .txt]
+.CE
+.SS "See also"
+.PP
+\fBtkufilelist\fR, \fBtkupath\fR, \fBtkudialog\fR, \fBtclutils::tuprovider\fR

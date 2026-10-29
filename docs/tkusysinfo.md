@@ -57,6 +57,11 @@ Without the slow macOS `system_profiler` call:
 - Tk sees one screen: with several monitors `pixels` is the whole
   desktop of the X screen (Linux) or the main monitor (Windows, macOS).
   The monitors themselves come from their EDID under "Monitors".
+- The two sections do not describe the same area. Example with two
+  monitors under X11: Screen `3840x1200` (the whole desktop), Monitors
+  BenQ `preferred 3840x2560` (what the monitor can do), while it runs at
+  1920x1200 at +0+0. Running mode, position and primary monitor are in
+  neither; the data does not tell on which monitor a window starts.
 - Collecting runs in the event loop of the caller; on macOS it takes a few
   seconds, the cursor shows `watch` meanwhile.
 

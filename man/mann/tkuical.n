@@ -1,4 +1,4 @@
-.TH tkuical n 0.2 tkutils
+.TH tkuical n 0.3 tkutils
 .SH tkutils::tkuical
 .PP
 iCalendar event viewer. Shows the VEVENTs of an iCalendar document in a table (Summary, Start, End, Location). Built on tclutils::tuical (requires tclutils 0.31.0+).
@@ -24,3 +24,5 @@ tkuical::removeEventProperty $w index name
 tkuical::toText             $w        ;# current calendar as iCalendar text
 tkuical::save               $w file
 .CE
+.PP
+Files: \fBloadFile\fR reads and \fBsave\fR writes UTF\-8, whatever the system encoding (since 0.3). \fBsave\fR writes the text of \fBtoText\fR unchanged, with the CRLF line ends iCalendar asks for (up to 0.2 it wrote \fB\er\er\en\fR).

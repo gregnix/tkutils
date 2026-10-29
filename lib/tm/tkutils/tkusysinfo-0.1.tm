@@ -37,7 +37,7 @@ namespace eval ::tkutils::tkusysinfo {
         model Model logical {Logical CPUs} cores Cores total Total
         vendor Vendor boardVendor {Board vendor} board Board bios BIOS
         biosDate {BIOS date} chip Chip memoryText {Memory (system)} serial Serial
-        size Size type Type removable Removable mount {Mounted on}
+        size Size type Type removable Removable mount {Mounted on} volumes Volumes modelNumber {Model number}
         connector Connector manufacturer Manufacturer productCode {Product code}
         year Year week Week widthCm {Width (cm)} heightCm {Height (cm)}
         diagonal {Diagonal (in)} preferred {Preferred mode} valid {EDID checksum ok}

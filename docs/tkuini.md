@@ -29,6 +29,9 @@ tkuini::toText        $w            ;# current document as INI text
 tkuini::save          $w file
 ```
 
+Files: `loadFile` reads and `save` writes UTF-8 with LF, whatever the
+system encoding (since 0.3).
+
 ## Additional exported commands
 
 Documented for completeness (same module, also covered by the test suite):
