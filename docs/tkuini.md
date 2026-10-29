@@ -32,6 +32,11 @@ tkuini::save          $w file
 Files: `loadFile` reads and `save` writes UTF-8 with LF, whatever the
 system encoding (since 0.3).
 
+With tclutils `tuini` 0.2, `setKey` and `addSection` raise
+`{TCLUTILS TUINI VALUE}` for what INI cannot hold (a line break in a value,
+`=` in a key, ...); the data stay unchanged. The edit bar trims key and
+section name and shows such an error as a message instead.
+
 ## Additional exported commands
 
 Documented for completeness (same module, also covered by the test suite):

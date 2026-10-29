@@ -28,7 +28,7 @@ package require tclutils::tunum 0.1
 package require tkutils::tkutlsort   0.3
 package require tkutils::tkutlfmt    0.1
 package require tkutils::tkutlclip   0.3
-package require tkutils::tkutlfooter 0.3
+package require tkutils::tkutlfooter 0.4
 package require tkutils::tkutlfind   0.3
 package require tkutils::tkutlstate  0.4
 package require tkutils::tkutltree   0.3

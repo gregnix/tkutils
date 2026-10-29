@@ -660,8 +660,13 @@ proc ::tkutils::tkulauncher::_error {path msg} {
 #        first token picking the type (app:/url:/open:) else app by default.
 proc ::tkutils::tkulauncher::load {file} {
     set ext [string tolower [file extension $file]]
-    set ch [open $file r] ; fconfigure $ch -encoding utf-8
-    set text [read $ch] ; close $ch
+    set ch [open $file r]
+    try {
+        fconfigure $ch -encoding utf-8
+        set text [read $ch]
+    } finally {
+        close $ch
+    }
     switch -- $ext {
         .json { return [_loadJson $text] }
         .ini  { return [_loadIni  $text] }
@@ -754,8 +759,13 @@ proc ::tkutils::tkulauncher::saveEntries {items file} {
         .ini  { set text [_entriesToIni  $items] }
         default { error "unsupported launcher file type: $ext (use .json or .ini)" }
     }
-    set ch [open $file w] ; fconfigure $ch -encoding utf-8
-    puts $ch $text ; close $ch
+    set ch [open $file w]
+    try {
+        fconfigure $ch -encoding utf-8
+        puts $ch $text
+    } finally {
+        close $ch
+    }
     return $file
 }
 

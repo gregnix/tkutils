@@ -2,7 +2,8 @@
 
 LDIF entry viewer. Each entry is a tree node labelled with its dn, with one
 child row per attribute value. Built on tclutils::tuldif (requires tclutils
-0.31.0+).
+0.31.0+). With `tuldif` 0.3, binary attributes such as `jpegPhoto` keep
+their bytes when saved.
 
 ```tcl
 set w [::tkutils::tkuldif::widget .w]

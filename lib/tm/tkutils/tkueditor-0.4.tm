@@ -22,6 +22,11 @@
 # saving an unchanged buffer writes the file as it was; after edits the
 # majority style is written and the status bar says so. Up to 0.2 a single
 # CRLF turned every LF into CRLF and a lone CR became LF for good.
+# 0.4: the Open and Save buttons show a failed load or save in a message box
+# and in the status bar (a file that is not valid in the editor encoding, a
+# character the encoding cannot hold, a file that cannot be read or
+# written); the buffer stays as it was. Up to 0.3 the error went to bgerror.
+# loadFile and saveFile still raise the error to the caller.
 # The toolbar reuses tkutils::tkutoolbar (+ tkuicon icons, text fallback);
 # the status bar reuses tkutils::tkustatus. Both are built only when enabled,
 # so the bare widget keeps its light dependency set. Encoding conversion uses
@@ -192,14 +197,32 @@ proc ::tkutils::tkueditor::_buildToolbar {path} {
 
 proc ::tkutils::tkueditor::_tbOpen {path} {
     set fn [tk_getOpenFile -parent $path]
-    if {$fn ne ""} { loadFile $path $fn; refreshStatus $path }
+    if {$fn eq ""} return
+    if {[catch {loadFile $path $fn} err]} {
+        _showError $path "Cannot open [file tail $fn]" $err
+        return
+    }
+    refreshStatus $path
 }
 
 proc ::tkutils::tkueditor::_tbSave {path} {
     variable state
     set fn $state($path,file)
     if {$fn eq ""} { set fn [tk_getSaveFile -parent $path] }
-    if {$fn ne ""} { saveFile $path $fn; refreshStatus $path }
+    if {$fn eq ""} return
+    if {[catch {saveFile $path $fn} err]} {
+        _showError $path "Cannot save [file tail $fn]" $err
+        return
+    }
+    refreshStatus $path
+}
+
+# A failed Open or Save: status bar line and a message box. The buffer and
+# the remembered file stay as they were.
+proc ::tkutils::tkueditor::_showError {path title msg} {
+    setStatus $path $title
+    tk_messageBox -parent $path -icon error -title $title \
+        -message $title -detail $msg
 }
 
 proc ::tkutils::tkueditor::_tbFind {path} {
@@ -680,4 +703,4 @@ proc ::tkutils::tkueditor::_updateMenu {path} {
     }
 }
 
-package provide tkutils::tkueditor 0.3
+package provide tkutils::tkueditor 0.4

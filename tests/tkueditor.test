@@ -18,7 +18,7 @@ if {[info exists ::env(TCLUTILS_TM)]} {
         break
     }
 }
-if {$haveTk} { package require tkutils::tkueditor }
+if {$haveTk} { package require tkutils::tkueditor 0.4 }
 
 test tkueditor-1.1 {setText/getText round-trip} -constraints haveTk -body {
     catch {destroy .e}
@@ -398,5 +398,38 @@ test tkueditor-9.3 {eol accepts cr; bad value is an error} -constraints haveTk -
     catch {destroy .e}; ::tkutils::tkueditor::widget .e
     list [::tkutils::tkueditor::eol .e cr] [catch {::tkutils::tkueditor::eol .e mac} m o] [dict get $o -errorcode]
 } -cleanup { catch {destroy .e} } -result {cr 1 {TKUTILS TKEDITOR EOL}}
+
+test tkueditor-6.1 {Open: invalid bytes go to a message box, buffer stays (0.4)} -constraints haveTk -setup {
+    set bad [file join [makeDirectory ed6] bad.txt]
+    set f [open $bad wb]; puts -nonewline $f "J\xf6rg"; close $f
+    proc ::tkutils::tkueditor::tk_getOpenFile {args} { return $::bad }
+    proc ::tkutils::tkueditor::tk_messageBox {args} { set ::shown $args; return ok }
+} -body {
+    catch {destroy .e}; ::tkutils::tkueditor::widget .e
+    ::tkutils::tkueditor::setText .e "alt"
+    set rc [catch {::tkutils::tkueditor::_tbOpen .e} m]
+    list $rc [::tkutils::tkueditor::getText .e] [::tkutils::tkueditor::currentFile .e] \
+        [dict get $::shown -title] [dict get $::shown -detail]
+} -cleanup {
+    catch {destroy .e}
+    rename ::tkutils::tkueditor::tk_getOpenFile {}
+    rename ::tkutils::tkueditor::tk_messageBox {}
+} -result {0 alt {} {Cannot open bad.txt} {bytes at offset 1 are not valid utf-8}}
+
+test tkueditor-6.2 {Save: a character the encoding cannot hold goes to a message box} -constraints haveTk -setup {
+    set out [file join [makeDirectory ed6b] out.txt]
+    proc ::tkutils::tkueditor::tk_getSaveFile {args} { return $::out }
+    proc ::tkutils::tkueditor::tk_messageBox {args} { set ::shown $args; return ok }
+} -body {
+    catch {destroy .e}; ::tkutils::tkueditor::widget .e -encoding iso8859-1
+    ::tkutils::tkueditor::setText .e "J\u00f6rg \u20ac"
+    set rc [catch {::tkutils::tkueditor::_tbSave .e} m]
+    list $rc [file exists $out] [dict get $::shown -title] \
+        [string match {*U+20AC*} [dict get $::shown -detail]]
+} -cleanup {
+    catch {destroy .e}
+    rename ::tkutils::tkueditor::tk_getSaveFile {}
+    rename ::tkutils::tkueditor::tk_messageBox {}
+} -result {0 0 {Cannot save out.txt} 1}
 
 cleanupTests

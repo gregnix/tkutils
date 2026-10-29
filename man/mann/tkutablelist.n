@@ -67,7 +67,8 @@ set w [::tkutils::tkutablelist::widget .w ?-columns {t...}? ?-stretch all? \
 
 Row indices change when the user sorts. `insert … id` and `setRows … -ids`
 store an id in the row's `-name`; `findId`, `selectedIds` and `selectIds` work
-with ids. `setRows` inserts all rows in one `insertlist` and re-applies the
+with ids; `selectedIds` leaves out selected rows without an id, use
+`curselection` for all selected rows. `setRows` inserts all rows in one `insertlist` and re-applies the
 current sort order. With `-ids`, the list needs one id per row.
 
 With `-sortable 1` a header click calls `tablelist::sortByColumn` (toggles the

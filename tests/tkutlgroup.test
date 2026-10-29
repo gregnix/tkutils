@@ -57,4 +57,13 @@ test tkutlgroup-1.5 {bad column and option} -constraints {hasTk hasTbl} -body {
     list [catch {::tkutils::tkutlgroup::group .t $::orders 9} e] $e \
         [catch {::tkutils::tkutlgroup::group .t $::orders 0 -x 1}]
 } -result {1 {bad column "9": must be 0..4} 1}
+test tkutlgroup-9.1 {a second group replaces the first; -replace 0 appends} -constraints {hasTk hasTbl} -body {
+    mkTbl
+    ::tkutils::tkutlgroup::group .t $::orders 0
+    ::tkutils::tkutlgroup::group .t $::orders 0
+    set a [llength [.t childkeys root]]
+    ::tkutils::tkutlgroup::group .t $::orders 0 -replace 0
+    list $a [llength [.t childkeys root]]
+} -result {2 4}
+
 cleanupTests

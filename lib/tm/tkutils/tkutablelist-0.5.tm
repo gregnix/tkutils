@@ -302,6 +302,8 @@ proc ::tkutils::tkutablelist::rowId {path index} {
 proc ::tkutils::tkutablelist::findId {path id} {
     return [$path.tbl findrowname $id -descend]
 }
+# Ids of the selected rows. A selected row without an id is left out, so
+# the list can be shorter than the selection; use curselection for rows.
 proc ::tkutils::tkutablelist::selectedIds {path} {
     set out {}
     foreach i [$path.tbl curselection] {

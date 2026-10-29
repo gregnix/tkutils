@@ -2,7 +2,7 @@
 |---|---|---|---|---|---|---|---|---|---|
 | `tkutils::tkuaction` | 0.2 | action abstraction (one action, many widgets) | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuaction-0.2.tm` |  |
 | `tkutils::tkuballoon` | 0.1 | balloon help / tooltips for any widget | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuballoon-0.1.tm` |  |
-| `tkutils::tkubase64` | 0.1 | Base64 encode/decode panel | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkubase64-0.1.tm` | tclutils::tubase64 |
+| `tkutils::tkubase64` | 0.2 | Base64 encode/decode panel | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkubase64-0.2.tm` | tclutils::tubase64 |
 | `tkutils::tkubind` | 0.1 | platform key/context bindings (from uitoolkit uibindings) | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkubind-0.1.tm` |  |
 | `tkutils::tkucal` | 0.1 | calendar view | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkucal-0.1.tm` | tclutils::tucal |
 | `tkutils::tkucalc` | 0.2 | a calculator widget with keyboard support | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkucalc-0.2.tm` | tkutils::tkuopts |
@@ -16,7 +16,7 @@
 | `tkutils::tkudhash` | 0.1 | image-file front end for the perceptual dHash | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkudhash-0.1.tm` | tclutils::tudhash,Img |
 | `tkutils::tkudialog` | 0.3 | dialogs with copyable message text | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkudialog-0.3.tm` | msgcat,tkutils::tkuform |
 | `tkutils::tkudiff` | 0.1 | line diff viewer | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkudiff-0.1.tm` | tclutils::tudiff,tclutils::common |
-| `tkutils::tkueditor` | 0.3 | text editor widget | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkueditor-0.3.tm` | tclutils::tuiconv,tkutils::tkuicon,tkutils::tkutoolbar,tkutils::tkustatus |
+| `tkutils::tkueditor` | 0.4 | text editor widget | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkueditor-0.4.tm` | tclutils::tuiconv,tkutils::tkuicon,tkutils::tkutoolbar,tkutils::tkustatus |
 | `tkutils::tkufiledialog` | 0.2 | modal open/save/directory dialogs on top of tkufilelist | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkufiledialog-0.2.tm` | tkutils::tkuopts,tkutils::tkufilelist,tkutils::tkupath,msgcat,tclutils::tuprovider |
 | `tkutils::tkufilelist` | 0.2 | a detail file list, filled from a storage provider | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkufilelist-0.2.tm` | tkutils::tkuopts,tkutils::tkutablelist,tclutils::tuprovider |
 | `tkutils::tkufiletree` | 0.2 | a lazy file-system tree built on tkutils::tkutree. | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkufiletree-0.2.tm` | tkutils::tkuopts,tkutils::tkutree |
@@ -40,7 +40,7 @@
 | `tkutils::tkumd` | 0.1 | Markdown outline viewer | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkumd-0.1.tm` | tclutils::tumd,tclutils::common |
 | `tkutils::tkumdview` | 0.1 | Markdown viewer (headings outline + rendered preview) | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkumdview-0.1.tm` | tclutils::tumd |
 | `tkutils::tkumonthcanvas` | 0.5 | canvas calendar widget (month/quarter/year) OPTIONAL: requires tical (engine). | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkumonthcanvas-0.5.tm` | tical::config,tical::locale,tical::holidays,tical::holidays::de,tical::view::month |
-| `tkutils::tkunotes` | 0.3 | hierarchical notes widget | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkunotes-0.3.tm` | tkutils::tkuopts,tclutils::tunotes |
+| `tkutils::tkunotes` | 0.4 | hierarchical notes widget | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkunotes-0.4.tm` | tkutils::tkuopts,tclutils::tunotes |
 | `tkutils::tkunumentry` | 0.1 | numeric entry with validation, fixed decimals and optional min/max clamping | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkunumentry-0.1.tm` |  |
 | `tkutils::tkuopts` | 0.1 | merge options over defaults; an unknown option is an error that lists the known ones | System · runtime | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuopts-0.1.tm` |  |
 | `tkutils::tkupath` | 0.3 | a breadcrumb path bar with clickable segments | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkupath-0.3.tm` | tkutils::tkuopts |
@@ -63,7 +63,7 @@
 | `tkutils::tkutlfilter` | 0.1 | filter a tablelist by hiding non-matching rows. | Tk · tablelist | Y | Y | Y | tkutils | `lib/tm/tkutils/tkutlfilter-0.1.tm` | tablelist_tile |
 | `tkutils::tkutlfind` | 0.3 | incremental find with match highlighting for a tablelist widget. | Tk · tablelist | Y | Y | Y | tkutils | `lib/tm/tkutils/tkutlfind-0.3.tm` | tablelist_tile |
 | `tkutils::tkutlfmt` | 0.3 | per-column display formatting for a tablelist widget via tablelist's -formatcommand. | Tk · tablelist | Y | Y | Y | tkutils | `lib/tm/tkutils/tkutlfmt-0.3.tm` | tkutils::tkuopts,tablelist_tile,tclutils::tunum |
-| `tkutils::tkutlfooter` | 0.3 | a footer row for a tablelist widget, realised as a second single-row tablelist ("header at the bottom" look). | Tk · tablelist | Y | Y | Y | tkutils | `lib/tm/tkutils/tkutlfooter-0.3.tm` | tablelist_tile,tclutils::tunum |
+| `tkutils::tkutlfooter` | 0.4 | a footer row for a tablelist widget, realised as a second single-row tablelist ("header at the bottom" look). | Tk · tablelist | Y | Y | Y | tkutils | `lib/tm/tkutils/tkutlfooter-0.4.tm` | tablelist_tile,tclutils::tunum |
 | `tkutils::tkutlgroup` | 0.1 | group flat rows under one parent row per key, with column sums. | Tk · tablelist | Y | Y | Y | tkutils | `lib/tm/tkutils/tkutlgroup-0.1.tm` | tablelist_tile,tclutils::tunum |
 | `tkutils::tkutlsort` | 0.3 | type-aware column sorting for a tablelist widget. | Tk · tablelist | Y | Y | Y | tkutils | `lib/tm/tkutils/tkutlsort-0.3.tm` | tablelist_tile,tclutils::tunum |
 | `tkutils::tkutlstate` | 0.4 | save and restore a tablelist's column layout: widths, hidden state, display order and the active sort. | Tk · tablelist | Y | Y | Y | tkutils | `lib/tm/tkutils/tkutlstate-0.4.tm` | tablelist_tile |

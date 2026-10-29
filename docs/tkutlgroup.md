@@ -20,8 +20,9 @@ numbers (`1.234,56`) in sum columns when it is on the path.
 ::tkutils::tkutlgroup::ungroup tbl                        ;# -> flat rows
 ```
 
-`group` appends to the table; call `$tbl delete 0 end` first to replace its
-contents. `ungroup` returns the member rows in display order with the key
+`group` replaces the rows of the table (`-replace 1`, the default); a second
+call no longer stacks a second set of groups below the first. `-replace 0`
+adds the groups below the rows already there. `ungroup` returns the member rows in display order with the key
 column filled in again.
 
 ## Options
@@ -34,6 +35,7 @@ column filled in again.
 | `-format` | `%.2f`         | Tcl `format` for sums that are not integers     |
 | `-font`   | bold default   | font of the parent rows                         |
 | `-expand` | `1`            | `0` collapses the groups                        |
+| `-replace`| `1`            | remove all rows first; `0` appends              |
 
 ## Usage
 

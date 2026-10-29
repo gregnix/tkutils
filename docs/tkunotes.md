@@ -10,6 +10,11 @@ to 0.2 every word was a tag). The Save button takes the editor fields into the
 store (`commit`) and writes the JSON file: the `-file` or last loaded/saved
 file, else it asks for one (up to 0.2 it only did `commit`).
 
+Switching notes keeps the edits (0.4): before another note is shown (click in
+the tree, `select`, New Root, New Child, a search hit), changed title, tags or
+content of the current note go into the store. Up to 0.3 they were lost unless
+Save was pressed first. The file is still written only by Save or `save`.
+
 ## API
 ```tcl
 set w [::tkutils::tkunotes::widget .w ?-file notes.json? ?-toolbar 0?]

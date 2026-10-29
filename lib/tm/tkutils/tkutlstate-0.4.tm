@@ -45,9 +45,11 @@ if {[catch {package present tablelist}] && [catch {package present tablelist_til
 namespace eval ::tkutils {}
 namespace eval ::tkutils::tkutlstate {
     namespace export save restore saveToFile restoreFromFile \
-                     saveVia restoreVia autosave cancelAutosave
+                     saveVia restoreVia autosave cancelAutosave lastError
     variable after;   array set after   {}
     variable enabled; array set enabled {}
+    variable onerror;   array set onerror   {}
+    variable lastError; array set lastError {}
 }
 
 proc ::tkutils::tkutlstate::_err {reason msg} {
@@ -197,12 +199,18 @@ proc ::tkutils::tkutlstate::restoreVia {tbl key getPrefix} {
 
 # Persist automatically (debounced) whenever the user resizes, moves, hides or
 # sorts columns. Uses "+" so existing bindings on those events are left intact.
+# A failed save is not silent: the table gets <<TkutlStateSaveFailed>>
+# (event data: the message), -onerror CMD is called with the table and the
+# message, and lastError returns it until the next good save.
 proc ::tkutils::tkutlstate::autosave {tbl key setPrefix args} {
     variable enabled
+    variable onerror
     set delay 400
+    set onerror($tbl) ""
     foreach {o v} $args {
         switch -- $o {
-            -delay  { set delay $v }
+            -delay   { set delay $v }
+            -onerror { set onerror($tbl) $v }
             default { _err badoption "unknown option \"$o\"" }
         }
     }
@@ -237,9 +245,28 @@ proc ::tkutils::tkutlstate::_schedule {tbl key setPrefix delay} {
 
 proc ::tkutils::tkutlstate::_fire {tbl key setPrefix} {
     variable after
+    variable onerror
+    variable lastError
     unset -nocomplain after($tbl)
     if {![winfo exists $tbl]} return
-    catch {saveVia $tbl $key $setPrefix}
+    if {[catch {saveVia $tbl $key $setPrefix} msg]} {
+        set lastError($tbl) $msg
+        catch {event generate $tbl <<TkutlStateSaveFailed>> -data $msg}
+        if {[info exists onerror($tbl)] && $onerror($tbl) ne ""} {
+            if {[catch {uplevel #0 [list {*}$onerror($tbl) $tbl $msg]} m2]} {
+                bgerror $m2
+            }
+        }
+        return
+    }
+    set lastError($tbl) ""
+}
+
+# The message of the last failed autosave of tbl, "" after a good one.
+proc ::tkutils::tkutlstate::lastError {tbl} {
+    variable lastError
+    if {[info exists lastError($tbl)]} { return $lastError($tbl) }
+    return ""
 }
 
 proc ::tkutils::tkutlstate::_onDestroy {tbl} {
@@ -248,6 +275,9 @@ proc ::tkutils::tkutlstate::_onDestroy {tbl} {
     if {[info exists after($tbl)]} { catch {::after cancel $after($tbl)} }
     unset -nocomplain after($tbl)
     unset -nocomplain enabled($tbl)
+    variable onerror
+    variable lastError
+    unset -nocomplain onerror($tbl) lastError($tbl)
 }
 
 package provide tkutils::tkutlstate 0.4

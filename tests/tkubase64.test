@@ -18,7 +18,7 @@ if {[info exists ::env(TCLUTILS_TM)]} {
         break
     }
 }
-if {$haveTk} { package require tkutils::tkubase64 }
+if {$haveTk} { package require tkutils::tkubase64 0.2 }
 
 test tkubase64-1.1 {encode} -constraints haveTk -body {
     catch {destroy .b}
@@ -50,5 +50,14 @@ test tkubase64-1.4 {getOutput reflects last op} -constraints haveTk -body {
     ::tkutils::tkubase64::encode $w
     ::tkutils::tkubase64::getOutput $w
 } -result SGk=
+
+test tkubase64-1.5 {text is UTF-8 both ways} -constraints haveTk -body {
+    catch {destroy .b}
+    set w [::tkutils::tkubase64::widget .b]
+    ::tkutils::tkubase64::setInput $w "J\u00f6rg \u20ac"
+    set enc [::tkutils::tkubase64::encode $w]
+    ::tkutils::tkubase64::setInput $w $enc
+    list $enc [::tkutils::tkubase64::decode $w]
+} -result [list SsO2cmcg4oKs "J\u00f6rg \u20ac"]
 
 cleanupTests

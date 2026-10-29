@@ -74,8 +74,19 @@ proc ::tkutils::tkutlfooter::attach {tbl foot args} {
     bind $tbl <<TablelistColumnMoved>>   [list ::tkutils::tkutlfooter::update $tbl $foot]
     bind $tbl <Configure>                [list ::tkutils::tkutlfooter::update $tbl $foot]
 
-    after idle [list ::tkutils::tkutlfooter::update $tbl $foot]
+    # the first update runs when idle; it is cancelled by detach and does
+    # nothing if a table is gone by then (0.4: a destroyed table gave the
+    # background error 'invalid command name ".t"')
+    if {[info exists state($tbl,idle)]} { after cancel $state($tbl,idle) }
+    set state($tbl,idle) [after idle [list ::tkutils::tkutlfooter::_idleUpdate $tbl $foot]]
     return
+}
+
+proc ::tkutils::tkutlfooter::_idleUpdate {tbl foot} {
+    variable state
+    unset -nocomplain state($tbl,idle)
+    if {![winfo exists $tbl] || ![winfo exists $foot]} return
+    update $tbl $foot
 }
 
 proc ::tkutils::tkutlfooter::detach {tbl foot} {
@@ -83,6 +94,10 @@ proc ::tkutils::tkutlfooter::detach {tbl foot} {
     bind $tbl <<TablelistColumnResized>> {}
     bind $tbl <<TablelistColumnMoved>>   {}
     bind $tbl <Configure>                {}
+    if {[info exists state($tbl,idle)]} {
+        after cancel $state($tbl,idle)
+        unset state($tbl,idle)
+    }
 
     if {[info exists state($tbl,origX)]} {
         catch {$tbl configure -xscrollcommand $state($tbl,origX)}
@@ -291,4 +306,4 @@ proc ::tkutils::tkutlfooter::_nums {vals} {
     return $out
 }
 
-package provide tkutils::tkutlfooter 0.3
+package provide tkutils::tkutlfooter 0.4

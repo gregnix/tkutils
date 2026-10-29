@@ -104,7 +104,7 @@ proc ::sqledit::_formLoadTable {t} {
     _formBuildWidget
     if {![llength $F(pk)]} {
         $F(note) configure -text \
-            "No primary key — read-only (Save/Delete disabled)."
+            "No primary key \u2014 read-only (Save/Delete disabled)."
         $F(save) state disabled; $F(del) state disabled
     } else {
         $F(note) configure -text ""
@@ -274,7 +274,7 @@ proc ::sqledit::_formNew {} {
     if {$F(form) eq "" || ![llength $F(pk)]} return
     set F(new) 1
     _formShow
-    _setText "New record — fill in the fields, then Save."
+    _setText "New record \u2014 fill in the fields, then Save."
 }
 
 # --- write back --------------------------------------------------------------

@@ -162,9 +162,12 @@ proc ::tkutils::tkuical::loadText {path ics} {
 
 proc ::tkutils::tkuical::loadFile {path file} {
     set ch [open $file r]
-    fconfigure $ch -encoding utf-8
-    set txt [read $ch]
-    close $ch
+    try {
+        fconfigure $ch -encoding utf-8
+        set txt [read $ch]
+    } finally {
+        close $ch
+    }
     return [loadText $path $txt]
 }
 
@@ -244,11 +247,15 @@ proc ::tkutils::tkuical::toText {path} {
     return [::tclutils::tuical::toIcs [_calComp $path]]
 }
 proc ::tkutils::tkuical::save {path file} {
+    set text [toText $path]
     set ch [open $file w]
-    # the text already has CRLF line ends (RFC 5545 / 6350): write it as is
-    fconfigure $ch -translation lf -encoding utf-8
-    puts -nonewline $ch [toText $path]
-    close $ch
+    try {
+        # the text already has CRLF line ends (RFC 5545 / 6350): write it as is
+        fconfigure $ch -translation lf -encoding utf-8
+        puts -nonewline $ch $text
+    } finally {
+        close $ch
+    }
     return $file
 }
 

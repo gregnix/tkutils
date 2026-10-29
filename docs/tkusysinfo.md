@@ -18,6 +18,7 @@ package require tkutils::tkusysinfo 0.1
 ```tcl
 set w [::tkutils::tkusysinfo::widget .si ?options?]
 ::tkutils::tkusysinfo::refresh $w                 ;# collect again -> info dict
+                                                  ;# an error shows "failed: …" in the status line
 ::tkutils::tkusysinfo::data    $w                 ;# last info dict
 ::tkutils::tkusysinfo::report  $w ?-anonymize 0|1? ;# text report
 ::tkutils::tkusysinfo::json    $w                 ;# JSON

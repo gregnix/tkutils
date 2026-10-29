@@ -85,4 +85,13 @@ test tkutlfilter-1.9 {-where: per-column AND by title, index or name} -constrain
          [::tkutils::tkutlfilter::filter .t a -where {1 essen}] \
          [catch {::tkutils::tkutlfilter::filter .t "" -where {Zip 1}} e] $e
 } -result {1 Cora 3 0 1 {unknown column "Zip"}}
+test tkutlfilter-9.1 {a pending "later" dies with its table} -constraints {hasTk hasTbl} -body {
+    mkTbl
+    ::tkutils::tkutlfilter::later .t 30 berlin
+    destroy .t
+    mkTbl
+    after 80 {set ::wf 1}; vwait ::wf
+    vis
+} -result {Anna Bert Cora Dirk}
+
 cleanupTests

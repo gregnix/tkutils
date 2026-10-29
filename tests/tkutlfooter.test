@@ -70,4 +70,29 @@ test tkutlfooter-3.3 {update clones hidden columns onto the footer} -constraints
     .f columncget 2 -hide
 } -result 1
 
+test tkutlfooter-9.1 {a table destroyed before the idle update: no background error (0.4)} -constraints {hasTk hasTbl} -setup {
+    set ::bgErrs {}
+    set oldBg [interp bgerror {}]
+    interp bgerror {} [list apply {{m o} {lappend ::bgErrs $m}}]
+} -body {
+    mkPair
+    destroy .t
+    update
+    catch {destroy .f}
+    set ::bgErrs
+} -cleanup {
+    interp bgerror {} $oldBg
+} -result {}
+
+test tkutlfooter-9.2 {detach cancels the pending idle update (0.4)} -constraints {hasTk hasTbl} -body {
+    mkPair
+    ::tkutils::tkutlfooter::detach .t .f
+    set n 0
+    foreach id [after info] {
+        if {[string match *tkutlfooter* [lindex [after info $id] 0]]} { incr n }
+    }
+    destroy .t .f
+    set n
+} -result 0
+
 cleanupTests

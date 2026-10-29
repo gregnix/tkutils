@@ -1,10 +1,10 @@
-.TH tkutlfooter n 0.3 tkutils
+.TH tkutlfooter n 0.4 tkutils
 .SH tkutils::tkutlfooter
 .PP
 A footer row for a \fBtablelist\fR widget, realised as a second single\-row tablelist below the main table ("header at the bottom" look). The footer mirrors the main table's column widths, order and alignment, keeps horizontal scrolling in sync, and can compute auto\-sums. Library\-neutral — no references to any application.
 .SS Package
 .CS
-package require tkutils::tkutlfooter 0.3
+package require tkutils::tkutlfooter 0.4
 .CE
 .PP
 Requires \fBtablelist\fR. Horizontal scroll sync chains the main table's \fB\-xscrollcommand\fR (no \fBscrollutil\fR needed). \fBautosum\fR/\fBautoagg\fR use \fBtclutils::tunum\fR for number parsing when available (falls back to a built\-in parser otherwise).
@@ -67,7 +67,7 @@ Like \fBautosum\fR, but with a per\-column aggregate function. \fB\-columns\fR i
 .CE
 .SS detach
 .PP
-Removes the sync bindings and restores the original scroll wiring.
+Removes the sync bindings and restores the original scroll wiring. It also cancels the first update that \fBattach\fR scheduled for idle time; that update does nothing if one of the tables is gone by then (0.4).
 .SS "Error codes"
 .PP
 Errors are raised with \fB\-errorcode {TKUTILS TKUTLFOOTER <REASON>}\fR.

@@ -21,8 +21,9 @@ Requires `Tk` and `tablelist`.
 ::tkutils::tkutlstate::restoreFromFile tbl path      ;# -> 1 applied, 0 missing
 ::tkutils::tkutlstate::saveVia         tbl key setPrefix   ;# {*}$setPrefix key dict
 ::tkutils::tkutlstate::restoreVia      tbl key getPrefix   ;# -> 1 applied, 0 missing
-::tkutils::tkutlstate::autosave        tbl key setPrefix ?-delay ms?
+::tkutils::tkutlstate::autosave        tbl key setPrefix ?-delay ms? ?-onerror cmd?
 ::tkutils::tkutlstate::cancelAutosave  tbl
+::tkutils::tkutlstate::lastError       tbl                 ;# message of the last failed autosave
 ```
 
 `tbl` is a raw tablelist. For a `tkutils::tkutablelist` wrapper, pass
@@ -32,7 +33,11 @@ Requires `Tk` and `tablelist`.
 command *prefix* and the module appends the key (and, for the setter, the state
 dict). They work against a file, an array, or a database settings table without
 the module knowing the backend. `autosave` persists automatically -- debounced
--- whenever the user resizes, moves, hides or sorts a column.
+-- whenever the user resizes, moves, hides or sorts a column. A failed save
+is not silent: the table gets `<<TkutlStateSaveFailed>>` (`%d` is the
+message), `-onerror cmd` is called with the table and the message, and
+`lastError` returns it until the next good save. Before, the error was
+caught and dropped.
 
 The state is a plain Tcl dict, e.g.
 

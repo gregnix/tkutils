@@ -75,4 +75,16 @@ test tkusysinfo-1.6 {errors: option, format} -constraints haveTk -body {
          [catch {::tkutils::tkusysinfo::save .s x.txt -format pdf} e2] $e2
 } -result {1 {TKUTILS TKUSYSINFO OPTION -bogus} 0 1 {bad format "pdf": must be text or json}}
 
+test tkusysinfo-9.1 {a failed refresh says so in the status line} -constraints haveTk -setup {
+    rename ::tclutils::tusysinfo::collect ::tclutils::tusysinfo::_realCollect
+    proc ::tclutils::tusysinfo::collect {args} { error "kaputt" }
+} -body {
+    catch {destroy .s}
+    set w [::tkutils::tkusysinfo::widget .s -autoload 0 -sections os]
+    list [catch {::tkutils::tkusysinfo::refresh $w} m] $m [$w.bar.status cget -text]
+} -cleanup {
+    rename ::tclutils::tusysinfo::collect {}
+    rename ::tclutils::tusysinfo::_realCollect ::tclutils::tusysinfo::collect
+} -result {1 kaputt {failed: kaputt}}
+
 cleanupTests

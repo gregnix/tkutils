@@ -126,4 +126,16 @@ test tkutlstate-4.4 {autosave also reacts to sorting} -constraints {hasTk hasTbl
     expr {[bind .t <<TablelistColumnSorted>>] ne ""}
 } -result 1
 
+test tkutlstate-5.1 {a failed autosave is reported: event, -onerror, lastError} -constraints {hasTk hasTbl} -body {
+    mkTbl
+    set ::seen {}
+    proc ::badSet {key val} { error "disk full" }
+    bind .t <<TkutlStateSaveFailed>> {lappend ::seen event %d}
+    ::tkutils::tkutlstate::autosave .t k [list ::badSet] -delay 10 \
+        -onerror [list apply {{tbl msg} {lappend ::seen cb $tbl $msg}}]
+    uplevel #0 [bind .t <<TablelistColumnResized>>]
+    after 60 {set ::wait5 1}; vwait ::wait5
+    list $::seen [::tkutils::tkutlstate::lastError .t]
+} -result {{event {disk full} cb .t {disk full}} {disk full}}
+
 cleanupTests

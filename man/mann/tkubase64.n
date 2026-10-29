@@ -1,7 +1,7 @@
-.TH tkubase64 n 0.1 tkutils
+.TH tkubase64 n 0.2 tkutils
 .SH tkutils::tkubase64
 .PP
-Base64 encode/decode panel. Built on \fBtclutils::tubase64\fR. An input area, an output area, and Encode/Decode buttons.
+Base64 encode/decode panel. Built on \fBtclutils::tubase64\fR. An input area, an output area, and Encode/Decode buttons. The panel holds text: Encode converts it to UTF\-8 first, Decode reads the bytes as UTF\-8, so \fBJörg €\fR becomes \fBSsO2cmcg4oKs\fR and comes back unchanged (0.2).
 .SS API
 .CS
 set w [::tkutils::tkubase64::widget .w ?-width N? ?-height N?]

@@ -21,7 +21,7 @@ if {[info exists ::env(TCLUTILS_TM)]} {
 set haveNotes 1
 if {[catch {package require tclutils::tunotes 0.1}]} { set haveNotes 0 }
 testConstraint notes [expr {$haveTk && $haveNotes}]
-if {$haveTk && $haveNotes} { package require tkutils::tkunotes }
+if {$haveTk && $haveNotes} { package require tkutils::tkunotes 0.4 }
 
 test tkunotes-1.1 {addRoot returns id, count} -constraints notes -body {
     catch {destroy .n}
@@ -188,5 +188,43 @@ test tkunotes-3.2 {Save button: editor into the store and into the file} -constr
     set n [::tclutils::tunotes::get $st $r]
     list [dict get $n content] [dict get $n tags]
 } -cleanup { catch {destroy .n} } -result [list "neuer Text J\u00f6rg" [list "Arbeit B\u00fcro"]]
+
+test tkunotes-4.1 {switching notes keeps the edits of the current one (0.4)} -constraints notes -body {
+    catch {destroy .n}
+    set w [::tkutils::tkunotes::widget .n]
+    set a [::tkutils::tkunotes::addRoot $w "A" "alt A"]
+    set b [::tkutils::tkunotes::addRoot $w "B" "alt B"]
+    ::tkutils::tkunotes::select $w $a
+    $w.pw.r.content delete 1.0 end
+    $w.pw.r.content insert end "neu J\u00f6rg"
+    set ::tkutils::tkunotes::state($w,title) "A B\u00fcro"
+    ::tkutils::tkunotes::select $w $b
+    set na [::tclutils::tunotes::get [::tkutils::tkunotes::store $w] $a]
+    list [dict get $na title] [dict get $na content] \
+        [$w.pw.l.tv item $a -text] [$w.pw.r.content get 1.0 end-1c]
+} -cleanup { catch {destroy .n} } -result [list "A B\u00fcro" "neu J\u00f6rg" "A B\u00fcro" "alt B"]
+
+test tkunotes-4.2 {a click in the tree keeps the edits too} -constraints notes -body {
+    catch {destroy .n}
+    set w [::tkutils::tkunotes::widget .n]
+    set a [::tkutils::tkunotes::addRoot $w "A" "alt"]
+    set b [::tkutils::tkunotes::addRoot $w "B" "b"]
+    ::tkutils::tkunotes::select $w $a
+    update
+    $w.pw.r.content insert end " plus"
+    $w.pw.l.tv selection set $b
+    update
+    list [expr {[::tkutils::tkunotes::current $w] eq $b}] \
+        [dict get [::tclutils::tunotes::get [::tkutils::tkunotes::store $w] $a] content]
+} -cleanup { catch {destroy .n} } -result [list 1 "alt plus"]
+
+test tkunotes-4.3 {New Child keeps the edits of the parent} -constraints notes -body {
+    catch {destroy .n}
+    set w [::tkutils::tkunotes::widget .n]
+    set a [::tkutils::tkunotes::addRoot $w "A" "alt"]
+    $w.pw.r.content insert end "!"
+    ::tkutils::tkunotes::addChild $w $a "C" ""
+    dict get [::tclutils::tunotes::get [::tkutils::tkunotes::store $w] $a] content
+} -cleanup { catch {destroy .n} } -result "alt!"
 
 cleanupTests

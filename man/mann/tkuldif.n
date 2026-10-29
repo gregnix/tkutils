@@ -1,7 +1,7 @@
 .TH tkuldif n 0.3 tkutils
 .SH tkutils::tkuldif
 .PP
-LDIF entry viewer. Each entry is a tree node labelled with its dn, with one child row per attribute value. Built on tclutils::tuldif (requires tclutils 0.31.0+).
+LDIF entry viewer. Each entry is a tree node labelled with its dn, with one child row per attribute value. Built on tclutils::tuldif (requires tclutils 0.31.0+). With \fBtuldif\fR 0.3, binary attributes such as \fBjpegPhoto\fR keep their bytes when saved.
 .CS
 set w [::tkutils::tkuldif::widget .w]
 ::tkutils::tkuldif::loadText   $w ldifText   ;# -> entry count

@@ -14,6 +14,12 @@
 # up to 0.2 every word was a tag). The Save button (0.3) takes the editor
 # fields into the store and writes the JSON file: the -file / last loaded
 # or saved file, else it asks for one; commit alone only updates the store.
+#
+# Switching notes keeps the edits (0.4): before another note is shown (tree
+# click, select, New Root, New Child, search hit), changed title, tags or
+# content of the current note go into the store. Up to 0.3 they were lost
+# unless Save was pressed first. The file is still written only by Save or
+# save.
 
 package require Tcl 8.6-
 package require tkutils::tkuopts 0.1
@@ -137,11 +143,34 @@ proc ::tkutils::tkunotes::_insertNode {path parentItem id} {
     }
 }
 
+# Take changed editor fields of the current note into the store, without
+# redrawing the editor. Returns 1 when something changed.
+proc ::tkutils::tkunotes::_keepEdits {path} {
+    variable state
+    set id $state($path,current)
+    if {$id eq "" || ![::tclutils::tunotes::exists $state($path,store) $id]} {
+        return 0
+    }
+    set note [::tclutils::tunotes::get $state($path,store) $id]
+    set title $state($path,title)
+    set tags [_splitTags $state($path,tags)]
+    set content [$path.pw.r.content get 1.0 end-1c]
+    if {$title eq [dict get $note title] && $tags eq [dict get $note tags]
+            && $content eq [dict get $note content]} {
+        return 0
+    }
+    ::tclutils::tunotes::update state($path,store) $id $title $content $tags
+    set tv $path.pw.l.tv
+    if {[$tv exists $id]} { $tv item $id -text $title }
+    return 1
+}
+
 # Select a note: highlight in the tree and load it into the editor.
 proc ::tkutils::tkunotes::select {path id} {
     variable state
     set tv $path.pw.l.tv
     if {![$tv exists $id]} return
+    if {$id ne $state($path,current)} { _keepEdits $path }
     $tv selection set $id
     $tv see $id
     set state($path,current) $id
@@ -153,6 +182,8 @@ proc ::tkutils::tkunotes::_onSelect {path} {
     set sel [$path.pw.l.tv selection]
     if {$sel eq ""} return
     set id [lindex $sel 0]
+    if {$id eq $state($path,current)} return
+    _keepEdits $path
     set state($path,current) $id
     _loadEditor $path $id
 }
@@ -171,6 +202,7 @@ proc ::tkutils::tkunotes::_loadEditor {path id} {
 
 proc ::tkutils::tkunotes::addRoot {path title content {tags {}}} {
     variable state
+    _keepEdits $path
     set id [::tclutils::tunotes::create state($path,store) $title $content $tags ""]
     refresh $path
     select $path $id
@@ -179,6 +211,7 @@ proc ::tkutils::tkunotes::addRoot {path title content {tags {}}} {
 
 proc ::tkutils::tkunotes::addChild {path parentId title content {tags {}}} {
     variable state
+    _keepEdits $path
     set id [::tclutils::tunotes::create state($path,store) $title $content $tags $parentId]
     refresh $path
     select $path $id
@@ -357,4 +390,4 @@ proc ::tkutils::tkunotes::saveSubtree {path id file} {
     return $file
 }
 
-package provide tkutils::tkunotes 0.3
+package provide tkutils::tkunotes 0.4

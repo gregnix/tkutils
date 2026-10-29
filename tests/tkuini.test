@@ -17,7 +17,7 @@ if {[info exists ::env(TCLUTILS_TM)]} {
         break
     }
 }
-set haveEng [expr {$haveTk && ![catch {package require tclutils::tuini 0.1}]}]
+set haveEng [expr {$haveTk && ![catch {package require tclutils::tuini 0.2}]}]
 testConstraint ini $haveEng
 if {$haveEng} { package require tkutils::tkuini }
 
@@ -109,5 +109,35 @@ test tkuini-3.1 {save and loadFile in UTF-8 whatever the system encoding} -const
     removeFile tkuini-3.1.ini
     catch {destroy .i .i2}
 } -result {1 1}
+
+test tkuini-4.1 {setKey: what INI cannot hold is an error, data unchanged} -constraints ini -body {
+    catch {destroy .i}; set w [::tkutils::tkuini::widget .i]
+    ::tkutils::tkuini::loadText $w "\[S\]\na = 1\n"
+    list [catch {::tkutils::tkuini::setKey $w S k "x\ny"}] $::errorCode \
+        [::tkutils::tkuini::toText $w]
+} -cleanup {
+    catch {destroy .i}
+} -result [list 1 {TCLUTILS TUINI VALUE} "\[S\]\na=1"]
+
+test tkuini-4.2 {edit bar: message instead of background error, key trimmed} -constraints ini -setup {
+    rename ::tk_messageBox ::_tkuini_mb
+    proc ::tk_messageBox {args} { lappend ::_mb [dict get $args -message]; return ok }
+    set ::_mb {}
+} -body {
+    catch {destroy .i}; set w [::tkutils::tkuini::widget .i]
+    ::tkutils::tkuini::loadText $w "\[S\]\na = 1\n"
+    ::tkutils::tkuini::selectSection $w S
+    set ::tkutils::tkuini::state($w,ekey) " b "
+    set ::tkutils::tkuini::state($w,eval) "2"
+    ::tkutils::tkuini::_uiSet $w
+    set ::tkutils::tkuini::state($w,ekey) "c"
+    set ::tkutils::tkuini::state($w,eval) "x\ny"
+    ::tkutils::tkuini::_uiSet $w
+    list [::tkutils::tkuini::toText $w] [llength $::_mb]
+} -cleanup {
+    catch {destroy .i}
+    rename ::tk_messageBox {}
+    rename ::_tkuini_mb ::tk_messageBox
+} -result [list "\[S\]\na=1\nb=2" 1]
 
 cleanupTests

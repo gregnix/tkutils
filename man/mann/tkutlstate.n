@@ -16,13 +16,14 @@ Requires \fBTk\fR and \fBtablelist\fR.
 ::tkutils::tkutlstate::restoreFromFile tbl path      ;# -> 1 applied, 0 missing
 ::tkutils::tkutlstate::saveVia         tbl key setPrefix   ;# {*}$setPrefix key dict
 ::tkutils::tkutlstate::restoreVia      tbl key getPrefix   ;# -> 1 applied, 0 missing
-::tkutils::tkutlstate::autosave        tbl key setPrefix ?-delay ms?
+::tkutils::tkutlstate::autosave        tbl key setPrefix ?-delay ms? ?-onerror cmd?
 ::tkutils::tkutlstate::cancelAutosave  tbl
+::tkutils::tkutlstate::lastError       tbl                 ;# message of the last failed autosave
 .CE
 .PP
 \fBtbl\fR is a raw tablelist. For a \fBtkutils::tkutablelist\fR wrapper, pass \fB[tkutils::tkutablelist::tableWidget $w]\fR.
 .PP
-\fBsaveVia\fR/\fBrestoreVia\fR are \fBstorage\-neutral\fR: you inject a setter/getter command \fIprefix\fR and the module appends the key (and, for the setter, the state dict). They work against a file, an array, or a database settings table without the module knowing the backend. \fBautosave\fR persists automatically \-\- debounced \-\- whenever the user resizes, moves, hides or sorts a column.
+\fBsaveVia\fR/\fBrestoreVia\fR are \fBstorage\-neutral\fR: you inject a setter/getter command \fIprefix\fR and the module appends the key (and, for the setter, the state dict). They work against a file, an array, or a database settings table without the module knowing the backend. \fBautosave\fR persists automatically \-\- debounced \-\- whenever the user resizes, moves, hides or sorts a column. A failed save is not silent: the table gets \fB<<TkutlStateSaveFailed>>\fR (\fB%d\fR is the message), \fB\-onerror cmd\fR is called with the table and the message, and \fBlastError\fR returns it until the next good save. Before, the error was caught and dropped.
 .PP
 The state is a plain Tcl dict, e.g.
 .CS

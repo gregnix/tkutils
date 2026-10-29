@@ -56,6 +56,15 @@ otherwise default to the system encoding -- cp1252 on Windows, latin-1
 elsewhere) and Tcl 9 (utf-8). Override per call with `-encoding`, or set it for
 the editor with `encoding $w ENC`; the value is remembered and reused on save.
 
+With tclutils `tuiconv` 0.2 the conversion is strict under Tcl 8.6 too:
+`loadFile` raises `TCLUTILS TUICONV INVALID enc` when the file is not valid
+in the encoding, `saveFile` raises `TCLUTILS TUICONV UNMAPPABLE enc` when a
+character cannot be written in it, and the file keeps its content. The
+toolbar's Open and Save buttons catch these errors (and unreadable or
+unwritable files): a message box and the status bar name the file and the
+reason, the buffer stays as it was (0.4; up to 0.3 the error went to
+`bgerror`).
+
 Because `tuiconv` does no end-of-line translation, the editor handles it
 itself. On load the file's style is detected (`lf`, `crlf`, `cr`, or `mixed`
 when the file has several kinds), the buffer is normalised to LF (what a Tk

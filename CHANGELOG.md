@@ -7,14 +7,14 @@ Recommended pairing: tclutils 0.69.0 + tkutils 0.49.0 + ctrlutils 0.4
 
 Module versions: `tkutablelist` 0.5, `tkutlclip` 0.3, `tkutlsort` 0.3,
 `tkutlstate` 0.4, `tkutlfind` 0.3, `tkutltree` 0.3, `tkutltools` 0.3,
-`tkuical`, `tkuvcard`, `tkuldif`, `tkuini`, `tkunotes`, `tkueditor` 0.3,
-`tkutical` 0.4; new
+`tkuical`, `tkuvcard`, `tkuldif`, `tkuini` 0.3, `tkunotes`, `tkueditor` 0.4, `tkubase64` 0.2,
+`tkutical` 0.4, `tkutlfooter` 0.4; new
 `tkutlfilter`, `tkutlgroup`, `tkutldrag`, `tkusysinfo` 0.1. When copying over an older
 tree, delete `tkutils-0.48.0.tm`, `tkutablelist-0.4.tm`, `tkutlclip-0.2.tm`,
 `tkutlsort-0.2.tm`, `tkutlstate-0.3.tm`, `tkutlfind-0.2.tm`,
 `tkutltree-0.2.tm`, `tkutltools-0.2.tm`, `tkuical-0.2.tm`, `tkuvcard-0.2.tm`,
 `tkuldif-0.2.tm`, `tkuini-0.2.tm`, `tkutical-0.3.tm`, `tkunotes-0.2.tm`,
-`tkueditor-0.2.tm`.
+`tkueditor-0.2.tm`, `tkubase64-0.1.tm`, `tkutlfooter-0.3.tm`.
 
 - `tkutlclip`: `installBindings` had no effect; Tablelist's own `<<Copy>>`
   overwrote the clipboard. Binding now ends with `break`. `copyAll` skips
@@ -50,6 +50,10 @@ tree, delete `tkutils-0.48.0.tm`, `tkutablelist-0.4.tm`, `tkutlclip-0.2.tm`,
   channel); now CRLF once. `tkuical`, `tkuvcard`, `tkuldif`, `tkuini`:
   `loadFile` and `save` use UTF-8 whatever the system encoding. Tests
   `tkuical-3.1`, `tkuvcard-3.1`, `tkuldif-3.1`, `tkuini-3.1`.
+- `tkueditor`, `tkuldif` docs: strict encoding with `tuiconv` 0.2, binary
+  attributes with `tuldif` 0.3.
+- `tkuini`: needs `tuini` 0.2; the edit bar trims key and section and
+  shows `{TCLUTILS TUINI VALUE}` as a message. Tests `tkuini-4.1`, `4.2`.
 - `tkuical`: `save` keeps the order of events and other components (to-dos
   were moved before the events). New `tests/roundtrip.test` with files in
   `tests/data/roundtrip`: `loadFile`, `save`, compare. Needs `tuical` and
@@ -67,9 +71,33 @@ tree, delete `tkutils-0.48.0.tm`, `tkutablelist-0.4.tm`, `tkutlclip-0.2.tm`,
   unchanged keeps every line end, after edits the most frequent one (one
   CRLF made the whole file CRLF, a lone CR became LF). Tests
   `tkueditor-9.1`–`9.3`.
+- `tkunotes` 0.4: switching notes keeps the edits of the current note
+  (they were lost unless Save was pressed). Tests `tkunotes-4.1`–`4.3`.
+- `tkueditor` 0.4: Open and Save show a failed load or save in a message
+  box and the status bar (was bgerror). Tests `tkueditor-6.1`, `6.2`.
+- `tkutlstate`: a failed autosave sends `<<TkutlStateSaveFailed>>`, calls
+  `-onerror` and is kept for `lastError` (was caught silently). Test
+  `tkutlstate-5.1`.
+- `tkuical`, `tkuvcard`, `tkuini`, `tkuldif`, `tkulauncher`: file I/O in
+  `try`/`finally` (a read error left the channel open); `save` builds the
+  text before it opens the file.
+- `tkutlgroup`: `group` replaces the rows (`-replace 1`, default); a second
+  call stacked the groups. `tkutlfilter`: a pending `later` is cancelled
+  when the table is destroyed. `tkusysinfo::refresh`: an error shows in
+  the status line. Tests `tkutlgroup-9.1`, `tkutlfilter-9.1`,
+  `tkusysinfo-9.1`. Doc: `selectedIds` leaves out rows without an id.
+- Tests run with `-encoding utf-8` through `tutestrun` 0.2
+  (`tkutablelist-9.3` failed under Tcl 8.6 with cp1252).
+- `tkubase64` 0.2: text is UTF-8 both ways (`€` failed under Tcl 9, `ö`
+  became one byte). Needs `tubase64` 0.2. Test `tkubase64-1.5`.
 - `tests/congruence-check.tcl`: finds modules of any version (was `-0.1.tm`
   only, so every module showed MISS); covers the new modules.
 - `docs/guide/tkutils-modules.md` regenerated.
+- `tkutlfooter` 0.4: the first update after `attach` is cancelled by
+  `detach` and skipped when a table is gone (a destroyed table gave the
+  background error `invalid command name`). Tests `tkutlfooter-9.1`, `9.2`.
+- Apps `sqledit`, `knowledge`: `…` and `—` in strings written as `\u2026`,
+  `\u2014` (Tcl 8.6 read them in the system encoding).
 
 ## 0.48.0 - 2026-10-27
 

@@ -122,7 +122,7 @@ proc ::sqledit::_sheetLoad {t} {
     }
     if {![llength $D(pk)]} {
         $D(note) configure -text \
-            "No primary key — read-only (Edit/Delete disabled)."
+            "No primary key \u2014 read-only (Edit/Delete disabled)."
         $D(add) state disabled; $D(del) state disabled
     } else {
         $D(note) configure -text ""

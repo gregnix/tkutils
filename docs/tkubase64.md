@@ -1,7 +1,9 @@
 # tkutils::tkubase64
 
 Base64 encode/decode panel. Built on `tclutils::tubase64`. An input area, an
-output area, and Encode/Decode buttons.
+output area, and Encode/Decode buttons. The panel holds text: Encode converts
+it to UTF-8 first, Decode reads the bytes as UTF-8, so `Jörg €` becomes
+`SsO2cmcg4oKs` and comes back unchanged (0.2).
 
 ## API
 ```tcl

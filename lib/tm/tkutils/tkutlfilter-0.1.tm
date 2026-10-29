@@ -130,10 +130,15 @@ proc ::tkutils::tkutlfilter::filter {tbl query args} {
     if {[llength $hide]} { $tbl configrowlist $hide }
     set state($tbl,hidden) [lmap {k - -} $hide {set k}]
     set state($tbl,query)  $query
+    _watch $tbl
+    return $n
+}
+
+# Forget the state of tbl (and a pending "later") when it is destroyed.
+proc ::tkutils::tkutlfilter::_watch {tbl} {
     if {![string match *tkutlfilter* [bind $tbl <Destroy>]]} {
         bind $tbl <Destroy> +[list ::tkutils::tkutlfilter::_forget $tbl]
     }
-    return $n
 }
 
 # Column index from an index, a column -name or a title.
@@ -148,8 +153,10 @@ proc ::tkutils::tkutlfilter::_column {tbl c} {
 
 proc ::tkutils::tkutlfilter::_forget {tbl} {
     variable state
+    # the pending "later" job; its script also carries query and options,
+    # so cancelling by script text did not match
+    if {[info exists state($tbl,job)]} { after cancel $state($tbl,job) }
     array unset state $tbl,*
-    after cancel [list ::tkutils::tkutlfilter::_fire $tbl]
 }
 
 # Show again every row the filter hid (rows deleted meanwhile are skipped).
@@ -181,6 +188,7 @@ proc ::tkutils::tkutlfilter::later {tbl ms query args} {
     variable state
     if {[info exists state($tbl,job)]} { after cancel $state($tbl,job) }
     set state($tbl,job) [after $ms [list ::tkutils::tkutlfilter::_fire $tbl $query {*}$args]]
+    _watch $tbl
     return
 }
 

@@ -10,7 +10,7 @@
 package require Tcl 8.6-
 package require tkutils::tkuopts 0.1
 package require Tk 8.6-
-package require tclutils::tuini 0.1
+package require tclutils::tuini 0.2
 
 namespace eval ::tkutils {}
 namespace eval ::tkutils::tkuini {
@@ -158,9 +158,12 @@ proc ::tkutils::tkuini::loadText {path ini} {
 
 proc ::tkutils::tkuini::loadFile {path file} {
     set ch [open $file r]
-    fconfigure $ch -encoding utf-8
-    set txt [read $ch]
-    close $ch
+    try {
+        fconfigure $ch -encoding utf-8
+        set txt [read $ch]
+    } finally {
+        close $ch
+    }
     return [loadText $path $txt]
 }
 
@@ -251,10 +254,14 @@ proc ::tkutils::tkuini::toText {path} {
 }
 # Write the current document to a file.
 proc ::tkutils::tkuini::save {path file} {
+    set text [toText $path]
     set ch [open $file w]
-    fconfigure $ch -translation lf -encoding utf-8
-    puts $ch [toText $path]
-    close $ch
+    try {
+        fconfigure $ch -translation lf -encoding utf-8
+        puts $ch $text
+    } finally {
+        close $ch
+    }
     return $file
 }
 
@@ -268,10 +275,25 @@ proc ::tkutils::tkuini::_fillEdit {path} {
     set state($path,ekey) [$kv item $item -text]
     set state($path,eval) [lindex [$kv item $item -values] 0]
 }
+# What INI cannot hold (tuini 0.2: line break in a value, "=" in a key ...)
+# is shown as a message instead of a background error.
+proc ::tkutils::tkuini::_tryEdit {path script} {
+    if {[catch {uplevel 1 $script} m opts]} {
+        if {[lrange [dict get $opts -errorcode] 0 2] eq {TCLUTILS TUINI VALUE}} {
+            tk_messageBox -parent $path -icon warning -title INI -message $m
+            return 0
+        }
+        return -options $opts $m
+    }
+    return 1
+}
 proc ::tkutils::tkuini::_uiSet {path} {
     variable state
+    set state($path,ekey) [string trim $state($path,ekey)]
     if {$state($path,ekey) ne ""} {
-        setKey $path $state($path,cur) $state($path,ekey) $state($path,eval)
+        _tryEdit $path {
+            setKey $path $state($path,cur) $state($path,ekey) $state($path,eval)
+        }
     }
 }
 proc ::tkutils::tkuini::_uiDel {path} {
@@ -282,9 +304,11 @@ proc ::tkutils::tkuini::_uiDel {path} {
 }
 proc ::tkutils::tkuini::_uiAddSection {path} {
     variable state
+    set state($path,esec) [string trim $state($path,esec)]
     if {$state($path,esec) ne ""} {
-        addSection $path $state($path,esec)
-        set state($path,esec) ""
+        if {[_tryEdit $path { addSection $path $state($path,esec) }]} {
+            set state($path,esec) ""
+        }
     }
 }
 proc ::tkutils::tkuini::_uiDelSection {path} {

@@ -14,7 +14,7 @@ Requires \fBTk\fR and \fBtablelist\fR. Uses \fBtclutils::tunum\fR to read format
 ::tkutils::tkutlgroup::ungroup tbl                        ;# -> flat rows
 .CE
 .PP
-\fBgroup\fR appends to the table; call \fB$tbl delete 0 end\fR first to replace its contents. \fBungroup\fR returns the member rows in display order with the key column filled in again.
+\fBgroup\fR replaces the rows of the table (\fB\-replace 1\fR, the default); a second call no longer stacks a second set of groups below the first. \fB\-replace 0\fR adds the groups below the rows already there. \fBungroup\fR returns the member rows in display order with the key column filled in again.
 .SS Options
 .TS
 l l l.
@@ -25,6 +25,7 @@ Option	Default	Meaning
 \fB\-format\fR	\fB%.2f\fR	Tcl \fBformat\fR for sums that are not integers
 \fB\-font\fR	bold default	font of the parent rows
 \fB\-expand\fR	\fB1\fR	\fB0\fR collapses the groups
+\fB\-replace\fR	\fB1\fR	remove all rows first; \fB0\fR appends
 .TE
 .SS Usage
 .CS

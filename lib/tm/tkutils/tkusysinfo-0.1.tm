@@ -112,6 +112,12 @@ proc ::tkutils::tkusysinfo::refresh {path} {
     $path configure -cursor watch
     try {
         set info [::tclutils::tusysinfo::collect {*}$args]
+    } on error {msg opts} {
+        # the status line said "collecting..." for good
+        if {[winfo exists $path.bar.status]} {
+            $path.bar.status configure -text "failed: $msg"
+        }
+        return -options $opts $msg
     } finally {
         if {[winfo exists $path]} { $path configure -cursor $cursor }
     }

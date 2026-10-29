@@ -343,7 +343,7 @@ proc ::sqledit::buildApp {toplevel} {
 
     set tb [::tkutils::tkutoolbar::widget $P.tb]
     pack $tb -side top -fill x
-    ::tkutils::tkutoolbar::addButton $tb open [_beLabel connectLabel "Connect…"] ::sqledit::cmdOpen
+    ::tkutils::tkutoolbar::addButton $tb open [_beLabel connectLabel "Connect\u2026"] ::sqledit::cmdOpen
     if {[llength [info procs ::sqledit::be::connectNew]]} {
         ::tkutils::tkutoolbar::addButton $tb new [_beLabel connectNewLabel "New"] ::sqledit::cmdNew
     }

@@ -4,10 +4,12 @@
 #
 # Tk front-end on top of the tclutils Base64 engine (tubase64). An input area, an
 # output area, and Encode/Decode buttons. Tcl/Tk 8.6+ and 9.x compatible.
+# The panel holds text: Encode converts it to UTF-8 first, Decode reads the
+# bytes as UTF-8. "Jörg €" gives SsO2cmcg4oKs and comes back unchanged.
 
 package require Tcl 8.6-
 package require Tk 8.6-
-package require tclutils::tubase64 0.1
+package require tclutils::tubase64 0.2
 
 namespace eval ::tkutils {}
 namespace eval ::tkutils::tkubase64 {
@@ -79,20 +81,20 @@ proc ::tkutils::tkubase64::_setOutput {path text} {
     $path.out configure -state disabled
 }
 
-# Encode the input to Base64. Returns the output.
+# Encode the input (as UTF-8) to Base64. Returns the output.
 proc ::tkutils::tkubase64::encode {path} {
-    set out [::tclutils::tubase64::encode [getInput $path]]
+    set out [::tclutils::tubase64::encode [getInput $path] -encoding utf-8]
     _setOutput $path $out
     return $out
 }
 
 # Decode the input from Base64. Returns the output (or an error note).
 proc ::tkutils::tkubase64::decode {path} {
-    if {[catch {::tclutils::tubase64::decode [getInput $path]} out]} {
+    if {[catch {::tclutils::tubase64::decode [getInput $path] -encoding utf-8} out]} {
         set out "(decode error: $out)"
     }
     _setOutput $path $out
     return $out
 }
 
-package provide tkutils::tkubase64 0.1
+package provide tkutils::tkubase64 0.2

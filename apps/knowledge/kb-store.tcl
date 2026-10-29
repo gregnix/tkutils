@@ -390,7 +390,7 @@ proc ::kb::store::_searchSqlite {store query catId tag} {
         dict set binds tag $tag
     }
     set sql "SELECT e.id AS id, e.title AS title,
-                    snippet(entry_fts,1,'\[','\]','…',12) AS snippet
+                    snippet(entry_fts,1,'\[','\]','\u2026',12) AS snippet
              FROM entry_fts JOIN entry e ON e.id=entry_fts.rowid
              WHERE [join $where { AND }] ORDER BY rank"
     return [::tclutils::tutdbc::rows [_c $store] $sql $binds]

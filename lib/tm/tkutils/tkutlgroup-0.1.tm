@@ -18,6 +18,8 @@
 #   -format fmt     Tcl format for non-integer sums (default %.2f)
 #   -font font      font of the parent rows (default: bold TkDefaultFont)
 #   -expand 0|1     show the children (default 1)
+#   -replace 0|1    remove all rows of tbl first (default 1); 0 adds the
+#                   groups below the rows already there
 #
 # Numbers in -sum columns may be human formatted ("1.234,56"); they are read
 # with tclutils::tunum when it is on the path. Cells that are no number count
@@ -52,10 +54,10 @@ proc ::tkutils::tkutlgroup::_num {s} {
 }
 
 proc ::tkutils::tkutlgroup::group {tbl rows keyCol args} {
-    array set o {-sum {} -count {} -blank 1 -format %.2f -font {} -expand 1}
+    array set o {-sum {} -count {} -blank 1 -format %.2f -font {} -expand 1 -replace 1}
     foreach {k v} $args {
         if {![info exists o($k)]} {
-            _err OPTION "unknown option \"$k\": must be -sum, -count, -blank, -format, -font or -expand"
+            _err OPTION "unknown option \"$k\": must be -sum, -count, -blank, -format, -font, -expand or -replace"
         }
         set o($k) $v
     }
@@ -69,6 +71,8 @@ proc ::tkutils::tkutlgroup::group {tbl rows keyCol args} {
         set o(-font) [font actual TkDefaultFont]
         dict set o(-font) -weight bold
     }
+    # a second group call replaced nothing and stacked the groups
+    if {$o(-replace)} { $tbl delete 0 end }
     set groups [dict create]
     foreach row $rows { dict lappend groups [lindex $row $keyCol] $row }
 

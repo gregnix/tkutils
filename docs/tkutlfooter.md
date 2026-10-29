@@ -9,7 +9,7 @@ application.
 ## Package
 
 ```tcl
-package require tkutils::tkutlfooter 0.3
+package require tkutils::tkutlfooter 0.4
 ```
 
 Requires `tablelist`. Horizontal scroll sync chains the main table's
@@ -108,7 +108,9 @@ counts are integers. Column 0 receives `-label`.
 
 ## detach
 
-Removes the sync bindings and restores the original scroll wiring.
+Removes the sync bindings and restores the original scroll wiring. It
+also cancels the first update that `attach` scheduled for idle time; that
+update does nothing if one of the tables is gone by then (0.4).
 
 ## Error codes
 
