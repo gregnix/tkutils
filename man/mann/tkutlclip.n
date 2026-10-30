@@ -7,7 +7,7 @@ Copy \fBtablelist\fR rows to the clipboard as TSV or CSV — the common "Ctrl+C 
 package require tkutils::tkutlclip 0.3
 .CE
 .PP
-Requires \fBTk\fR and \fBtablelist\fR. Uses \fBtclutils::tucsv\fR for CSV quoting when available (falls back to a built\-in quoter otherwise).
+Requires \fBTk\fR, \fBtablelist\fR and \fBtclutils::tucsv\fR 0.2. CSV goes through \fBtucsv\fR, as \fBtkutablelist::toCsv\fR does, so both write the same line for the same row (tkutils 0.49.0; before, a built\-in quoter took over when \fBtucsv\fR was missing).
 .SS Commands
 .CS
 ::tkutils::tkutlclip::copySelection   tbl ?options?

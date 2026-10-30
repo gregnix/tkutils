@@ -470,4 +470,26 @@ test tkutablelist-9.4 {saveCsv -profile excel-de writes BOM, ; and CRLF} -constr
         [string map [list \r <CR> \n <LF>] [string range $b 3 end]]
 } -result {efbbbf {A;B<CR><LF>1;2}}
 
+test tkutablelist-10.1 {a failed save leaves the old file, no temp file, no channel} -constraints {tablelist} -setup {
+    set f [makeFile PRECIOUS tkutablelist-10.1.csv]
+    catch {destroy .tlw}
+    set w [::tkutils::tkutablelist::widget .tlw -columns {Name Age}]
+    ::tkutils::tkutablelist::setRows $w {{Alice 30}}
+    set before [llength [chan names file*]]
+    rename ::puts ::_realPuts
+    proc ::puts args {
+        if {[string match file* [lindex $args end-1]]} { error "disk full" }
+        ::_realPuts {*}$args
+    }
+} -body {
+    set rc [catch {::tkutils::tkutablelist::saveCsv $w $f}]
+    if {[llength [info commands ::_realPuts]]} { rename ::puts {}; rename ::_realPuts ::puts }
+    set ch [open $f]; set d [read $ch]; close $ch
+    list $rc [string trim $d] [expr {[llength [chan names file*]] - $before}] \
+        [llength [glob -nocomplain $f.tmp*]]
+} -cleanup {
+    if {[llength [info commands ::_realPuts]]} { rename ::puts {}; rename ::_realPuts ::puts }
+    removeFile tkutablelist-10.1.csv
+} -result {1 PRECIOUS 0 0}
+
 cleanupTests

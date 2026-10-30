@@ -1010,4 +1010,24 @@ test tkulauncher-21.5 {Quick add respects the "New in:" target menu} -constraint
     list $top1 $kids
 } -result {1 6}
 
+test tkulauncher-30.1 {a failed save leaves the old file, no temp file, no channel} -constraints {tk} -setup {
+    set f [makeFile PRECIOUS tkulauncher-30.1.json]
+    set items {{type app label Editor cmd gedit}}
+    set before [llength [chan names file*]]
+    rename ::puts ::_realPuts
+    proc ::puts args {
+        if {[string match file* [lindex $args end-1]]} { error "disk full" }
+        ::_realPuts {*}$args
+    }
+} -body {
+    set rc [catch {${ns}::saveEntries $items $f}]
+    if {[llength [info commands ::_realPuts]]} { rename ::puts {}; rename ::_realPuts ::puts }
+    set ch [open $f]; set d [read $ch]; close $ch
+    list $rc [string trim $d] [expr {[llength [chan names file*]] - $before}] \
+        [llength [glob -nocomplain $f.tmp*]]
+} -cleanup {
+    if {[llength [info commands ::_realPuts]]} { rename ::puts {}; rename ::_realPuts ::puts }
+    removeFile tkulauncher-30.1.json
+} -result {1 PRECIOUS 0 0}
+
 cleanupTests

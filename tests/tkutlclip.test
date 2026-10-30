@@ -67,4 +67,15 @@ test tkutlclip-2.4 {copySelection checks options with an empty selection} -const
     .t insert end {x}
     list [catch {::tkutils::tkutlclip::copySelection .t -separator ab} e] $e
 } -result {1 {separator must be one character}}
+test tkutlclip-9.1 {csv is the same line as tucsv::text, which toCsv uses} -constraints {hasTk hasTbl} -body {
+    catch {destroy .t}
+    tablelist::tablelist .t -columns {8 A left 8 B left 8 C left}
+    set rows [list [list "a,b" "say \"x\"" "two\nlines"] [list p {} r]]
+    foreach r $rows { .t insert end $r }
+    list [expr {[::tkutils::tkutlclip::asText .t {0 1} -format csv] eq [::tclutils::tucsv::text $rows]}] \
+         [expr {[::tkutils::tkutlclip::asText .t {0 1} -format csv -separator ";"] eq [::tclutils::tucsv::text $rows -delimiter ";"]}]
+} -cleanup {
+    destroy .t
+} -result {1 1}
+
 cleanupTests

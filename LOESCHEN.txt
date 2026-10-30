@@ -1,0 +1,2 @@
+lib/tm/tkutils/tkuhexedit-0.1.tm
+lib/tm/tkutils/tkulauncher-0.3.tm

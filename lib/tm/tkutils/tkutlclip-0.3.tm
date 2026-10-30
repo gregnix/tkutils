@@ -20,13 +20,15 @@
 # Rows: copySelection takes the selected rows, copyAll the viewable rows
 # (hidden rows and collapsed tree children are skipped).
 #
-# CSV uses tclutils::tucsv when available (proper quoting); otherwise a built-in
-# minimal quoter. TSV replaces embedded tabs/newlines with spaces so the result
-# stays paste-safe in spreadsheets.
+# CSV goes through tclutils::tucsv 0.2, as tkutablelist::toCsv does, so both
+# write the same line for the same row (up to tkutils 0.48.0 a built-in quoter
+# took over when tucsv was missing). TSV replaces embedded tabs/newlines with
+# spaces so the result stays paste-safe in spreadsheets.
 #
-# Tcl 8.6-
+# Tcl 8.6-, tclutils::tucsv 0.2
 package require Tcl 8.6-
 package require Tk
+package require tclutils::tucsv 0.2
 # tablelist_tile is the Tablelist variant of tkutils (as in tkutablelist).
 # Tablelist forbids loading tablelist and tablelist_tile in one process; both
 # provide the same ::tablelist:: commands, so an application that already has
@@ -113,10 +115,7 @@ proc ::tkutils::tkutlclip::asText {tbl rows args} {
 
 proc ::tkutils::tkutlclip::_joinRow {cells format {sep ,}} {
     if {$format eq "csv"} {
-        if {![catch {package require tclutils::tucsv}]} {
-            return [::tclutils::tucsv::joinLine $cells -delimiter $sep]
-        }
-        return [_csvLine $cells $sep]
+        return [::tclutils::tucsv::joinLine $cells -delimiter $sep]
     }
     # tsv: strip tab/newline so paste stays aligned
     set out {}
@@ -124,18 +123,6 @@ proc ::tkutils::tkutlclip::_joinRow {cells format {sep ,}} {
         lappend out [string map [list \t " " \n " " \r ""] $v]
     }
     return [join $out \t]
-}
-
-# Minimal CSV line quoter (RFC-4180 style) used when tucsv is absent.
-proc ::tkutils::tkutlclip::_csvLine {cells {sep ,}} {
-    set out {}
-    foreach v $cells {
-        if {[string first $sep $v] >= 0 || [regexp {["\n\r]} $v]} {
-            set v \"[string map [list \" \"\"] $v]\"
-        }
-        lappend out $v
-    }
-    return [join $out $sep]
 }
 
 # Copy the currently selected rows. Returns the number of rows copied.

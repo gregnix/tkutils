@@ -12,7 +12,7 @@ package require Tcl 8.6-
 package require Tk 8.6-
 package require tclutils::tubin 0.1
 package require tclutils::tuhexdump 0.1
-package require tclutils::common 0.1
+package require tclutils::common 0.3
 
 namespace eval ::tkutils {}
 namespace eval ::tkutils::tkuhexedit {
@@ -27,13 +27,8 @@ namespace eval ::tkutils::tkuhexedit {
 # common::readBinaryFile but no whole-buffer writer). Never use -encoding
 # binary; it is gone in Tcl 9.
 proc ::tkutils::tkuhexedit::_writeBinaryFile {filename data} {
-    set chan [open $filename wb]
-    try {
-        fconfigure $chan -translation binary -encoding iso8859-1
-        puts -nonewline $chan $data
-    } finally {
-        close $chan
-    }
+    # through a temporary file: a failed write leaves the old file (0.2)
+    ::tclutils::common::replaceFile $filename $data -encoding binary
     return $filename
 }
 
@@ -266,4 +261,4 @@ proc ::tkutils::tkuhexedit::_uiFindHex {path} {
     }
 }
 
-package provide tkutils::tkuhexedit 0.1
+package provide tkutils::tkuhexedit 0.2

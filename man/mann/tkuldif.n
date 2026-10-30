@@ -24,4 +24,4 @@ tkuldif::toText     $w        ;# current entries as LDIF
 tkuldif::save       $w file
 .CE
 .PP
-Files: \fBloadFile\fR reads and \fBsave\fR writes UTF\-8 with LF, whatever the system encoding (since 0.3).
+Files: \fBloadFile\fR reads and \fBsave\fR writes UTF\-8 with LF, whatever the system encoding (since 0.3). A failed write leaves the old file and no open channel: the text goes to a temporary file first (\fBtclutils::common::replaceFile\fR, tkutils 0.49.0).

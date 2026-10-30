@@ -138,4 +138,24 @@ test tkutlstate-5.1 {a failed autosave is reported: event, -onerror, lastError} 
     list $::seen [::tkutils::tkutlstate::lastError .t]
 } -result {{event {disk full} cb .t {disk full}} {disk full}}
 
+test tkutlstate-9.1 {a failed save leaves the old file, no temp file, no channel} -constraints {hasTk hasTbl} -setup {
+    set f [makeFile PRECIOUS tkutlstate-9.1.state]
+    mkTbl
+    set before [llength [chan names file*]]
+    rename ::puts ::_realPuts
+    proc ::puts args {
+        if {[string match file* [lindex $args end-1]]} { error "disk full" }
+        ::_realPuts {*}$args
+    }
+} -body {
+    set rc [catch {::tkutils::tkutlstate::saveToFile .t $f}]
+    if {[llength [info commands ::_realPuts]]} { rename ::puts {}; rename ::_realPuts ::puts }
+    set ch [open $f]; set d [read $ch]; close $ch
+    list $rc [string trim $d] [expr {[llength [chan names file*]] - $before}] \
+        [llength [glob -nocomplain $f.tmp*]]
+} -cleanup {
+    if {[llength [info commands ::_realPuts]]} { rename ::puts {}; rename ::_realPuts ::puts }
+    removeFile tkutlstate-9.1.state
+} -result {1 PRECIOUS 0 0}
+
 cleanupTests

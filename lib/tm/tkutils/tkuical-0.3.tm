@@ -10,6 +10,7 @@
 # tclutils::tuical (requires tclutils 0.35.0+). Tcl/Tk 8.6+ and 9.x.
 
 package require Tcl 8.6-
+package require tclutils::common 0.3
 package require tkutils::tkuopts 0.1
 package require Tk 8.6-
 package require tclutils::tuical 0.1
@@ -248,14 +249,9 @@ proc ::tkutils::tkuical::toText {path} {
 }
 proc ::tkutils::tkuical::save {path file} {
     set text [toText $path]
-    set ch [open $file w]
-    try {
-        # the text already has CRLF line ends (RFC 5545 / 6350): write it as is
-        fconfigure $ch -translation lf -encoding utf-8
-        puts -nonewline $ch $text
-    } finally {
-        close $ch
-    }
+    # through a temporary file: a failed write leaves the old file (tkutils 0.49.0)
+    # the text already has CRLF line ends (RFC 5545 / 6350): write it as is
+    ::tclutils::common::replaceFile $file $text -encoding utf-8 -translation lf
     return $file
 }
 

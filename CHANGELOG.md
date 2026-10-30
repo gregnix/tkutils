@@ -2,19 +2,20 @@
 
 ## 0.49.0 - 2026-10-28
 
-Recommended pairing: tclutils 0.69.0 + tkutils 0.49.0 + ctrlutils 0.4
+Recommended pairing: tclutils 0.69.0 + tkutils 0.49.0 + ctrlutils 0.5
 (`tkutablelist` CSV export needs `tucsv` 0.2 from tclutils 0.69.0).
 
 Module versions: `tkutablelist` 0.5, `tkutlclip` 0.3, `tkutlsort` 0.3,
 `tkutlstate` 0.4, `tkutlfind` 0.3, `tkutltree` 0.3, `tkutltools` 0.3,
 `tkuical`, `tkuvcard`, `tkuldif`, `tkuini` 0.3, `tkunotes`, `tkueditor` 0.4, `tkubase64` 0.2,
-`tkutical` 0.4, `tkutlfooter` 0.4; new
+`tkutical` 0.4, `tkutlfooter` 0.4, `tkulauncher` 0.4, `tkuhexedit` 0.2; new
 `tkutlfilter`, `tkutlgroup`, `tkutldrag`, `tkusysinfo` 0.1. When copying over an older
 tree, delete `tkutils-0.48.0.tm`, `tkutablelist-0.4.tm`, `tkutlclip-0.2.tm`,
 `tkutlsort-0.2.tm`, `tkutlstate-0.3.tm`, `tkutlfind-0.2.tm`,
 `tkutltree-0.2.tm`, `tkutltools-0.2.tm`, `tkuical-0.2.tm`, `tkuvcard-0.2.tm`,
 `tkuldif-0.2.tm`, `tkuini-0.2.tm`, `tkutical-0.3.tm`, `tkunotes-0.2.tm`,
-`tkueditor-0.2.tm`, `tkubase64-0.1.tm`, `tkutlfooter-0.3.tm`.
+`tkueditor-0.2.tm`, `tkubase64-0.1.tm`, `tkutlfooter-0.3.tm`,
+`tkulauncher-0.3.tm`, `tkuhexedit-0.1.tm`.
 
 - `tkutlclip`: `installBindings` had no effect; Tablelist's own `<<Copy>>`
   overwrote the clipboard. Binding now ends with `break`. `copyAll` skips
@@ -81,6 +82,14 @@ tree, delete `tkutils-0.48.0.tm`, `tkutablelist-0.4.tm`, `tkutlclip-0.2.tm`,
 - `tkuical`, `tkuvcard`, `tkuini`, `tkuldif`, `tkulauncher`: file I/O in
   `try`/`finally` (a read error left the channel open); `save` builds the
   text before it opens the file.
+- Saving through a temporary file (`tclutils::common::replaceFile`; a
+  failed write left an empty file): `save` of `tkuical`, `tkuvcard`,
+  `tkuini`, `tkuldif`, `tkulauncher::saveEntries`,
+  `tkutlstate::saveToFile`, `tkutablelist::saveCsv`,
+  `tkuhexedit::saveFile`. Tests `*-9.1`, `tkulauncher-30.1`,
+  `tkutablelist-10.1`.
+- `tkutlclip`: CSV always through `tucsv` 0.2, as `toCsv` (the built-in
+  quoter for a missing `tucsv` is gone). Test `tkutlclip-9.1`.
 - `tkutlgroup`: `group` replaces the rows (`-replace 1`, default); a second
   call stacked the groups. `tkutlfilter`: a pending `later` is cancelled
   when the table is destroyed. `tkusysinfo::refresh`: an error shows in

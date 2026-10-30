@@ -77,4 +77,25 @@ test tkuhexedit-1.5 {load and save file} -constraints haveTk -body {
     set data
 } -result AXC
 
+test tkuhexedit-9.1 {a failed save leaves the old file, no temp file, no channel} -constraints {haveTk} -setup {
+    set f [makeFile PRECIOUS tkuhexedit-9.1.bin]
+    catch {destroy .hxw}; set w [::tkutils::tkuhexedit::widget .hxw]
+    ::tkutils::tkuhexedit::loadFile $w $f
+    set before [llength [chan names file*]]
+    rename ::puts ::_realPuts
+    proc ::puts args {
+        if {[string match file* [lindex $args end-1]]} { error "disk full" }
+        ::_realPuts {*}$args
+    }
+} -body {
+    set rc [catch {::tkutils::tkuhexedit::saveFile $w $f}]
+    if {[llength [info commands ::_realPuts]]} { rename ::puts {}; rename ::_realPuts ::puts }
+    set ch [open $f]; set d [read $ch]; close $ch
+    list $rc [string trim $d] [expr {[llength [chan names file*]] - $before}] \
+        [llength [glob -nocomplain $f.tmp*]]
+} -cleanup {
+    if {[llength [info commands ::_realPuts]]} { rename ::puts {}; rename ::_realPuts ::puts }
+    removeFile tkuhexedit-9.1.bin
+} -result {1 PRECIOUS 0 0}
+
 cleanupTests

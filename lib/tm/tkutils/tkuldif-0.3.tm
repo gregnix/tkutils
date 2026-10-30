@@ -9,6 +9,7 @@
 # for the edit helpers). Tcl/Tk 8.6+ and 9.x.
 
 package require Tcl 8.6-
+package require tclutils::common 0.3
 package require tkutils::tkuopts 0.1
 package require Tk 8.6-
 package require tclutils::tuldif 0.1
@@ -173,13 +174,8 @@ proc ::tkutils::tkuldif::toText {path} {
 }
 proc ::tkutils::tkuldif::save {path file} {
     set text [toText $path]
-    set ch [open $file w]
-    try {
-        fconfigure $ch -translation lf -encoding utf-8
-        puts $ch $text
-    } finally {
-        close $ch
-    }
+    # through a temporary file: a failed write leaves the old file (tkutils 0.49.0)
+    ::tclutils::common::replaceFile $file "$text\n" -encoding utf-8 -translation lf
     return $file
 }
 

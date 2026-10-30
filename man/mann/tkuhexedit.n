@@ -1,4 +1,4 @@
-.TH tkuhexedit n 0.1 tkutils
+.TH tkuhexedit n 0.2 tkutils
 .SH tkutils::tkuhexedit
 .SS Name
 .PP
@@ -34,6 +34,8 @@ findHex path hex ?start?
 patchHex path offset hex
 render path ?offset?
 .CE
+.PP
+\fBsaveFile\fR writes the bytes through a temporary file (\fBtclutils::common::replaceFile\fR, 0.2): a failed write leaves the old file and no open channel.
 .SS "Options for widget"
 .CS
 -width        text widget width

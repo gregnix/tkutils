@@ -29,6 +29,7 @@
 #                                               section header + its items (list)
 
 package require Tcl 8.6-
+package require tclutils::common 0.3
 package require tkutils::tkuopts 0.1
 package require Tk 8.6-
 package require tclutils::tuopen
@@ -759,13 +760,8 @@ proc ::tkutils::tkulauncher::saveEntries {items file} {
         .ini  { set text [_entriesToIni  $items] }
         default { error "unsupported launcher file type: $ext (use .json or .ini)" }
     }
-    set ch [open $file w]
-    try {
-        fconfigure $ch -encoding utf-8
-        puts $ch $text
-    } finally {
-        close $ch
-    }
+    # through a temporary file: a failed write leaves the old file (tkutils 0.49.0)
+    ::tclutils::common::replaceFile $file "$text\n" -encoding utf-8 -translation auto
     return $file
 }
 
@@ -2016,4 +2012,4 @@ proc ::tkutils::tkulauncher::systemIds {} {
     return [lsort [dict keys $sysCat]]
 }
 
-package provide tkutils::tkulauncher 0.3
+package provide tkutils::tkulauncher 0.4

@@ -142,7 +142,7 @@ skip cleanly when those packages are absent.
 and `tkusysinfo` needs `tclutils::tusysinfo` 0.1 (both tclutils 0.69.0). The editing helpers
 (`tkuini`/`tkuvcard`/`tkuical`/`tkuldif`) and `tkunotes` subtree/tags build on the
 `tclutils` engines, so a current `tclutils` is required alongside. The recommended
-pairing is **tclutils 0.69.0 + tkutils 0.49.0** (+ **ctrlutils 0.4**).
+pairing is **tclutils 0.69.0 + tkutils 0.49.0** (+ **ctrlutils 0.5**).
 
 `tkuwinico` in particular needs **tclutils 0.61.0 or newer**: it builds on
 `tclutils::tuico`, which arrived with that release. An older tclutils on the

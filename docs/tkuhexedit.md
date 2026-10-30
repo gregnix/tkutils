@@ -41,6 +41,10 @@ patchHex path offset hex
 render path ?offset?
 ```
 
+`saveFile` writes the bytes through a temporary file
+(`tclutils::common::replaceFile`, 0.2): a failed write leaves the old file and
+no open channel.
+
 ## Options for widget
 
 ```text

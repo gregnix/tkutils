@@ -26,6 +26,10 @@ Requires `Tk` and `tablelist`.
 ::tkutils::tkutlstate::lastError       tbl                 ;# message of the last failed autosave
 ```
 
+`saveToFile` writes through a temporary file
+(`tclutils::common::replaceFile`): a failed write leaves the old file and no
+open channel (tkutils 0.49.0).
+
 `tbl` is a raw tablelist. For a `tkutils::tkutablelist` wrapper, pass
 `[tkutils::tkutablelist::tableWidget $w]`.
 

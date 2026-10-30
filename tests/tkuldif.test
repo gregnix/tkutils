@@ -109,4 +109,25 @@ test tkuldif-3.1 {save and loadFile in UTF-8 whatever the system encoding} -cons
     catch {destroy .l .l2}
 } -result {1 1}
 
+test tkuldif-9.1 {a failed save leaves the old file, no temp file, no channel} -constraints {ldif} -setup {
+    set f [makeFile PRECIOUS tkuldif-9.1.ldif]
+    catch {destroy .ldw}; set w [::tkutils::tkuldif::widget .ldw]
+    ::tkutils::tkuldif::loadText $w "dn: cn=a,dc=x\ncn: a\n"
+    set before [llength [chan names file*]]
+    rename ::puts ::_realPuts
+    proc ::puts args {
+        if {[string match file* [lindex $args end-1]]} { error "disk full" }
+        ::_realPuts {*}$args
+    }
+} -body {
+    set rc [catch {::tkutils::tkuldif::save $w $f}]
+    if {[llength [info commands ::_realPuts]]} { rename ::puts {}; rename ::_realPuts ::puts }
+    set ch [open $f]; set d [read $ch]; close $ch
+    list $rc [string trim $d] [expr {[llength [chan names file*]] - $before}] \
+        [llength [glob -nocomplain $f.tmp*]]
+} -cleanup {
+    if {[llength [info commands ::_realPuts]]} { rename ::puts {}; rename ::_realPuts ::puts }
+    removeFile tkuldif-9.1.ldif
+} -result {1 PRECIOUS 0 0}
+
 cleanupTests

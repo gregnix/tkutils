@@ -176,4 +176,25 @@ test tkuvcard-3.2 {setProperty keeps PREF and other parameters; TYPE lists} -con
     lappend p [dict get [lindex [lindex [::tkutils::tkuvcard::cards $w] 0] 2] value]
 } -cleanup { catch {destroy .v} } -result {{TYPE CELL PREF 1} {PREF 1 TYPE WORK TYPE VOICE} {PREF 1} 789}
 
+test tkuvcard-9.1 {a failed save leaves the old file, no temp file, no channel} -constraints {vcard} -setup {
+    set f [makeFile PRECIOUS tkuvcard-9.1.vcf]
+    catch {destroy .vcw}; set w [::tkutils::tkuvcard::widget .vcw]
+    ::tkutils::tkuvcard::loadText $w "BEGIN:VCARD\r\nVERSION:3.0\r\nFN:A\r\nEND:VCARD\r\n"
+    set before [llength [chan names file*]]
+    rename ::puts ::_realPuts
+    proc ::puts args {
+        if {[string match file* [lindex $args end-1]]} { error "disk full" }
+        ::_realPuts {*}$args
+    }
+} -body {
+    set rc [catch {::tkutils::tkuvcard::save $w $f}]
+    if {[llength [info commands ::_realPuts]]} { rename ::puts {}; rename ::_realPuts ::puts }
+    set ch [open $f]; set d [read $ch]; close $ch
+    list $rc [string trim $d] [expr {[llength [chan names file*]] - $before}] \
+        [llength [glob -nocomplain $f.tmp*]]
+} -cleanup {
+    if {[llength [info commands ::_realPuts]]} { rename ::puts {}; rename ::_realPuts ::puts }
+    removeFile tkuvcard-9.1.vcf
+} -result {1 PRECIOUS 0 0}
+
 cleanupTests

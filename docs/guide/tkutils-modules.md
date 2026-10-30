@@ -24,7 +24,7 @@
 | `tkutils::tkuform` | 0.1 | declarative form widget | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuform-0.1.tm` |  |
 | `tkutils::tkufuzzy` | 0.1 | incremental fuzzy filter | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkufuzzy-0.1.tm` | tclutils::tufuzzy |
 | `tkutils::tkugeometry` | 0.1 | save and restore a toplevel's size, position and zoom state, kept on the screen | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkugeometry-0.1.tm` | tclutils::common,tclutils::tusettings |
-| `tkutils::tkuhexedit` | 0.1 | small Tk hex viewer/editor | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuhexedit-0.1.tm` | tclutils::tubin,tclutils::tuhexdump,tclutils::common |
+| `tkutils::tkuhexedit` | 0.2 | small Tk hex viewer/editor | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuhexedit-0.2.tm` | tclutils::tubin,tclutils::tuhexdump,tclutils::common |
 | `tkutils::tkuical` | 0.3 | iCalendar event viewer/editor | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuical-0.3.tm` | tkutils::tkuopts,tclutils::tuical |
 | `tkutils::tkuicon` | 0.1 | SVG icon loader / generator for toolbars (from uitoolkit) | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuicon-0.1.tm` | tksvg,tclutils::tusvg |
 | `tkutils::tkuimage` | 0.2 | image helpers and a scrollable/zoomable viewer widget for Tk | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuimage-0.2.tm` | imgtools |
@@ -32,7 +32,7 @@
 | `tkutils::tkujson` | 0.1 | JSON tree viewer | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkujson-0.1.tm` | tclutils::tujson,tclutils::common |
 | `tkutils::tkukeynav` | 0.1 | keyboard focus navigation helpers | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkukeynav-0.1.tm` |  |
 | `tkutils::tkulabeled` | 0.1 | labeled input composites (label + control in one) | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkulabeled-0.1.tm` |  |
-| `tkutils::tkulauncher` | 0.3 | an application launcher widget, as a menu or a list | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkulauncher-0.3.tm` | tkutils::tkuopts,tclutils::tuopen,tkutils::tkuscrolledframe,tkutils::tkuwheel,tkutils::tkuballoon,tclutils::tujson,tclutils::tuini,tkutils::tkutical,tkutils::tkucalendar,tkutils::tkucal,tkutils::tkucalc,tkutils::tkuform |
+| `tkutils::tkulauncher` | 0.4 | an application launcher widget, as a menu or a list | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkulauncher-0.4.tm` | tkutils::tkuopts,tclutils::tuopen,tkutils::tkuscrolledframe,tkutils::tkuwheel,tkutils::tkuballoon,tclutils::tujson,tclutils::tuini,tkutils::tkutical,tkutils::tkucalendar,tkutils::tkucal,tkutils::tkucalc,tkutils::tkuform |
 | `tkutils::tkulayoutcanvas` | 0.1 | visual block layout designer on a Tk canvas | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkulayoutcanvas-0.1.tm` | tclutils::tulayout |
 | `tkutils::tkuldif` | 0.3 | LDIF entry viewer/editor | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuldif-0.3.tm` | tkutils::tkuopts,tclutils::tuldif |
 | `tkutils::tkuload` | 0.3 | instantiate a tkudesigner `.tkd` layout as a live Tk widget tree (no code export) | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuload-0.3.tm` | tkutils::tkurender |

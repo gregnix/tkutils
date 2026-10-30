@@ -196,7 +196,9 @@ entry is created in. Up/Down reorder the selected entry within its menu, and
 "Move to..." moves it into another menu (top level or any submenu). Apply copies the form into the
 selected entry; "Update launcher" applies the changes to the live launcher; and
 "Save to file..." writes them back -- as JSON (full fidelity) or INI (flat prefix form)
-chosen by the file extension -- then reloads the launcher.
+chosen by the file extension -- then reloads the launcher. `saveEntries`
+writes through a temporary file (`tclutils::common::replaceFile`, 0.4): a
+failed write leaves the old file and no open channel.
 
 ```tcl
 ::tkutils::tkulauncher::editEntries .launcher    ;# open the editor

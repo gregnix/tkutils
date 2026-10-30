@@ -87,7 +87,8 @@ further sort columns (`tablelist::addToSortColumns`).
 cell values. `-all 1` takes every row and column, `-formatted 1` the displayed
 values. Other options go to `tclutils::tucsv::text`, e.g. `-delimiter ;` or
 `-profile excel-de` (`;`, CRLF, BOM). `saveCsv` writes UTF-8 unless
-`-encoding` says otherwise.
+`-encoding` says otherwise, through a temporary file
+(`tclutils::common::replaceFile`): a failed write leaves the old file.
 
 ```tcl
 ::tkutils::tkutablelist::setRows $w $rows -ids $ids

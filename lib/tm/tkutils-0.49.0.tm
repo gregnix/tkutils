@@ -6,7 +6,7 @@
 # tkutils::tkuscrolledframe (needs scrollutil) are NOT loaded here -- require
 # them directly once their external package is present.
 package require Tcl 8.6-
-package require tkutils::tkuhexedit 0.1
+package require tkutils::tkuhexedit 0.2
 package require tkutils::tkucsv 0.1
 package require tkutils::tkudiff 0.1
 package require tkutils::tkumd 0.1
@@ -61,7 +61,7 @@ package require tkutils::tkutab 0.2
 package require tkutils::tkufiledialog 0.2
 
 # application launcher (menu / list, cross-platform via tuopen)
-package require tkutils::tkulauncher 0.3
+package require tkutils::tkulauncher 0.4
 
 # calculator widget
 package require tkutils::tkucalc 0.2

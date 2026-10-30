@@ -10,8 +10,10 @@ tablelist itself does not provide. Library-neutral.
 package require tkutils::tkutlclip 0.3
 ```
 
-Requires `Tk` and `tablelist`. Uses `tclutils::tucsv` for CSV quoting when
-available (falls back to a built-in quoter otherwise).
+Requires `Tk`, `tablelist` and `tclutils::tucsv` 0.2. CSV goes through
+`tucsv`, as `tkutablelist::toCsv` does, so both write the same line for the
+same row (tkutils 0.49.0; before, a built-in quoter took over when `tucsv`
+was missing).
 
 ## Commands
 

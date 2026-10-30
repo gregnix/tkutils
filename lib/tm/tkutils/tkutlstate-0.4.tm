@@ -31,6 +31,7 @@
 #
 # Tcl 8.6-
 package require Tcl 8.6-
+package require tclutils::common 0.3
 package require Tk
 # tablelist_tile is the Tablelist variant of tkutils (as in tkutablelist).
 # Tablelist forbids loading tablelist and tablelist_tile in one process; both
@@ -153,13 +154,8 @@ proc ::tkutils::tkutlstate::_restoreV1 {tbl state} {
 # Persist the state to a file (the dict as text).
 proc ::tkutils::tkutlstate::saveToFile {tbl path} {
     set d [save $tbl]
-    set fh [open $path w]
-    try {
-        fconfigure $fh -encoding utf-8
-        puts -nonewline $fh $d
-    } finally {
-        close $fh
-    }
+    # through a temporary file: a failed write leaves the old file (tkutils 0.49.0)
+    ::tclutils::common::replaceFile $path $d -encoding utf-8 -translation auto
     return $path
 }
 

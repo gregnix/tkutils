@@ -32,3 +32,5 @@ tkuical::save               $w file
 Files: `loadFile` reads and `save` writes UTF-8, whatever the system
 encoding (since 0.3). `save` writes the text of `toText` unchanged, with
 the CRLF line ends iCalendar asks for (up to 0.2 it wrote `\r\r\n`).
+A failed write leaves the old file and no open channel: the text goes to a
+temporary file first (`tclutils::common::replaceFile`, tkutils 0.49.0).

@@ -13,6 +13,7 @@
 # Tablelist is installed. Tcl/Tk 8.6+.
 
 package require Tcl 8.6-
+package require tclutils::common 0.3
 package require tkutils::tkuopts 0.1
 package require Tk 8.6-
 if {[catch {package require tablelist_tile}]} {
@@ -603,13 +604,8 @@ proc ::tkutils::tkutablelist::saveCsv {path file args} {
         if {$k eq "-encoding"} { set enc $v } else { lappend textArgs $k $v }
     }
     set csv [toCsv $path {*}$o {*}$textArgs]
-    set ch [open $file w]
-    try {
-        fconfigure $ch -translation lf -encoding $enc
-        puts -nonewline $ch $csv
-    } finally {
-        close $ch
-    }
+    # through a temporary file: a failed write leaves the old file (tkutils 0.49.0)
+    ::tclutils::common::replaceFile $file $csv -encoding $enc -translation lf
     return $file
 }
 
