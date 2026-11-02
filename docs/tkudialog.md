@@ -63,6 +63,12 @@ Details of the placement:
   centred over the parent without clamping; a dialog wider than its parent may
   then overhang that monitor. The rule is `_geometry` and is tested for this
   case with made-up coordinates — two real monitors were not measured.
+- Under X11, `wm geometry +x+y` places the window manager's frame; the
+  content sits below the title bar. For one second after the dialog appears,
+  every move of it brings the content back to the computed place, if it is
+  off by less than 100 px (at most three times). A window manager that puts
+  its frame round the dialog late no longer leaves it a title bar too low
+  (0.4; before, one look after 100 ms missed it under xfwm).
 
 ## Options are checked (0.2)
 

@@ -15,7 +15,7 @@ package require tkutils::tkucal 0.1
 package require tkutils::tkueditor 0.4
 package require tkutils::tkuzip 0.1
 package require tkutils::tkufuzzy 0.1
-package require tkutils::tkudialog 0.3
+package require tkutils::tkudialog 0.4
 package require tkutils::tkubase64 0.2
 package require tkutils::tkustrings 0.1
 package require tkutils::tkutoolbar 0.2

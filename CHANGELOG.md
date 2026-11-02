@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+- `tkdevtools`: tab "Package shadows" marks "hidden by module" red and
+  counts it.
+- `tkudialog` 0.4: a window manager that puts its frame round the dialog
+  late left it a title bar too low (5 x 29 px, xfwm, wish 9.1). For one
+  second after mapping, every move of less than 100 px is undone; the
+  frame offset comes from `wm geometry`. New test 6.5. When copying over
+  an older tree, delete `tkudialog-0.3.tm`.
+- `tkudialog.test` 6.x: the dialog is measured once it and its parent
+  stand still (at most 40 x 50 ms); on a miss the two centres go to
+  stderr.
+
 ## 0.49.0 - 2026-10-28
 
 Recommended pairing: tclutils 0.69.0 + tkutils 0.49.0 + ctrlutils 0.5

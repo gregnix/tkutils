@@ -23,7 +23,7 @@ package require tablelist_tile
 package require tclutils::tucolor
 package require tclutils::tustr 0.2       ;# graphemes, isPrintable
 package require tclutils::tudate 0.2      ;# zones
-package require tclutils::tupkgfinder 0.2 ;# package sources, copies, search paths
+package require tclutils::tupkgfinder 0.3 ;# package sources, copies, search paths
 package require tclutils::tupath          ;# clean (Paths)
 package require tclutils::tunum 0.4       ;# format, half away from zero
 package require tclutils::tuappinfo       ;# "Copy report"
@@ -1811,7 +1811,9 @@ proc buildShadows {f} {
     pack $bar -fill x -pady 3
     label $f.hint -anchor w -justify left -fg #555 -text \
         "\"same version\": a second copy of the version package require takes -- it is never\
-        used, and which one wins depends on path order. Red rows need a look."
+        used, and which one wins depends on path order. \"hidden by module\": a higher\
+        version in a pkgIndex.tcl that Tcl never reads, because a module already fits.\
+        Red rows need a look."
     pack $f.hint -fill x -padx 6
     set t [scrolledTable $f \
         {26 Package left 10 Version left 13 Status left 8 Kind left 60 Path left} \
@@ -1833,10 +1835,13 @@ proc shFill {} {
         set ::shStatus "error: $res"
         return
     }
-    set npk 0 ; set ndup 0
+    set npk 0 ; set ndup 0 ; set nhid 0
     foreach d $res {
         incr npk
         if {[dict get $d duplicate]} { incr ndup }
+        foreach c [dict get $d candidates] {
+            if {[dict get $c status] eq "hidden by module"} { incr nhid ; break }
+        }
         set first 1
         foreach c [dict get $d candidates] {
             set name [expr {$first ? [dict get $d package] : ""}]
@@ -1844,14 +1849,15 @@ proc shFill {} {
             $t insert end [list $name [dict get $c version] [dict get $c status] \
                 [dict get $c kind] [file nativename [dict get $c path]]]
             switch -- [dict get $c status] {
-                "same version"  { $t rowconfigure end -background #ffd8d8 }
+                "same version" -
+                "hidden by module" { $t rowconfigure end -background #ffd8d8 }
                 active          { $t rowconfigure end -foreground #064 }
                 default         { $t rowconfigure end -foreground #777 }
             }
         }
     }
     set what [expr {$::shAll ? "package(s)" : "package(s) with several copies"}]
-    set ::shStatus "$npk $what, $ndup with one version twice"
+    set ::shStatus "$npk $what, $ndup with one version twice, $nhid hidden by a module"
 }
 
 # ============================ Platform: paths ==============================

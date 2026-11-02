@@ -186,25 +186,45 @@ proc mkParent {w x y} {
 # 0.2 draft this test compared against the requested position and failed
 # under every window manager that decorates -- measured with openbox; Xvfb
 # without a window manager hid it.
-proc measureModal {parent script} {
+proc measureModal {parent script {delay 100}} {
     set ::meas {}
-    after 500 [list apply {{parent} {
-        set d [findDialog]
-        set ::meas [list \
-            [expr {[winfo rootx $d] + [winfo width $d] / 2}] \
-            [expr {[winfo rooty $d] + [winfo height $d] / 2}] \
-            [expr {[winfo rootx $parent] + [winfo width $parent] / 2}] \
-            [expr {[winfo rooty $parent] + [winfo height $parent] / 2}] \
-            [wm transient $d]]
-        ::tkutils::tkudialog::choose $d OK
-    }} $parent]
+    after $delay [list measureWhenStill $parent 0 {}]
     uplevel #0 $script
     return $::meas
+}
+# Measure once dialog and parent have stood still for one 50 ms step: a
+# window manager may still move a freshly mapped window. Bounded: at most
+# 40 steps, then measure what is there.
+proc measureWhenStill {parent i last} {
+    set d [findDialog]
+    set now {}
+    if {$d ne "" && [winfo ismapped $d]} {
+        set now [list [winfo rootx $d] [winfo rooty $d] \
+            [winfo width $d] [winfo height $d] \
+            [winfo rootx $parent] [winfo rooty $parent]]
+    }
+    if {($now eq "" || $now ne $last) && $i < 40} {
+        after 50 [list measureWhenStill $parent [incr i] $now]
+        return
+    }
+    if {$d eq ""} return
+    set ::meas [list \
+        [expr {[winfo rootx $d] + [winfo width $d] / 2}] \
+        [expr {[winfo rooty $d] + [winfo height $d] / 2}] \
+        [expr {[winfo rootx $parent] + [winfo width $parent] / 2}] \
+        [expr {[winfo rooty $parent] + [winfo height $parent] / 2}] \
+        [wm transient $d]]
+    ::tkutils::tkudialog::choose $d OK
 }
 # centre of the dialog within 2 px of the centre of the parent's content
 proc overParent {meas} {
     lassign $meas dx dy px py
-    expr {abs($dx - $px) <= 2 && abs($dy - $py) <= 2}
+    set ok [expr {abs($dx - $px) <= 2 && abs($dy - $py) <= 2}]
+    # on a miss, show by how much: a failing result alone says only "0"
+    if {!$ok} {
+        puts stderr "overParent: dialog centre $dx,$dy, parent centre $px,$py"
+    }
+    return $ok
 }
 
 test tkudialog-6.1 {show -parent: centred over the parent and transient to it} -constraints haveTk -setup {
@@ -227,6 +247,20 @@ test tkudialog-6.3 {input passes -parent on} -constraints haveTk -setup {
     mkParent .p 820 500
 } -body {
     set m [measureModal .p {::tkutils::tkudialog::input -message name -parent .p}]
+    list [overParent $m] [lindex $m 4]
+} -cleanup { destroy .p } -result {1 .p}
+
+test tkudialog-6.5 {a move of less than 100 px soon after mapping is undone (0.4)} -constraints haveTk -setup {
+    mkParent .p 800 500
+} -body {
+    # 300 ms after the dialog appears, move it 5 px right and 29 px down --
+    # what a window manager does that puts its frame round it late
+    after 300 {
+        set d [findDialog]
+        set ::late [list [winfo rootx $d] [winfo rooty $d]]
+        wm geometry $d +[expr {[winfo rootx $d] + 5}]+[expr {[winfo rooty $d] + 29}]
+    }
+    set m [measureModal .p {::tkutils::tkudialog::show .tkudialog_t5 -message hallo -parent .p} 600]
     list [overParent $m] [lindex $m 4]
 } -cleanup { destroy .p } -result {1 .p}
 

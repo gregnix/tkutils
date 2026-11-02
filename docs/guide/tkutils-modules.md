@@ -14,7 +14,7 @@
 | `tkutils::tkudavaccount` | 0.1 | a DAV account form (URL / user / password / type) with a Test-connection button | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkudavaccount-0.1.tm` | tclutils::tudav |
 | `tkutils::tkudavbrowser` | 0.2 | a read-only navigation pane for a CalDAV/CardDAV server, built on tclutils::tudav. | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkudavbrowser-0.2.tm` | tkutils::tkuopts,tclutils::tudav,tclutils::common |
 | `tkutils::tkudhash` | 0.1 | image-file front end for the perceptual dHash | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkudhash-0.1.tm` | tclutils::tudhash,Img |
-| `tkutils::tkudialog` | 0.3 | dialogs with copyable message text | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkudialog-0.3.tm` | msgcat,tkutils::tkuform |
+| `tkutils::tkudialog` | 0.4 | dialogs with copyable message text | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkudialog-0.4.tm` | msgcat,tkutils::tkuform |
 | `tkutils::tkudiff` | 0.1 | line diff viewer | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkudiff-0.1.tm` | tclutils::tudiff,tclutils::common |
 | `tkutils::tkueditor` | 0.4 | text editor widget | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkueditor-0.4.tm` | tclutils::tuiconv,tkutils::tkuicon,tkutils::tkutoolbar,tkutils::tkustatus |
 | `tkutils::tkufiledialog` | 0.2 | modal open/save/directory dialogs on top of tkufilelist | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkufiledialog-0.2.tm` | tkutils::tkuopts,tkutils::tkufilelist,tkutils::tkupath,msgcat,tclutils::tuprovider |

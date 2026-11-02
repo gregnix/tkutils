@@ -18,7 +18,7 @@ tclsh tkdevtools.tcl --shot out.png ?toolKey?      # z. B. themes, colors, regex
 ```
 
 Benoetigt Tcl/Tk 8.6+ (inkl. 9.x), **tclutils 0.64.0 oder neuer** (aktuell 0.69.0) (`tucolor`, `tustr`,
-`tudate`, `tupkgfinder` 0.2, `tuappinfo`, `tupath`, `tunum` 0.4), aus tkutils `tkutablelist` 0.4 und
+`tudate`, `tupkgfinder` 0.3, `tuappinfo`, `tupath`, `tunum` 0.4), aus tkutils `tkutablelist` 0.4 und
 `tkuunits`, und das **Tablelist**-Megawidget (aus tklib, z. B.
 `apt install tklib`). Die
 tkutils-Tabellen-Helfer `tkutlsort` / `tkutlfind` / `tkutlclip` werden, falls
@@ -42,7 +42,9 @@ noetig. Tablelist muss auf dem `auto_path` liegen.
 - **Package shadows** — jede Kopie eines Pakets in Modulpfaden und
   `auto_path` (`tupkgfinder::shadows`). Rot: eine zweite Kopie derselben
   Version, die nie geladen wird -- etwa eine Installation neben dem
-  Arbeitsbaum. Welche gewinnt, haengt von der Pfadreihenfolge ab.
+  Arbeitsbaum. Welche gewinnt, haengt von der Pfadreihenfolge ab. Ebenfalls
+  rot: eine hoehere Version in einer `pkgIndex.tcl`, die Tcl nie liest, weil
+  schon ein Modul passt („hidden by module“).
 - **Paths** — `auto_path`, `tcl_pkgPath`, `tcl::tm::path`, Encoding-Dirs.
 - **Display** — Bildschirmgroesse, DPI/`tk scaling`, Pointer, Img-Pakete.
 - **Environment** — filterbare `::env`-Tabelle.
