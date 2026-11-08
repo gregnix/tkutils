@@ -33,7 +33,7 @@
 | `tkutils::tkukeynav` | 0.1 | keyboard focus navigation helpers | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkukeynav-0.1.tm` |  |
 | `tkutils::tkulabeled` | 0.1 | labeled input composites (label + control in one) | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkulabeled-0.1.tm` |  |
 | `tkutils::tkulauncher` | 0.4 | an application launcher widget, as a menu or a list | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkulauncher-0.4.tm` | tkutils::tkuopts,tclutils::tuopen,tkutils::tkuscrolledframe,tkutils::tkuwheel,tkutils::tkuballoon,tclutils::tujson,tclutils::tuini,tkutils::tkutical,tkutils::tkucalendar,tkutils::tkucal,tkutils::tkucalc,tkutils::tkuform |
-| `tkutils::tkulayoutcanvas` | 0.1 | visual block layout designer on a Tk canvas | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkulayoutcanvas-0.1.tm` | tclutils::tulayout |
+| `tkutils::tkulayoutcanvas` | 0.2 | visual block layout designer on a Tk canvas | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkulayoutcanvas-0.2.tm` | tclutils::tulayout |
 | `tkutils::tkuldif` | 0.3 | LDIF entry viewer/editor | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuldif-0.3.tm` | tkutils::tkuopts,tclutils::tuldif |
 | `tkutils::tkuload` | 0.3 | instantiate a tkudesigner `.tkd` layout as a live Tk widget tree (no code export) | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuload-0.3.tm` | tkutils::tkurender |
 | `tkutils::tkumarquee` | 0.1 | rubber-band (marquee) rectangle selection on a canvas | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkumarquee-0.1.tm` |  |
@@ -56,6 +56,7 @@
 | `tkutils::tkutab` | 0.2 | a tabbed container with a "+" button and closeable tabs | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkutab-0.2.tm` | tkutils::tkuopts |
 | `tkutils::tkutablelist` | 0.5 | multi-column table (OPTIONAL: requires Tablelist) | Tk · tablelist | Y | Y | Y | tkutils | `lib/tm/tkutils/tkutablelist-0.5.tm` | tkutils::tkuopts,tablelist_tile,Tablelist,tclutils::tunum,tclutils::tucsv,tclutils::tunotes |
 | `tkutils::tkutags` | 0.1 | tag editor: tags shown as removable chips plus an input. | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkutags-0.1.tm` |  |
+| `tkutils::tkutemplate` | 0.1 | editor for document templates: place blocks, edit their attributes and table columns, preview as PDF | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkutemplate-0.1.tm` | tclutils::tulayout,tclutils::tuopen,tkutils::tkuopts,tkutils::tkulayoutcanvas,pdf4tcltemplate |
 | `tkutils::tkutical` | 0.4 | month/week calendar widget (OPTIONAL: requires tical) | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkutical-0.4.tm` | tkutils::tkuopts,tical::view::month,tical::view::week,tical::render::canvas |
 | `tkutils::tkutimeentry` | 0.1 | time entry with hour/minute (optional second) spinboxes. | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkutimeentry-0.1.tm` |  |
 | `tkutils::tkutlclip` | 0.3 | copy tablelist rows to the clipboard as TSV or CSV. | Tk · tablelist | Y | Y | Y | tkutils | `lib/tm/tkutils/tkutlclip-0.3.tm` | tablelist_tile,tclutils::tucsv |

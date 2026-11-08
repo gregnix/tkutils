@@ -2,16 +2,27 @@
 
 ## Unreleased
 
+- New `tkutemplate` 0.1: editor for document templates in the format of
+  `pdf4tcltemplate` -- place blocks (`tkulayoutcanvas`), edit their
+  attributes and table columns, preview as PDF (pdf4tcllib loaded only for
+  the preview), load/save. Launcher, demo, doc, man page, tests.
+- `tkulayoutcanvas` 0.2: option `-onselect`; blocks in the flow are
+  previewed 2 mm below the visible block before them (before: stacked from
+  the top margin in 12 mm slots). When copying over an older tree, delete
+  `tkulayoutcanvas-0.1.tm`.
 - `tkdevtools`: tab "Package shadows" marks "hidden by module" red and
   counts it.
 - `tkudialog` 0.4: a window manager that puts its frame round the dialog
   late left it a title bar too low (5 x 29 px, xfwm, wish 9.1). For one
   second after mapping, every move of less than 100 px is undone; the
-  frame offset comes from `wm geometry`. New test 6.5. When copying over
+  frame offset comes from `wm geometry`. New test 6.6. When copying over
   an older tree, delete `tkudialog-0.3.tm`.
 - `tkudialog.test` 6.x: the dialog is measured once it and its parent
   stand still (at most 40 x 50 ms); on a miss the two centres go to
   stderr.
+- `tkudialog.test`: the late-move test had the id 6.5 twice; now 6.6.
+  It moves the frame corner from `wm geometry` instead of the client
+  area.
 
 ## 0.49.0 - 2026-10-28
 

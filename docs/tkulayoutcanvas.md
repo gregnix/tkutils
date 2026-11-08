@@ -34,6 +34,7 @@ tuning (columns, fonts, PDF overlay) stays in the host application.
 | `-definitions` | `{}` | Catalog dict: default label/size for each id |
 | `-blockorder` | `{}` | Explicit draw/list order (else from definitions) |
 | `-onchange` | `{}` | Callback: `cmd $path $blocks` after drag/edit |
+| `-onselect` | `{}` | Callback: `cmd $path $blockId` when a block is selected (canvas, list or `select`) |
 | `-showgrid` | `1` | Draw mm grid |
 | `-properties` | `1` | Show list + spinboxes panel |
 | `-width` / `-height` | `640` / `480` | Initial canvas size |
@@ -42,8 +43,10 @@ tuning (columns, fonts, PDF overlay) stays in the host application.
 
 - Click a block on the canvas or in the list to select it.
 - Drag a block; coordinates snap to `-gridmm`.
-- Auto-Y blocks (`y==0` or `lockedY 1`) show a grey dashed preview, keep `y` at
-  `0`, and only move horizontally when dragged.
+- Auto-Y blocks (`y==0` or `lockedY 1`) show a grey dashed preview 2 mm below
+  the visible block before them in the order -- where a renderer that flows
+  them would put them --, keep `y` at `0`, and only move horizontally when
+  dragged. (Up to 0.1 they were stacked from the top margin in 12 mm slots.)
 - Spinboxes and the **Visible** checkbutton update the block dict and fire
   `-onchange`.
 

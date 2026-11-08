@@ -1,0 +1,324 @@
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+set haveTk 1
+if {[catch {package require Tk 8.6-}]} { set haveTk 0 }
+testConstraint haveTk $haveTk
+
+set here [file dirname [file normalize [info script]]]
+set tmDir [file normalize [file join $here .. lib tm]]
+catch {tcl::tm::path add $tmDir}
+set tclTm [file normalize [file join $here .. .. tclutils lib tm]]
+catch {tcl::tm::path add $tclTm}
+if {[info exists ::env(TKUTILS_TM)]} { catch {tcl::tm::path add $::env(TKUTILS_TM)} }
+if {[info exists ::env(TCLUTILS_TM)]} { catch {tcl::tm::path add $::env(TCLUTILS_TM)} }
+# pdf4tcllib for the preview: $env(PDF4TCLLIB_TM) or the sibling checkout
+set p4lib [file normalize [file join $here .. .. pdf4tcllib lib]]
+if {[info exists ::env(PDF4TCLLIB_TM)]} { set p4lib $::env(PDF4TCLLIB_TM) }
+catch {tcl::tm::path add $p4lib}
+
+if {$haveTk} { package require tkutils::tkutemplate 0.1 }
+# pdf4tcllib loads without pdf4tcl; the preview needs both
+testConstraint preview [expr {$haveTk && ![catch {package require pdf4tcltemplate}]
+    && ![catch {package require pdf4tcl}] && [info commands ::pdf4tcl::new] ne ""}]
+# pdf4tcllib found but no pdf4tcl: the case the preview must report cleanly
+testConstraint nopdf4tcl [expr {$haveTk && ![catch {package require pdf4tcltemplate}]
+    && [catch {package require pdf4tcl}]}]
+testConstraint pdftotext [expr {[llength [auto_execok pdftotext]] > 0}]
+
+set ns ::tkutils::tkutemplate
+
+set ::TPL {
+    paper a4 margin 20 size 10
+    theme {accent {0.15 0.30 0.20}}
+    blocks {
+        kopf     {x 20 y 18 w 110 size 18 bold 1 color accent}
+        adresse  {x 20 y 50 w 85 list 1}
+        angaben  {type pairs x 125 y 50 w 65 labelw 30 size 9}
+        tabelle  {type table x 20 y 100 w 170 size 9
+                  cols {{key pos title Pos w 12 align right} {key text title Text}}}
+        schluss  {x 20 y 0 w 170 gap 8 text "Danke, {name}."}
+        fuss     {x 20 y 282 w 170 size 8 page all align center text "Seite {page}"}
+    }
+}
+set ::SAMPLE {
+    kopf KOPFTEXT adresse {"Firma A" "" "Weg 1"} angaben {Nummer N-1}
+    tabelle {{pos 1 text ZEILE1} {pos 2 text ZEILE2}} name Kunde
+}
+
+proc mk {args} {
+    catch {destroy .te}
+    $::ns\::widget .te -template $::TPL -sample $::SAMPLE {*}$args
+    pack .te -fill both -expand 1
+    update
+}
+
+proc blk {id} { dict get [$::ns\::getTemplate .te] blocks $id }
+
+# a template as plain dicts, for comparing
+proc canon {t} {
+    set o [dict create]
+    dict for {k v} $t { if {$k ne "blocks"} { dict set o $k $v } }
+    set bl [dict create]
+    dict for {id b} [dict get $t blocks] { dict set bl $id [dict create {*}$b] }
+    dict set o blocks $bl
+    return $o
+}
+
+# ------------------------------------------------------------------
+# Template in, template out
+# ------------------------------------------------------------------
+
+test tkutemplate-1.1 {template comes back unchanged} -constraints haveTk -body {
+    mk
+    expr {[$::ns\::getTemplate .te] eq [canon $::TPL]}
+} -result 1
+
+test tkutemplate-1.2 {geometry from the canvas keeps every other attribute} -constraints haveTk -body {
+    mk
+    set lc .te.pw.lc
+    ::tkutils::tkulayoutcanvas::select $lc tabelle
+    $lc.pw.props.form.sx delete 0 end
+    $lc.pw.props.form.sx insert 0 26
+    ::tkutils::tkulayoutcanvas::_onSpin $lc x
+    set b [blk tabelle]
+    list [dict get $b x] [dict get $b type] [dict get $b size] [llength [dict get $b cols]] \
+        [dict exists $b h]
+} -result {25 table 9 2 0}
+
+test tkutemplate-1.3 {canvas height follows the sample rows} -constraints haveTk -body {
+    mk
+    set h2 [$::ns\::_height .te tabelle [blk tabelle]]
+    $::ns\::setSample .te [dict replace $::SAMPLE tabelle [lrepeat 8 {pos 1 text x}]]
+    set h8 [$::ns\::_height .te tabelle [blk tabelle]]
+    expr {$h8 > $h2}
+} -result 1
+
+test tkutemplate-1.4 {block in the flow: canvas places it below the block before} -constraints haveTk -body {
+    mk
+    set lc .te.pw.lc
+    set tops [::tkutils::tkulayoutcanvas::_tops $lc]
+    set hTab [dict get [::tkutils::tkulayoutcanvas::getBlocks $lc] tabelle h]
+    expr {abs([dict get $tops schluss] - (100 + $hTab + 2)) < 0.01}
+} -result 1
+
+# ------------------------------------------------------------------
+# setBlock
+# ------------------------------------------------------------------
+
+test tkutemplate-2.1 {setBlock sets, normalises and removes} -constraints haveTk -body {
+    mk
+    $::ns\::setBlock .te kopf size 20.0 bold no align center color ""
+    set b [blk kopf]
+    list [dict get $b size] [dict get $b bold] [dict get $b align] [dict exists $b color]
+} -result {20 0 center 0}
+
+test tkutemplate-2.2 {setBlock rejects bad values} -constraints haveTk -body {
+    mk
+    set r {}
+    foreach {k v} {size -1 bold vielleicht align mitte type kreis type {} page all
+                   color {1 2} cols {} x abc nonsense 1} {
+        catch {$::ns\::setBlock .te schluss $k $v} m o
+        lappend r [lindex [dict get $o -errorcode] 2]
+    }
+    lsort -unique $r
+} -result VALUE
+
+test tkutemplate-2.3 {a new type gets what it needs} -constraints haveTk -body {
+    mk
+    $::ns\::setBlock .te schluss type table
+    $::ns\::setBlock .te kopf type image
+    list [dict exists [blk schluss] cols] [dict get [blk kopf] h]
+} -result {1 20}
+
+test tkutemplate-2.4 {form field goes into the template} -constraints haveTk -body {
+    mk
+    $::ns\::select .te kopf
+    set ::tkutils::tkutemplate::state(.te,f,size) 22
+    $::ns\::_apply .te size
+    .te.pw.nb.block.etext insert end "Firma {name}"
+    $::ns\::_apply .te text
+    list [dict get [blk kopf] size] [dict get [blk kopf] text]
+} -result {22 {Firma {name}}}
+
+test tkutemplate-2.5 {bad form value: message, template unchanged} -constraints haveTk -body {
+    mk
+    $::ns\::select .te kopf
+    set ::tkutils::tkutemplate::state(.te,f,size) abc
+    $::ns\::_apply .te size
+    list [dict get [blk kopf] size] [string match *number* [.te.status cget -text]] \
+        $::tkutils::tkutemplate::state(.te,f,size)
+} -result {18 1 18}
+
+# ------------------------------------------------------------------
+# Blocks: add, delete, move, rename
+# ------------------------------------------------------------------
+
+test tkutemplate-3.1 {add, delete, move keep the order} -constraints haveTk -body {
+    mk
+    $::ns\::addBlock .te logo image
+    $::ns\::moveBlock .te logo up
+    $::ns\::deleteBlock .te angaben
+    list [dict keys [dict get [$::ns\::getTemplate .te] blocks]] [dict get [blk logo] type]
+} -result {{kopf adresse tabelle schluss logo fuss} image}
+
+test tkutemplate-3.2 {duplicate id and unknown block are errors} -constraints haveTk -body {
+    mk
+    list [catch {$::ns\::addBlock .te kopf} m o] [lindex [dict get $o -errorcode] 2] \
+        [catch {$::ns\::deleteBlock .te nix} m o] [lindex [dict get $o -errorcode] 2] \
+        [catch {$::ns\::addBlock .te {a b}} m o] [lindex [dict get $o -errorcode] 2]
+} -result {1 BLOCK 1 BLOCK 1 VALUE}
+
+test tkutemplate-3.3 {rename in the form keeps place and attributes} -constraints haveTk -body {
+    mk
+    $::ns\::select .te angaben
+    set ::tkutils::tkutemplate::state(.te,f,id) refs
+    $::ns\::_rename .te
+    list [lindex [dict keys [dict get [$::ns\::getTemplate .te] blocks]] 2] [dict get [blk refs] type] \
+        $::tkutils::tkutemplate::state(.te,sel)
+} -result {refs pairs refs}
+
+test tkutemplate-3.4 {selecting on the canvas fills the form} -constraints haveTk -body {
+    mk
+    ::tkutils::tkulayoutcanvas::select .te.pw.lc angaben
+    list $::tkutils::tkutemplate::state(.te,sel) $::tkutils::tkutemplate::state(.te,f,type) \
+        $::tkutils::tkutemplate::state(.te,f,labelw)
+} -result {angaben pairs 30}
+
+# ------------------------------------------------------------------
+# Columns and page
+# ------------------------------------------------------------------
+
+test tkutemplate-4.1 {columns: add, edit, move, delete} -constraints haveTk -body {
+    mk
+    $::ns\::select .te tabelle
+    $::ns\::_colCmd .te add
+    set ::tkutils::tkutemplate::state(.te,c,key) menge
+    set ::tkutils::tkutemplate::state(.te,c,title) Menge
+    set ::tkutils::tkutemplate::state(.te,c,w) 20
+    set ::tkutils::tkutemplate::state(.te,c,align) right
+    $::ns\::_colApply .te
+    $::ns\::_colCmd .te up
+    set keys1 [lmap c [dict get [blk tabelle] cols] { dict get $c key }]
+    $::ns\::_colCmd .te del
+    set keys2 [lmap c [dict get [blk tabelle] cols] { dict get $c key }]
+    list $keys1 $keys2 [.te.pw.nb.cols.tv set c1 align]
+} -result {{pos menge text} {pos text} left}
+
+test tkutemplate-4.2 {columns are off for other types} -constraints haveTk -body {
+    mk
+    $::ns\::select .te kopf
+    list [llength [.te.pw.nb.cols.tv children {}]] [.te.pw.nb.cols.bt.add instate disabled]
+} -result {0 1}
+
+test tkutemplate-4.3 {page: margin and theme colour} -constraints haveTk -body {
+    mk
+    set ::tkutils::tkutemplate::state(.te,p,margin) 15
+    set ::tkutils::tkutemplate::state(.te,p,muted) {0.5 0.5 0.5}
+    $::ns\::_pageApply .te
+    set t [$::ns\::getTemplate .te]
+    set ::tkutils::tkutemplate::state(.te,p,accent) {2 0 0}
+    $::ns\::_pageApply .te
+    list [dict get $t margin] [dict get $t theme muted] \
+        [dict get [$::ns\::getTemplate .te] theme accent]
+} -result {15 {0.5 0.5 0.5} {0.15 0.30 0.20}}
+
+# ------------------------------------------------------------------
+# Files, onchange, preview
+# ------------------------------------------------------------------
+
+test tkutemplate-5.1 {save and load give the same template} -constraints haveTk -setup {
+    set f [makeFile "" tpl.tcl]
+} -body {
+    mk
+    $::ns\::setBlock .te kopf text "Ä Ö ü {x}"
+    $::ns\::saveFile .te $f
+    set a [$::ns\::getTemplate .te]
+    mk
+    $::ns\::loadFile .te $f
+    expr {[$::ns\::getTemplate .te] eq $a}
+} -cleanup {
+    removeFile tpl.tcl
+} -result 1
+
+test tkutemplate-5.2 {loading something that is no template} -constraints haveTk -setup {
+    set f [makeFile "keine vorlage \x7b" bad.tcl]
+} -body {
+    mk
+    catch {$::ns\::loadFile .te $f} m o
+    lindex [dict get $o -errorcode] 2
+} -cleanup {
+    removeFile bad.tcl
+} -result VALUE
+
+test tkutemplate-5.3 {onchange gets the template} -constraints haveTk -body {
+    set ::got {}
+    mk -onchange {apply {{p t} { lappend ::got [dict get $t blocks kopf size] }}}
+    $::ns\::setBlock .te kopf size 12
+    $::ns\::moveBlock .te kopf down
+    set ::got
+} -result {12 12}
+
+test tkutemplate-5.4 {preview: PDF with sample data and stand-ins} -constraints {haveTk preview pdftotext} -body {
+    mk
+    $::ns\::addBlock .te extra pairs
+    $::ns\::setBlock .te extra y 200
+    set f [$::ns\::preview .te [file join [temporaryDirectory] prev.pdf]]
+    set t [exec pdftotext -layout $f -]
+    file delete $f
+    list [regexp KOPFTEXT $t] [regexp {ZEILE2} $t] [regexp {Danke, Kunde\.} $t] \
+        [regexp {Label\s+value} $t] [regexp {Seite 1} $t]
+} -result {1 1 1 1 1}
+
+test tkutemplate-5.5 {preview without pdf4tcl: PREVIEW, no stray file} -constraints {haveTk preview} -setup {
+    rename ::pdf4tcl::new ::pdf4tcl::new_saved
+} -body {
+    mk
+    set f [file join [temporaryDirectory] none.pdf]
+    catch {$::ns\::preview .te $f} m o
+    list [dict get $o -errorcode] [file exists $f]
+} -cleanup {
+    rename ::pdf4tcl::new_saved ::pdf4tcl::new
+} -result {{TKUTILS TKUTEMPLATE PREVIEW} 0}
+
+test tkutemplate-5.7 {pdf4tcllib without pdf4tcl: PREVIEW} -constraints {haveTk nopdf4tcl} -body {
+    mk
+    catch {$::ns\::preview .te [file join [temporaryDirectory] none.pdf]} m o
+    list [dict get $o -errorcode] [string match *pdf4tcl* $m]
+} -result {{TKUTILS TKUTEMPLATE PREVIEW} 1}
+
+test tkutemplate-5.6 {preview error after the start: PREVIEW, temp file removed} -constraints {haveTk preview} -body {
+    mk
+    $::ns\::setBlock .te kopf color lila
+    set before [glob -nocomplain -directory [file dirname [file tempfile x]] tkutemplate*]
+    file delete $x
+    catch {$::ns\::preview .te} m o
+    set after [glob -nocomplain -directory [file dirname $x] tkutemplate*]
+    list [dict get $o -errorcode] [string match *lila* $m] [expr {[llength $after] - [llength $before]}]
+} -result {{TKUTILS TKUTEMPLATE PREVIEW} 1 0}
+
+# ------------------------------------------------------------------
+# Errors
+# ------------------------------------------------------------------
+
+test tkutemplate-6.1 {unknown option, existing path, no widget} -constraints haveTk -body {
+    catch {destroy .x}
+    set r {}
+    catch {$::ns\::widget .x -bogus 1} m o
+    lappend r [lrange [dict get $o -errorcode] 0 2]
+    catch {destroy .x}
+    frame .x
+    catch {$::ns\::widget .x} m o
+    lappend r [dict get $o -errorcode]
+    destroy .x
+    catch {$::ns\::getTemplate .nope} m o
+    lappend r [dict get $o -errorcode]
+} -result {{TKUTILS TKUTEMPLATE OPTION} {TKUTILS TKUTEMPLATE EXISTS} {TKUTILS TKUTEMPLATE NOWIDGET}}
+
+test tkutemplate-6.2 {state is released on destroy} -constraints haveTk -body {
+    mk
+    destroy .te
+    llength [array names ::tkutils::tkutemplate::state .te,*]
+} -result 0
+
+cleanupTests

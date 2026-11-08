@@ -106,6 +106,8 @@ package require tkutils::tkunotes   ;# or a single widget
 | `tkutils::tkumonthcanvas` | **tical** | Canvas calendar (month/quarter/year): themes, week numbers, weekday header, today/weekend/holiday/note states, day selection (none/single/multiple) |
 | `tkutils::tkuicon` | **tksvg** (Tk 8.6) / native SVG (Tk 9) | SVG/PNG icon loader; generates the icon set from `tclutils::tusvg`; HiDPI rescale, cache |
 | `tkutils::tkuscrolledframe` | **scrollutil** (tklib) | Scrollable frame container (pack content into `content`); thin scrollutil wrapper |
+| `tkutils::tkulayoutcanvas` | `tclutils::tulayout` | Coarse block layout designer on a canvas: drag blocks in mm, grid, visibility, blocks in the flow previewed below the block before them |
+| `tkutils::tkutemplate` | `tkulayoutcanvas`; **pdf4tcllib** (`pdf4tcltemplate`) for the preview only | Editor for document templates (delivery note, letter, invoice): place blocks, edit type, fonts, alignment, text and table columns, preview as PDF, load/save |
 
 These are pure-Tcl-engine-free GUIs that depend on an external package; on a
 stack without that package they are simply not loaded (and their tests skip).

@@ -8,13 +8,16 @@
 # Pure Tk. Tcl/Tk 8.6+ and 9.x compatible.
 #
 #   tkulayoutcanvas::widget .lc -paper a4 -blocks $blocks -definitions $defs \
-#       -onchange {apply {{p blocks} { ... }}}
+#       -onchange {apply {{p blocks} { ... }}} -onselect {apply {{p id} { ... }}}
 #   tkulayoutcanvas::getBlocks .lc
 #   tkulayoutcanvas::setBlocks .lc $blocks
 #   tkulayoutcanvas::select .lc $blockId
 #   tkulayoutcanvas::getCanvas .lc
 #   tkulayoutcanvas::redraw .lc
 #   tkulayoutcanvas::configure .lc -gridmm 10
+#
+# Blocks in the flow (y 0 or lockedY 1) are previewed below the visible
+# block before them in the order, as a renderer places them.
 #
 # Error codes: {TKUTILS TKULAYOUTCANVAS <REASON>}.
 
@@ -37,6 +40,7 @@ namespace eval ::tkutils::tkulayoutcanvas {
         -definitions {}
         -blockorder {}
         -onchange {}
+        -onselect {}
         -showgrid 1
         -properties 1
         -width 640
@@ -249,6 +253,7 @@ proc ::tkutils::tkulayoutcanvas::select {path id} {
     _syncList $path
     _syncProps $path
     redraw $path
+    _fireOnSelect $path
 }
 
 proc ::tkutils::tkulayoutcanvas::mergePreset {path preset args} {
@@ -307,14 +312,35 @@ proc ::tkutils::tkulayoutcanvas::_paintBlocks {path} {
         set order $state($path,-blockorder)
     }
 
-    set autoSlot 0
+    set tops [_tops $path]
+    foreach id $order {
+        if {![dict exists $tops $id]} continue
+        _drawBlock $path $c $id [dict get $state($path,blocks) $id] $s [dict get $tops $id]
+    }
+}
+
+# Top (mm) of every visible block: fixed blocks at their y, blocks in the
+# flow 2 mm below the bottom of the visible block before them.
+proc ::tkutils::tkulayoutcanvas::_tops {path} {
+    variable state
+    set order [::tclutils::tulayout::blockOrder $state($path,blocks) \
+        $state($path,-definitions)]
+    if {[llength $state($path,-blockorder)]} { set order $state($path,-blockorder) }
+    set tops [dict create]
+    set bottom $state($path,-margin)
     foreach id $order {
         if {![dict exists $state($path,blocks) $id]} continue
         set b [dict get $state($path,blocks) $id]
         if {[dict exists $b show] && ![dict get $b show]} continue
-        _drawBlock $path $c $id $b $s $autoSlot
-        if {[::tclutils::tulayout::isAutoY $b]} { incr autoSlot }
+        if {[::tclutils::tulayout::isAutoY $b]} {
+            set top [expr {$bottom + 2.0}]
+        } else {
+            set top [dict get $b y]
+        }
+        dict set tops $id $top
+        set bottom [expr {$top + ([dict exists $b h] ? [dict get $b h] : 8.0)}]
     }
+    return $tops
 }
 
 proc ::tkutils::tkulayoutcanvas::_drawGrid {path c pwpx phpx scale} {
@@ -333,13 +359,11 @@ proc ::tkutils::tkulayoutcanvas::_drawGrid {path c pwpx phpx scale} {
     }
 }
 
-proc ::tkutils::tkulayoutcanvas::_previewY {path b autoSlot} {
-    variable state
+proc ::tkutils::tkulayoutcanvas::_previewY {path b top} {
     if {![::tclutils::tulayout::isAutoY $b]} {
         return [dict get $b y]
     }
-    set m $state($path,-margin)
-    return [expr {$m + 12.0 * $autoSlot}]
+    return $top
 }
 
 proc ::tkutils::tkulayoutcanvas::_blockLabel {path id b} {
@@ -349,25 +373,15 @@ proc ::tkutils::tkulayoutcanvas::_blockLabel {path id b} {
     return $id
 }
 
-proc ::tkutils::tkulayoutcanvas::_autoSlotFor {path id} {
-    variable state
-    set order [::tclutils::tulayout::blockOrder $state($path,blocks) \
-        $state($path,-definitions)]
-    if {[llength $state($path,-blockorder)]} { set order $state($path,-blockorder) }
-    set slot 0
-    foreach bid $order {
-        if {$bid eq $id} { return $slot }
-        if {![dict exists $state($path,blocks) $bid]} continue
-        set ob [dict get $state($path,blocks) $bid]
-        if {[dict exists $ob show] && ![dict get $ob show]} continue
-        if {[::tclutils::tulayout::isAutoY $ob]} { incr slot }
-    }
+proc ::tkutils::tkulayoutcanvas::_topFor {path id} {
+    set tops [_tops $path]
+    if {[dict exists $tops $id]} { return [dict get $tops $id] }
     return 0
 }
 
-proc ::tkutils::tkulayoutcanvas::_blockBoxPx {path b scale {autoSlot 0}} {
+proc ::tkutils::tkulayoutcanvas::_blockBoxPx {path b scale {top 0}} {
     set xmm [dict get $b x]
-    set ymm [_previewY $path $b $autoSlot]
+    set ymm [_previewY $path $b $top]
     set wmm [dict get $b w]
     set hmm [expr {[dict exists $b h] ? [dict get $b h] : 8.0}]
     set x0 [::tclutils::tulayout::mmToPx $xmm $scale]
@@ -382,8 +396,7 @@ proc ::tkutils::tkulayoutcanvas::_positionBlock {path id} {
     set c [getCanvas $path]
     set b [dict get $state($path,blocks) $id]
     set s $state($path,-scale)
-    set slot [_autoSlotFor $path $id]
-    lassign [_blockBoxPx $path $b $s $slot] x0 y0 x1 y1
+    lassign [_blockBoxPx $path $b $s [_topFor $path $id]] x0 y0 x1 y1
     foreach item [$c find withtag block_$id] {
         switch [$c type $item] {
             rectangle { $c coords $item $x0 $y0 $x1 $y1 }
@@ -392,10 +405,10 @@ proc ::tkutils::tkulayoutcanvas::_positionBlock {path id} {
     }
 }
 
-proc ::tkutils::tkulayoutcanvas::_drawBlock {path c id b scale autoSlot} {
+proc ::tkutils::tkulayoutcanvas::_drawBlock {path c id b scale top} {
     variable state
     set auto [::tclutils::tulayout::isAutoY $b]
-    lassign [_blockBoxPx $path $b $scale $autoSlot] x0 y0 x1 y1
+    lassign [_blockBoxPx $path $b $scale $top] x0 y0 x1 y1
 
     set sel [expr {$id eq $state($path,sel)}]
     if {$auto} {
@@ -467,8 +480,10 @@ proc ::tkutils::tkulayoutcanvas::_dragStart {path id x y} {
     }
     set state($path,sel) $id
     _syncList $path
+    _syncProps $path
     _paintBlocks $path
     catch {$c raise block_$id}
+    _fireOnSelect $path
 }
 
 proc ::tkutils::tkulayoutcanvas::_dragMove {path x y} {
@@ -512,9 +527,17 @@ proc ::tkutils::tkulayoutcanvas::_dragEnd {path} {
     }
     dict set state($path,blocks) $id $b
     set state($path,-blocks) $state($path,blocks)
-    _positionBlock $path $id
+    # repaint, not just move: blocks in the flow below follow this one
+    _paintBlocks $path
     _syncProps $path
     _fireOnChange $path
+}
+
+proc ::tkutils::tkulayoutcanvas::_fireOnSelect {path} {
+    variable state
+    if {$state($path,-onselect) ne ""} {
+        uplevel #0 [list {*}$state($path,-onselect) $path $state($path,sel)]
+    }
 }
 
 proc ::tkutils::tkulayoutcanvas::_fireOnChange {path} {
@@ -641,4 +664,4 @@ proc ::tkutils::tkulayoutcanvas::_onShow {path} {
     _fireOnChange $path
 }
 
-package provide tkutils::tkulayoutcanvas 0.1
+package provide tkutils::tkulayoutcanvas 0.2

@@ -148,10 +148,21 @@ For a separate `wish` designer process, write the blocks dict to a temp file and
 read it back on OK — same as any Tcl dict serialisation. `mergeBlocks` on return
 is still required so renderer-only keys survive.
 
+## Stage 2 in utils: tkutemplate
+
+When the host draws its documents with `pdf4tcltemplate` (pdf4tcllib), the
+fine GUI need not be written per application: `tkutils::tkutemplate` is
+stage 1 and 2 together for that template format -- `tkulayoutcanvas` for
+the geometry, a panel for type, font size, alignment, text and table
+columns, and a PDF preview through `pdf4tcltemplate`, loaded only on
+demand. It merges geometry back with `mergeLayout` (keys `x y w show`) as
+described above. See `docs/tkutemplate.md`.
+
 ## What not to put in utils
 
-- Document-type enums, SQLite settings, PDF/pdfium preview
-- Table column editors, font spinboxes
+- Document-type enums, SQLite settings, pdfium preview
+- Fine editors for an app's own renderer format (the `pdf4tcltemplate`
+  format has `tkutemplate`)
 - Renderer-specific height estimation (host passes `h` in block dict or computes in
   fine GUI)
 
@@ -177,7 +188,7 @@ tclutils/tests/tulayout.test
 tclutils/docs/tulayout.md
 tclutils/man/mann/tulayout.n
 
-tkutils/lib/tm/tkutils/tkulayoutcanvas-0.1.tm
+tkutils/lib/tm/tkutils/tkulayoutcanvas-0.2.tm   ;# 0.1 in the first delivery
 tkutils/tests/tkulayoutcanvas.test
 tkutils/docs/tkulayoutcanvas.md
 tkutils/docs/HANDOFF-layout-designer.md   ;# this file

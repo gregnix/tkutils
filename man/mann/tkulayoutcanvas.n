@@ -1,4 +1,4 @@
-.TH tkulayoutcanvas n 0.1 tkutils
+.TH tkulayoutcanvas n 0.2 tkutils
 .SH tkutils::tkulayoutcanvas
 .PP
 Visual block layout designer on a Tk canvas. Place named blocks on a paper\-sized page in millimetres, snap to a grid, toggle visibility, and edit geometry in a built\-in side panel. Backend: \fBtclutils::tulayout\fR.
@@ -29,6 +29,7 @@ Option	Default	Meaning
 \fB\-definitions\fR	\fB{}\fR	Catalog dict: default label/size for each id
 \fB\-blockorder\fR	\fB{}\fR	Explicit draw/list order (else from definitions)
 \fB\-onchange\fR	\fB{}\fR	Callback: \fBcmd $path $blocks\fR after drag/edit
+\fB\-onselect\fR	\fB{}\fR	Callback: \fBcmd $path $blockId\fR when a block is selected (canvas, list or \fBselect\fR)
 \fB\-showgrid\fR	\fB1\fR	Draw mm grid
 \fB\-properties\fR	\fB1\fR	Show list + spinboxes panel
 \fB\-width\fR / \fB\-height\fR	\fB640\fR / \fB480\fR	Initial canvas size
@@ -39,7 +40,7 @@ Click a block on the canvas or in the list to select it.
 .IP \(bu
 Drag a block; coordinates snap to \fB\-gridmm\fR.
 .IP \(bu
-Auto\-Y blocks (\fBy==0\fR or \fBlockedY 1\fR) show a grey dashed preview, keep \fBy\fR at \fB0\fR, and only move horizontally when dragged.
+Auto\-Y blocks (\fBy==0\fR or \fBlockedY 1\fR) show a grey dashed preview 2 mm below the visible block before them in the order \-\- where a renderer that flows them would put them \-\-, keep \fBy\fR at \fB0\fR, and only move horizontally when dragged. (Up to 0.1 they were stacked from the top margin in 12 mm slots.)
 .IP \(bu
 Spinboxes and the \fBVisible\fR checkbutton update the block dict and fire \fB\-onchange\fR.
 .SS "Minimal example"

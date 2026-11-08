@@ -1,0 +1,86 @@
+.TH tkutemplate n 0.1 tkutils
+.SH tkutils::tkutemplate
+.PP
+Editor for document templates: place blocks on the page, edit their attributes and table columns, preview the result as a PDF. Built on \fBtkutils::tkulayoutcanvas\fR (placing), \fBtclutils::tulayout\fR (merging) and \fBtclutils::tuopen\fR (opening the preview). The preview uses \fBpdf4tcltemplate\fR from pdf4tcllib, which is loaded only when a preview is asked for.
+.PP
+A template is the dict \fBpdf4tcltemplate\fR draws:
+.CS
+paper a4  margin 20  size 10
+theme {accent {0.15 0.30 0.20}}
+blocks {
+    address {x 20 y 50 w 85 size 11 list 1}
+    items   {type table x 20 y 108 w 170 cols {{key pos title Pos w 12} {key text title Item}}}
+    note    {x 20 y 0 w 170 gap 8}
+}
+.CE
+.PP
+\fBtkulayoutcanvas\fR knows only \fBx y w h show\fR. The editor gives it those, takes back what was dragged or typed there, and merges it with \fBtulayout::mergeLayout\fR (keys \fBx y w show\fR), so type, font size, text, columns and the rest are never lost. The \fBh\fR the canvas shows is an estimate from the type and the sample data; it is not written back.
+.SS API
+.CS
+set te [::tkutils::tkutemplate::widget .te ?options?]
+::tkutils::tkutemplate::getTemplate $te
+::tkutils::tkutemplate::setTemplate $te $template
+::tkutils::tkutemplate::setSample $te $data
+::tkutils::tkutemplate::select $te $blockId
+::tkutils::tkutemplate::addBlock $te $id ?type?          ;# text pairs table image rule
+::tkutils::tkutemplate::deleteBlock $te $id
+::tkutils::tkutemplate::moveBlock $te $id up|down
+::tkutils::tkutemplate::setBlock $te $id key value ?key value ...?
+::tkutils::tkutemplate::loadFile $te $file
+::tkutils::tkutemplate::saveFile $te $file
+::tkutils::tkutemplate::preview $te ?file?               ;# -> PDF file
+.CE
+.PP
+\fBsetBlock\fR checks what it sets (numbers, booleans, \fBtype\fR, \fBpage\fR, \fBalign\fR, colour as a theme name or \fBr g b\fR) and raises \fB{TKUTILS TKUTEMPLATE VALUE}\fR otherwise. An empty value removes the attribute, except \fBtype\fR and \fBcols\fR. A block that becomes a table gets two columns, an image a height.
+.PP
+\fBmoveBlock\fR changes the order, which matters: a block with \fBy 0\fR follows the block before it.
+.SS Options
+.TS
+l l l.
+Option	Default	Meaning
+\fB\-template\fR	\fB{blocks {}}\fR	the template to edit
+\fB\-sample\fR	\fB{}\fR	data for the preview, keyed like the data of \fBpdf4tcltemplate\fR
+\fB\-onchange\fR	\fB{}\fR	\fBcmd $path $template\fR after every change
+\fB\-scale\fR	\fB2.5\fR	pixels per mm on the canvas
+\fB\-gridmm\fR	\fB5\fR	snap grid in mm
+\fB\-font\fR / \fB\-fontbold\fR	\fB{}\fR	fonts for the preview; default: pdf4tcllib's TrueType faces
+\fB\-width\fR / \fB\-height\fR	\fB560\fR / \fB640\fR	canvas size
+.TE
+.SS "The window"
+.IP \(bu
+Toolbar: \fBAdd block\fR (by type), \fBDelete\fR, \fBUp\fR, \fBDown\fR, \fBLoad…\fR, \fBSave…\fR, \fBPreview\fR.
+.IP \(bu
+Left: the page (\fBtkulayoutcanvas\fR) with the block list, x/y/w and visibility.
+.IP \(bu
+Right, three tabs:
+.RS 4
+.IP \(bu
+\fBBlock\fR \-\- id (Return renames), type, size, bold, colour, align, leading, gap, page, field, list, labelw, h, zebra, text. A field is taken on Return or when it loses the focus; a bad value rings, shows the message under the editor and is undone.
+.IP \(bu
+\fBColumns\fR \-\- the columns of a table block: key, title, w, align; add, delete, up, down.
+.IP \(bu
+\fBPage\fR \-\- paper, margin, top, bottom, font size, the colours \fBaccent\fR and \fBmuted\fR.
+.RE
+.SS Preview
+.PP
+\fBpreview\fR draws the template with \fB\-sample\fR into a PDF and returns the file (a temp file when none is given); the button opens it with the system viewer. A block without sample data shows a stand\-in \-\- its id, a label/value pair, three table rows with the column keys \-\- so every block is visible. Without pdf4tcllib or without pdf4tcl the editor works, and \fBpreview\fR raises \fB{TKUTILS TKUTEMPLATE PREVIEW}\fR \-\- also when something goes wrong while drawing; a temp file it made is removed again.
+.SS Files
+.PP
+\fBsaveFile\fR writes the template as Tcl, one block per line, so it reads well in an editor and in a diff. \fBloadFile\fR reads it back; the result equals the saved template.
+.SS Launcher
+.CS
+wish bin/tkutemplate.tcl ?template.tcl?
+.CE
+.SS Demo
+.CS
+wish examples/demo-tkutemplate.tcl
+.CE
+.SS Tests
+.CS
+xvfb-run -a tclsh tests/tkutemplate.test
+.CE
+.PP
+The preview tests need pdf4tcllib (sibling checkout or \fBPDF4TCLLIB_TM\fR) and pdf4tcl (\fBTCLLIBPATH\fR), one of them \fBpdftotext\fR; without them they are skipped. With pdf4tcllib but without pdf4tcl, a test checks that \fBpreview\fR reports \fB{TKUTILS TKUTEMPLATE PREVIEW}\fR.
+.SS "Error codes"
+.PP
+\fB{TKUTILS TKUTEMPLATE OPTION|EXISTS|NOWIDGET|BLOCK|VALUE|FILE|PREVIEW}\fR

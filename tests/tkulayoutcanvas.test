@@ -106,6 +106,31 @@ test tkulayoutcanvas-1.7 {drag moves block on canvas} -constraints haveTk -body 
     list [dict get $b x] [dict get $b y]
 } -result {25.0 60.0}
 
+test tkulayoutcanvas-1.8 {onselect fires on select, list and canvas click} -constraints haveTk -body {
+    mkwidget
+    set ::sel {}
+    $::ns\::configure .f.lc -onselect {apply {{p id} { lappend ::sel $id }}}
+    $::ns\::select .f.lc header
+    .f.lc.pw.props.list selection clear 0 end
+    .f.lc.pw.props.list selection set 1
+    $::ns\::_onListSelect .f.lc
+    set c .f.lc.pw.view.cv
+    lassign [$c bbox [lindex [$c find withtag block_header] 0]] x0 y0 x1 y1
+    event generate $c <ButtonPress-1> -x [expr {$x0 + 5}] -y [expr {$y0 + 5}]; update
+    event generate $c <ButtonRelease-1> -x [expr {$x0 + 5}] -y [expr {$y0 + 5}]; update
+    set ::sel
+} -result {header body header}
+
+test tkulayoutcanvas-1.9 {block in the flow is previewed below the block before it} -constraints haveTk -body {
+    mkwidget
+    # body ends at 55 + 40 = 95 mm; the footer (lockedY) follows 2 mm below
+    set t1 [dict get [$::ns\::_tops .f.lc] footer]
+    $::ns\::mergePreset .f.lc {body {show 0}}
+    # body hidden: the footer follows the header (25 + 15)
+    set t2 [dict get [$::ns\::_tops .f.lc] footer]
+    list $t1 $t2
+} -result {97.0 42.0}
+
 test tkulayoutcanvas-2.1 {unknown widget errors} -constraints haveTk -body {
     catch {$::ns\::getBlocks .nope} m o
     dict get $o -errorcode

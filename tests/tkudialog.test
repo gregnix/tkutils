@@ -250,20 +250,6 @@ test tkudialog-6.3 {input passes -parent on} -constraints haveTk -setup {
     list [overParent $m] [lindex $m 4]
 } -cleanup { destroy .p } -result {1 .p}
 
-test tkudialog-6.5 {a move of less than 100 px soon after mapping is undone (0.4)} -constraints haveTk -setup {
-    mkParent .p 800 500
-} -body {
-    # 300 ms after the dialog appears, move it 5 px right and 29 px down --
-    # what a window manager does that puts its frame round it late
-    after 300 {
-        set d [findDialog]
-        set ::late [list [winfo rootx $d] [winfo rooty $d]]
-        wm geometry $d +[expr {[winfo rootx $d] + 5}]+[expr {[winfo rooty $d] + 29}]
-    }
-    set m [measureModal .p {::tkutils::tkudialog::show .tkudialog_t5 -message hallo -parent .p} 600]
-    list [overParent $m] [lindex $m 4]
-} -cleanup { destroy .p } -result {1 .p}
-
 test tkudialog-6.4 {a withdrawn parent gets no transient (dialog would stay invisible)} -constraints haveTk -setup {
     mkParent .p 100 100
     wm withdraw .p
@@ -284,6 +270,22 @@ test tkudialog-6.5 {_correct leaves an offset of 100 px or more alone (window ma
     update
     expr {[wm geometry .d65] eq $before}
 } -cleanup { destroy .d65 } -result 1
+
+test tkudialog-6.6 {a move of less than 100 px soon after mapping is undone (0.4)} -constraints haveTk -setup {
+    mkParent .p 800 500
+} -body {
+    # 300 ms after the dialog appears, move it 5 px right and 29 px down --
+    # what a window manager does that puts its frame round it late
+    # Start from the frame corner in [wm geometry], not from [winfo rootx]:
+    # under a window manager the latter would add the frame a second time.
+    after 300 {
+        set d [findDialog]
+        regexp {\+(-?\d+)\+(-?\d+)$} [wm geometry $d] -> fx fy
+        wm geometry $d +[expr {$fx + 5}]+[expr {$fy + 29}]
+    }
+    set m [measureModal .p {::tkutils::tkudialog::show .tkudialog_t5 -message hallo -parent .p} 600]
+    list [overParent $m] [lindex $m 4]
+} -cleanup { destroy .p } -result {1 .p}
 
 test tkudialog-7.1 {unknown option is an error that lists the known ones} -constraints haveTk -body {
     catch {::tkutils::tkudialog::build .d7 -message a -parnet .} m o
