@@ -287,15 +287,32 @@ test tkutemplate-5.7 {pdf4tcllib without pdf4tcl: PREVIEW} -constraints {haveTk 
     list [dict get $o -errorcode] [string match *pdf4tcl* $m]
 } -result {{TKUTILS TKUTEMPLATE PREVIEW} 1}
 
-test tkutemplate-5.6 {preview error after the start: PREVIEW, temp file removed} -constraints {haveTk preview} -body {
+test tkutemplate-5.6 {preview error after the start: PREVIEW, temp file removed} -constraints {haveTk preview} -setup {
+    # a temp folder of its own, so files of other processes in /tmp do not count
+    set ::tdir [file join [temporaryDirectory] tkutemplate-tmp]
+    file delete -force $::tdir
+    file mkdir $::tdir
+    set ::tenv {}
+    foreach v {TMPDIR TMP TEMP} {
+        if {[info exists ::env($v)]} { dict set ::tenv $v $::env($v) }
+        set ::env($v) $::tdir
+    }
+} -body {
     mk
     $::ns\::setBlock .te kopf color lila
-    set before [glob -nocomplain -directory [file dirname [file tempfile x]] tkutemplate*]
-    file delete $x
     catch {$::ns\::preview .te} m o
-    set after [glob -nocomplain -directory [file dirname $x] tkutemplate*]
-    list [dict get $o -errorcode] [string match *lila* $m] [expr {[llength $after] - [llength $before]}]
-} -result {{TKUTILS TKUTEMPLATE PREVIEW} 1 0}
+    list [dict get $o -errorcode] [string match *lila* $m] \
+        [glob -nocomplain -tails -directory $::tdir *]
+} -cleanup {
+    foreach v {TMPDIR TMP TEMP} {
+        if {[dict exists $::tenv $v]} {
+            set ::env($v) [dict get $::tenv $v]
+        } else {
+            unset -nocomplain ::env($v)
+        }
+    }
+    file delete -force $::tdir
+} -result {{TKUTILS TKUTEMPLATE PREVIEW} 1 {}}
 
 # ------------------------------------------------------------------
 # Errors

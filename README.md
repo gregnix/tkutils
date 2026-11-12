@@ -109,6 +109,13 @@ package require tkutils::tkunotes   ;# or a single widget
 | `tkutils::tkulayoutcanvas` | `tclutils::tulayout` | Coarse block layout designer on a canvas: drag blocks in mm, grid, visibility, blocks in the flow previewed below the block before them |
 | `tkutils::tkutemplate` | `tkulayoutcanvas`; **pdf4tcllib** (`pdf4tcltemplate`) for the preview only | Editor for document templates (delivery note, letter, invoice): place blocks, edit type, fonts, alignment, text and table columns, preview as PDF, load/save |
 
+### Test tools (not in the umbrella)
+
+| Module | Needs | Notes |
+|--------|-------|-------|
+| `tkutils::tkutest` | Tk | Drive a UI from a test in-process: type, keys, clicks, combobox and menu choices, tree selection; answer modal dialogs (`answer` before the action, `result` after) |
+| `tkutils::tkuxdo` | **xdotool**, X11 (Xvfb) | Real keyboard and mouse input through the X server for end-to-end tests: focus, keyboard map (`setup -layout de`), shortcuts, menu traversal with F10, dialogs step by step |
+
 These are pure-Tcl-engine-free GUIs that depend on an external package; on a
 stack without that package they are simply not loaded (and their tests skip).
 

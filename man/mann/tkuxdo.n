@@ -1,0 +1,60 @@
+.TH tkuxdo n 0.1 tkutils
+.SH tkutils::tkuxdo
+.PP
+Real keyboard and mouse input for end\-to\-end tests of a Tk application, sent through the X server with \fBxdotool\fR (XTEST). Focus, the keyboard map, key bindings, menu traversal and pointer clicks behave as for a user. Meant for an X display of its own without a window manager, usually Xvfb. On a desktop the input would go to whichever window has the focus, and \fBsetup\fR would change the keyboard map; so \fBavailable\fR is 0 when a window manager runs (\fBunavailable\fR says why), unless \fBTKUXDO_DESKTOP=1\fR is set:
+.CS
+xvfb-run -a wish tests/xdo.test
+.CE
+.CS
+package require tkutils::tkuxdo
+set X ::tkutils::tkuxdo
+if {![${X}::available]} { … skip … }
+${X}::setup -layout de                 ;# keys for ä ö ü ß €
+${X}::focusWindow .
+${X}::key ctrl+n                       ;# application shortcut
+${X}::type {Grüße, 1.000,50 €}
+${X}::key Tab shift+Tab Return Escape
+${X}::click .buttons.primary
+${X}::click .main.list -double 1 -x 40 -y 12
+${X}::menuSelect . "Beleg/Zahlung erfassen…"   ;# F10, Right/Down, Return
+${X}::choose .form.kunde {K1 – Müller}  ;# readonly combobox by keyboard
+${X}::focusWidget .form.menge          ;# X focus to the window, Tk focus to w
+.CE
+.PP
+\fBmenuSelect\fR counts like Tk's keyboard traversal: separators and disabled entries are skipped; a disabled target is an error. If an earlier entry ran a modal dialog and left the focus on the menu bar, it is moved back first.
+.PP
+\fBchoose combo value\fR opens the list with \fBDown\fR, waits until it is mapped, moves to the value with \fBDown\fR/\fBUp\fR, takes it with \fBReturn\fR and waits until the list is closed. A pointer click on a readonly combobox opens or closes the list depending on its state, and keys pressed before the list is mapped go elsewhere; \fBchoose\fR avoids both.
+.PP
+Modal dialogs: \fBdialog\fR hands a list of steps to \fBtkutils::tkutest::answer\fR; they run once the dialog is mapped and focused:
+.CS
+set t [${X}::dialog -title "Neue Position" {{type Schrauben} {key Tab} {type 1,5} {key Return}}]
+fa::posNeu
+::tkutils::tkutest::result $t
+.CE
+.PP
+\fBclickButton label\fR inside the steps clicks a button of that dialog with the pointer (by label or path tail), \fBchooseField name value\fR chooses in a combobox field of a tkuform dialog, \fBclickField name\fR clicks into a field of the dialog. A readonly combobox opens with \fBDown\fR, moves with \fBDown\fR/\fBUp\fR and takes the choice with \fBReturn\fR; a checkbutton toggles with \fBspace\fR.
+.PP
+Every command waits for the X server and then processes Tk events, so the next line of the test sees the effect. \fBfocusWindow\fR and \fBmenuSelect\fR avoid Tk's \fBfocus\fR and \fBmenu\fR; \fBtype\fR, \fBkey\fR and \fBclick\fR share their names with tkutest, so import only one of the two namespaces.
+.SS Commands
+.TS
+l l.
+command	does
+\fBavailable\fR, \fBunavailable\fR	1 if usable; else why not (\fB""\fR if usable)
+\fBwindowManager\fR	1 if a window manager runs on the display
+\fBsetup ?\-layout xkb?\fR	check the display, set the keyboard map (\fBsetxkbmap\fR)
+\fBfocusWindow top\fR	give \fBtop\fR the X focus
+\fBfocusWidget w\fR	X focus to the toplevel of \fBw\fR, Tk focus to \fBw\fR
+\fBtype text ?\-delay ms?\fR	type \fBtext\fR through the X server
+\fBkey keysym ...\fR	press keys one after another (\fBctrl+s\fR, \fBTab\fR, \fBReturn\fR)
+\fBclick w ?\-x? ?\-y? ?\-button n? ?\-double 0/1?\fR	move the pointer to \fBw\fR and click
+\fBmenuSelect top path\fR	choose a menu entry by keyboard (F10, Right/Down, Return)
+\fBchoose combo value\fR	choose in a readonly combobox by keyboard
+\fBdialog ?\-title glob? ?\-timeout ms? steps\fR	answer the next dialog with steps, returns a token
+\fBclickButton label ?top?\fR	click a button of the dialog (or of \fBtop\fR)
+\fBchooseField name value\fR, \fBclickField name\fR	dialog steps for fields of a tkuform dialog
+\fBpump ?ms?\fR	process Tk events for \fBms\fR (default 150)
+.TE
+.PP
+A step in \fBdialog\fR is a command of this namespace with its arguments, e.g. \fB{type Schrauben}\fR or \fB{clickButton OK}\fR.
+.PP
+Errors: \fB{TKUTILS TKUXDO <REASON>}\fR (DISPLAY, LAYOUT, XDOTOOL, MENU, VALUE, USAGE, OPTION). X11 only; elsewhere \fBavailable\fR is 0. Not in the umbrella.

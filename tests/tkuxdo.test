@@ -1,0 +1,333 @@
+# tkuxdo.test -- real X input through xdotool (needs Xvfb or an X display)
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+set haveTk 1
+if {[catch {package require Tk 8.6-}]} { set haveTk 0 }
+testConstraint haveTk $haveTk
+set here [file dirname [file normalize [info script]]]
+set tmDir [file normalize [file join $here .. lib tm]]
+catch {tcl::tm::path add $tmDir}
+if {[info exists ::env(TKUTILS_TM)]}  { catch {tcl::tm::path add $::env(TKUTILS_TM)} }
+if {[info exists ::env(TCLUTILS_TM)]} { catch {tcl::tm::path add $::env(TCLUTILS_TM)} }
+if {![info exists ::env(TCLUTILS_TM)]} {
+    set _root [file dirname [file dirname $tmDir]]
+    foreach _c [lsort -decreasing [glob -nocomplain [file join [file dirname $_root] tclutils*/lib/tm]]] {
+        catch {tcl::tm::path add $_c}; break
+    }
+}
+if {$haveTk} {
+    package require tkutils::tkuxdo
+    package require tkutils::tkudialog
+}
+testConstraint xdo [expr {$haveTk && [::tkutils::tkuxdo::available]}]
+if {$haveTk && ![testConstraint xdo]} {
+    puts stderr "tkuxdo.test: skipped, [::tkutils::tkuxdo::unavailable]"
+}
+set X ::tkutils::tkuxdo
+if {[testConstraint xdo]} {
+    # German map so that umlauts and the euro sign have keys
+    ${X}::setup -layout de
+    wm geometry . 500x400+0+0
+}
+
+proc frisch {} {
+    foreach w [winfo children .] { destroy $w }
+    . configure -menu ""
+    update
+}
+
+test tkuxdo-1.1 {type: text with umlauts and euro sign arrives in an entry} -constraints xdo -body {
+    frisch
+    pack [ttk::entry .e]
+    ${X}::focusWindow .
+    focus -force .e
+    ${X}::type {Grüße, 1.000,50 € (a+b)}
+    .e get
+} -result {Grüße, 1.000,50 € (a+b)}
+
+test tkuxdo-1.2 {key: Control-s reaches a binding on the toplevel} -constraints xdo -body {
+    frisch
+    set ::s 0
+    pack [ttk::entry .e]
+    bind . <Control-s> {incr ::s}
+    ${X}::focusWindow .
+    focus -force .e
+    ${X}::key ctrl+s ctrl+s
+    bind . <Control-s> {}
+    set ::s
+} -result 2
+
+test tkuxdo-1.3 {key: Tab and shift+Tab move the focus} -constraints xdo -body {
+    frisch
+    pack [ttk::entry .a] [ttk::entry .b] [ttk::entry .c]
+    ${X}::focusWindow .
+    focus -force .a
+    ${X}::key Tab Tab
+    set f1 [focus]
+    ${X}::key shift+Tab
+    list $f1 [focus]
+} -result {.c .b}
+
+test tkuxdo-1.4 {key: BackSpace and Home/End edit like a user} -constraints xdo -body {
+    frisch
+    pack [ttk::entry .e]
+    ${X}::focusWindow .
+    focus -force .e
+    ${X}::type Rosen
+    ${X}::key BackSpace Home
+    ${X}::type X
+    ${X}::key End
+    ${X}::type !
+    .e get
+} -result {XRose!}
+
+test tkuxdo-2.1 {click: a ttk::button runs its command} -constraints xdo -body {
+    frisch
+    set ::n 0
+    pack [ttk::button .b -text Los -command {incr ::n}]
+    ${X}::click .b
+    ${X}::click .b
+    set ::n
+} -result 2
+
+test tkuxdo-2.2 {click -double: a treeview row fires Double-1 on that row} -constraints xdo -body {
+    frisch
+    pack [ttk::treeview .t -show tree -height 4]
+    foreach i {a b c} { .t insert {} end -id $i -text "Zeile $i" }
+    update
+    set ::d ""
+    bind .t <Double-1> {set ::d [.t identify item %x %y]}
+    lassign [.t bbox b] x y w h
+    ${X}::click .t -double 1 -x [expr {$x + 20}] -y [expr {$y + $h / 2}]
+    set ::d
+} -result b
+
+test tkuxdo-2.3 {click -button 3: context menu binding} -constraints xdo -body {
+    frisch
+    set ::r 0
+    pack [ttk::label .l -text Rechtsklick -padding 20]
+    bind .l <Button-3> {incr ::r}
+    ${X}::click .l -button 3
+    set ::r
+} -result 1
+
+test tkuxdo-2.4 {click into an entry, then type: focus follows the pointer click} -constraints xdo -body {
+    frisch
+    pack [ttk::entry .a] [ttk::entry .b]
+    ${X}::focusWindow .
+    focus -force .a
+    ${X}::click .b
+    ${X}::type zwei
+    list [.a get] [.b get]
+} -result {{} zwei}
+
+proc menues {} {
+    menu .m
+    menu .m.f -tearoff 0
+    menu .m.g -tearoff 0
+    menu .m.g.s -tearoff 0
+    .m add cascade -label Datei -menu .m.f
+    .m add cascade -label Beleg -menu .m.g
+    .m.f add command -label Neu -command {set ::m neu}
+    .m.f add command -label Öffnen… -command {set ::m oeffnen}
+    .m.f add separator
+    .m.f add command -label Beenden -command {set ::m ende}
+    .m.g add command -label Ausstellen -command {set ::m aus}
+    .m.g add cascade -label Export -menu .m.g.s
+    .m.g.s add command -label PDF -command {set ::m pdf}
+    .m.g.s add command -label XML -command {set ::m xml}
+    . configure -menu .m
+    update
+}
+
+test tkuxdo-3.1 {menuSelect: first menu, first and second entry} -constraints xdo -body {
+    frisch
+    menues
+    set ::m ""
+    ${X}::menuSelect . Datei/Neu
+    set a $::m
+    ${X}::menuSelect . Datei/Öffnen…
+    list $a $::m
+} -result {neu oeffnen}
+
+test tkuxdo-3.2 {menuSelect: entry after a separator, second menu, nested cascade} -constraints xdo -body {
+    frisch
+    menues
+    set r {}
+    foreach p {Datei/Beenden Beleg/Ausstellen Beleg/Export/XML Beleg/Export/PDF} {
+        set ::m ""
+        ${X}::menuSelect . $p
+        lappend r $::m
+    }
+    set r
+} -result {ende aus xml pdf}
+
+test tkuxdo-3.3 {menuSelect: unknown label is an error} -constraints xdo -body {
+    frisch
+    menues
+    catch {${X}::menuSelect . Datei/Fehlt} m o
+    dict get $o -errorcode
+} -result {TKUTILS TKUXDO MENU}
+
+test tkuxdo-4.1 {dialog: type into a form, Tab to the next field, Return is OK} -constraints xdo -body {
+    frisch
+    set t [${X}::dialog -title Neu {{type {Rose rot}} {key Tab} {type 12,50} {key Return}}]
+    set r [::tkutils::tkudialog::form {{name name} {name preis}} -title Neu]
+    list $r [dict get [::tkutils::tkutest::result $t] script]
+} -result {{name {Rose rot} preis 12,50} 4}
+
+test tkuxdo-4.2 {dialog: Escape cancels the form} -constraints xdo -body {
+    set t [${X}::dialog -title Neu {{type weg} {key Escape}}]
+    list [::tkutils::tkudialog::form {{name a}} -title Neu] [dict get [::tkutils::tkutest::result $t] script]
+} -result {{} 2}
+
+test tkuxdo-4.3 {dialog: readonly combobox with Down and Return, checkbutton with space} -constraints xdo -body {
+    set t [${X}::dialog -title Wahl {{key Down} {key Down Return} {key Tab space} {key Return}}]
+    ::tkutils::tkudialog::form {{name art type combo state readonly values {A B C} default A}
+        {name frei type check default 0}} -title Wahl
+} -result {art B frei 1}
+
+test tkuxdo-4.4 {dialog: message dialog, Return takes the default, Escape the cancel button} -constraints xdo -body {
+    set t1 [${X}::dialog -title Frage {{key Return}}]
+    set a [::tkutils::tkudialog::show .q1 -title Frage -message Sicher? -buttons {{yes Ja} {no Nein}} \
+        -default yes -cancel no]
+    set t2 [${X}::dialog -title Frage {{key Escape}}]
+    set b [::tkutils::tkudialog::show .q2 -title Frage -message Sicher? -buttons {{yes Ja} {no Nein}} \
+        -default yes -cancel no]
+    list $a $b
+} -result {yes no}
+
+test tkuxdo-4.5 {dialog: input dialog takes umlauts} -constraints xdo -body {
+    set t [${X}::dialog -title Grund {{type {Kunde hat bar gezahlt – größer}} {key Return}}]
+    ::tkutils::tkudialog::input -title Grund -message Warum?
+} -result {Kunde hat bar gezahlt – größer}
+
+test tkuxdo-4.6 {dialog: clickButton presses a button by its label with the pointer} -constraints xdo -body {
+    set t [${X}::dialog -title Frage {{clickButton Nein}}]
+    ::tkutils::tkudialog::show .q3 -title Frage -message Sicher? -buttons {{yes Ja} {no Nein}} -default yes
+} -result no
+
+test tkuxdo-3.4 {menuSelect: disabled entries are skipped like the keyboard does} -constraints xdo -body {
+    frisch
+    menues
+    .m.f entryconfigure Neu -state disabled
+    set ::m ""
+    ${X}::menuSelect . Datei/Öffnen…
+    set a $::m
+    catch {${X}::menuSelect . Datei/Neu} msg o
+    list $a [dict get $o -errorcode]
+} -result {oeffnen {TKUTILS TKUXDO MENU}}
+
+test tkuxdo-3.5 {menuSelect: works again after an entry that ran a modal dialog} -constraints xdo -body {
+    frisch
+    menues
+    .m.f entryconfigure Neu -command {
+        set ::m [::tkutils::tkudialog::input -title Name -message Name?]
+    }
+    set t [${X}::dialog -title Name {{type eins} {key Return}}]
+    ${X}::menuSelect . Datei/Neu
+    ::tkutils::tkutest::result $t
+    set a $::m
+    ${X}::menuSelect . Beleg/Export/PDF
+    list $a $::m
+} -result {eins pdf}
+
+test tkuxdo-3.6 {a posted menu is no dialog: dialog -title * waits for the real one} -constraints xdo -body {
+    frisch
+    menues
+    .m.f entryconfigure Neu -command {
+        set ::m [::tkutils::tkudialog::input -title Wer -message Wer?]
+    }
+    set t [${X}::dialog -title * {{type zwei} {key Return}}]
+    ${X}::menuSelect . Datei/Neu
+    ::tkutils::tkutest::result $t
+    set ::m
+} -result zwei
+
+proc kombi {} {
+    frisch
+    ttk::combobox .c -state readonly -values {Apfel Birne Kirsche Pflaume}
+    .c set Apfel
+    entry .e
+    pack .c .e
+    update
+}
+
+test tkuxdo-5.1 {choose: a value further down, the list is closed afterwards} -constraints xdo -body {
+    kombi
+    ${X}::choose .c Kirsche
+    list [.c get] [winfo ismapped .c.popdown] [grab current]
+} -result {Kirsche 0 {}}
+
+test tkuxdo-5.2 {choose: back up to the first value, then down to the last} -constraints xdo -body {
+    kombi
+    ${X}::choose .c Pflaume
+    set a [.c get]
+    ${X}::choose .c Apfel
+    list $a [.c get]
+} -result {Pflaume Apfel}
+
+test tkuxdo-5.3 {choose: the same value again changes nothing} -constraints xdo -body {
+    kombi
+    ${X}::choose .c Birne
+    ${X}::choose .c Birne
+    .c get
+} -result Birne
+
+test tkuxdo-5.4 {choose: unknown value is an error, nothing is posted} -constraints xdo -body {
+    kombi
+    catch {${X}::choose .c Banane} msg o
+    list [dict get $o -errorcode] [.c get] [grab current]
+} -result {{TKUTILS TKUXDO VALUE} Apfel {}}
+
+test tkuxdo-5.5 {choose: typing afterwards goes to the next widget} -constraints xdo -body {
+    kombi
+    ${X}::choose .c Birne
+    ${X}::key Tab
+    ${X}::type Saft
+    list [.c get] [.e get]
+} -result {Birne Saft}
+
+test tkuxdo-5.6 {chooseField in a dialog, then more steps} -constraints xdo -body {
+    frisch
+    set t [${X}::dialog -title Obst {{chooseField art Kirsche} {key Tab} {type 3} {key Return}}]
+    ::tkutils::tkudialog::form {{name art type combo state readonly values {Apfel Birne Kirsche} default Apfel}
+        {name menge}} -title Obst
+} -result {art Kirsche menge 3}
+
+test tkuxdo-5.9 {clickField: the pointer puts the cursor into a later field} -constraints xdo -body {
+    frisch
+    set t [${X}::dialog -title Adresse {{clickField ort} {type Köln} {clickField name} {type Bär} {key Return}}]
+    ::tkutils::tkudialog::form {{name name} {name strasse} {name ort}} -title Adresse
+} -result {name Bär strasse {} ort Köln}
+
+test tkuxdo-6.1 {unavailable names the reason; setup refuses then} -constraints haveTk -body {
+    set old [array get ::env DISPLAY]
+    unset -nocomplain ::env(DISPLAY)
+    set r [list [::tkutils::tkuxdo::available] [::tkutils::tkuxdo::unavailable] \
+        [catch {::tkutils::tkuxdo::setup} m o] [dict get $o -errorcode]]
+    array set ::env $old
+    set r
+} -result {0 {no X11 display} 1 {TKUTILS TKUXDO DISPLAY}}
+
+test tkuxdo-5.7 {chooseField outside a dialog is an error} -constraints xdo -body {
+    catch {${X}::chooseField art Apfel} msg o
+    dict get $o -errorcode
+} -result {TKUTILS TKUXDO USAGE}
+
+test tkuxdo-5.8 {guard: an open combobox list is not closed as unexpected dialog} -constraints xdo -body {
+    kombi
+    ::tkutils::tkutest::unexpected
+    ::tkutils::tkutest::guard -after 300
+    ${X}::focusWidget .c
+    ${X}::key Down
+    ${X}::pump 900
+    set offen [winfo ismapped .c.popdown]
+    ${X}::key Escape
+    ${X}::pump 100
+    ::tkutils::tkutest::unguard
+    list $offen [::tkutils::tkutest::unexpected]
+} -result {1 {}}
+
+cleanupTests

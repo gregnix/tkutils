@@ -148,4 +148,289 @@ test mdview-4.2 {loadFile reads a utf-8 file and renders the content} -constrain
     string match "*Gr\u00f6\u00dfe*" $txt
 } -result 1
 
+set ::TABLE {# Tabelle
+
+| Status | Bedeutung | Betrag |
+|:-------|:---------:|-------:|
+| **bezahlt** | `ok` | 1,00 |
+| alt_abgerechnet | a \| b | 10,00 |
+| offen | – | 100,00 |
+
+Text danach.
+
+Kein | Tisch | ohne Trennzeile
+
+1. erster Punkt mit *Hervorhebung*
+   und Fortsetzung
+2. zweiter
+}
+
+test mdview-5.1 {GFM table: no pipes left, header bold, rows alternate} -constraints haveTk -body {
+    catch {destroy .w}
+    set w [::tkutils::tkumdview::widget .w]
+    ::tkutils::tkumdview::setMarkdown $w $::TABLE
+    set t [::tkutils::tkumdview::textWidget $w]
+    set rows [lmap {a b} [$t tag ranges table] { $t get $a $b }]
+    set txt [join $rows ""]
+    list [llength [split [string trimright $txt \n] \n]] \
+         [string match "*Status*" [$t get {*}[$t tag ranges thead]]] \
+         [expr {[llength [$t tag ranges trowalt]] / 2}] \
+         [regexp {\| *Status} $txt]
+} -result {4 1 1 0}
+
+test mdview-5.2 {table: tab stops per column with alignment from the separator} -constraints haveTk -body {
+    catch {destroy .w}
+    set w [::tkutils::tkumdview::widget .w]
+    ::tkutils::tkumdview::setMarkdown $w $::TABLE
+    set t [::tkutils::tkumdview::textWidget $w]
+    set tabs [$t tag cget tbl1 -tabs]
+    list [llength $tabs] [lindex $tabs 1] [lindex $tabs 3] [lindex $tabs 5] \
+        [$t tag cget tbl1 -wrap] [$t tag cget table -wrap]
+} -result {6 left center right {} none}
+
+test mdview-5.3 {table cells: inline markup, escaped pipe, intraword underscore} -constraints haveTk -body {
+    catch {destroy .w}
+    set w [::tkutils::tkumdview::widget .w]
+    ::tkutils::tkumdview::setMarkdown $w $::TABLE
+    set t [::tkutils::tkumdview::textWidget $w]
+    set txt [$t get 1.0 end]
+    list [string match "*\tbezahlt\tok\t1,00*" $txt] \
+         [string match "*\ta | b\t*" $txt] \
+         [string match "*alt_abgerechnet*" $txt] \
+         [expr {[llength [$t tag ranges strong]] > 0 && [llength [$t tag ranges code]] > 0}]
+} -result {1 1 1 1}
+
+test mdview-5.4 {columns line up: same x for each cell of a column} -constraints haveTk -body {
+    catch {destroy .w}
+    set w [::tkutils::tkumdview::widget .w]
+    pack $w -fill both -expand 1
+    wm deiconify .
+    ::tkutils::tkumdview::setMarkdown $w $::TABLE
+    update
+    set t [::tkutils::tkumdview::textWidget $w]
+    set c1 [lindex [$t bbox [$t search -exact Status 1.0 end]] 0]
+    set c2 [lindex [$t bbox [$t search -exact offen 1.0 end]] 0]
+    set b1 [lindex [$t bbox [$t search -exact Bedeutung 1.0 end]] 0]
+    set b2 [lindex [$t bbox [$t search -exact "a | b" 1.0 end]] 0]
+    list [expr {$c1 == $c2}] [expr {$b1 > $c1 && $b2 > $c1}]
+} -cleanup { pack forget $w ; wm withdraw . } -result {1 1}
+
+test mdview-5.5 {pipes without separator stay a paragraph; list items continue} -constraints haveTk -body {
+    catch {destroy .w}
+    set w [::tkutils::tkumdview::widget .w]
+    ::tkutils::tkumdview::setMarkdown $w $::TABLE
+    set txt [[::tkutils::tkumdview::textWidget $w] get 1.0 end]
+    list [string match "*Kein | Tisch | ohne Trennzeile*" $txt] \
+         [string match "*1. erster Punkt mit Hervorhebung und Fortsetzung\n*" $txt]
+} -result {1 1}
+
+test mdview-5.6 {re-render does not pile up table tags} -constraints haveTk -body {
+    catch {destroy .w}
+    set w [::tkutils::tkumdview::widget .w]
+    ::tkutils::tkumdview::setMarkdown $w $::TABLE
+    ::tkutils::tkumdview::setMarkdown $w $::TABLE
+    lsort [lsearch -all -inline [[::tkutils::tkumdview::textWidget $w] tag names] tbl*]
+} -result tbl1
+
+test mdview-5.7 {setext headings: one outline mark per tumd heading} -constraints haveTk -body {
+    catch {destroy .w}
+    set w [::tkutils::tkumdview::widget .w]
+    ::tkutils::tkumdview::setMarkdown $w "Eins\n====\n\ntext\n\n# Zwei\n\nDrei\n---\nx"
+    set t [::tkutils::tkumdview::textWidget $w]
+    set out [llength [::tkutils::tkumdview::headings $w]]
+    foreach m {mark0 mark1 mark2} {
+        lappend out [$t get $m "$m lineend"] [lsearch -inline [$t tag names $m] h*]
+    }
+    set out
+} -result {3 Eins h1 Zwei h1 Drei h2}
+
+test mdview-5.8 {toHtml writes the table as HTML (tumd 0.3)} -constraints haveTk -body {
+    catch {destroy .w}
+    set w [::tkutils::tkumdview::widget .w]
+    ::tkutils::tkumdview::setMarkdown $w "| a | b |\n|---|--:|\n| 1 | 2 |"
+    string match {<table>*<td style="text-align:right">2</td>*</table>} \
+        [::tkutils::tkumdview::toHtml $w]
+} -result 1
+
+# --- viewer on tumd::parse: lists, quotes, links, search, zoom ---------------
+
+proc mdv {md args} {
+    catch {destroy .w}
+    set w [::tkutils::tkumdview::widget .w {*}$args]
+    ::tkutils::tkumdview::setMarkdown $w $md
+    return $w
+}
+proc mdvText {w} { string trimright [[::tkutils::tkumdview::textWidget $w] get 1.0 end-1c] \n }
+# left margin (lmargin1) at the first character of STRING
+proc mdvMargin {w string} {
+    set t [::tkutils::tkumdview::textWidget $w]
+    set i [$t search -exact $string 1.0 end]
+    foreach tag [lreverse [$t tag names $i]] {
+        if {[string match m* $tag]} { return [$t tag cget $tag -lmargin1] }
+    }
+    return 0
+}
+
+test mdview-6.1 {nested list: deeper margin, other bullet; continuation joined} -constraints haveTk -body {
+    set w [mdv "- eins\n  weiter\n  - zwei\n- drei"]
+    set txt [mdvText $w]
+    list [string match "*• eins weiter\n*" $txt] [string match "*◦ zwei*" $txt] \
+        [expr {[mdvMargin $w "◦ zwei"] > [mdvMargin $w "• eins"]}]
+} -result {1 1 1}
+
+test mdview-6.2 {ordered list start number, task items} -constraints haveTk -body {
+    set txt [mdvText [mdv "3. drei\n4. vier\n\n- \[ \] offen\n- \[x\] fertig"]]
+    list [string match "*3. drei\n4. vier*" $txt] [string match "*☐ offen\n☑ fertig*" $txt]
+} -result {1 1}
+
+test mdview-6.3 {block quote with a list inside: quote tag, grey margin} -constraints haveTk -body {
+    set w [mdv "> Zitat\n>\n> - Punkt"]
+    set t [::tkutils::tkumdview::textWidget $w]
+    set i [$t search -exact Punkt 1.0 end]
+    list [expr {"quote" in [$t tag names $i]}] [expr {[mdvMargin $w Punkt] > [mdvMargin $w Zitat]}]
+} -result {1 1}
+
+test mdview-6.4 {inline: bold italic both, strikethrough, entity, bare URL as link} -constraints haveTk -body {
+    set w [mdv "***beides*** ~~weg~~ &copy; https://x.de"]
+    set t [::tkutils::tkumdview::textWidget $w]
+    list [mdvText $w] [expr {"strongem" in [$t tag names [$t search beides 1.0 end]]}] \
+        [expr {"del" in [$t tag names [$t search weg 1.0 end]]}] \
+        [expr {"link" in [$t tag names [$t search x.de 1.0 end]]}]
+} -result [list "beides weg © https://x.de" 1 1 1]
+
+test mdview-6.5 {follow: anchor, .md file with history, other targets to -linkcommand} -constraints haveTk -setup {
+    set dir [makeDirectory mdlinks]
+    foreach {f c} {a.md "# A\n\n\[zu B\](b.md#zwei)\n" b.md "# B\n\n## Zwei\n\nende\n"} {
+        set ch [open [file join $dir $f] w]; puts -nonewline $ch $c; close $ch
+    }
+    set ::called {}
+} -body {
+    catch {destroy .w}
+    set w [::tkutils::tkumdview::widget .w -linkcommand {lappend ::called}]
+    ::tkutils::tkumdview::loadFile $w [file join $dir a.md]
+    set r [list [::tkutils::tkumdview::follow $w "#a"] [::tkutils::tkumdview::follow $w "#nix"]]
+    lappend r [::tkutils::tkumdview::follow $w b.md#zwei] [file tail [::tkutils::tkumdview::currentFile $w]]
+    lappend r [::tkutils::tkumdview::back $w] [file tail [::tkutils::tkumdview::currentFile $w]]
+    lappend r [::tkutils::tkumdview::back $w] [::tkutils::tkumdview::forward $w] \
+        [file tail [::tkutils::tkumdview::currentFile $w]]
+    lappend r [::tkutils::tkumdview::follow $w https://x.de] [::tkutils::tkumdview::follow $w bild.pdf]
+    lappend r [lindex $::called 0] [file tail [lindex $::called 1]]
+} -cleanup {
+    removeDirectory mdlinks
+} -result {anchor {} file b.md 1 a.md 0 1 b.md external external https://x.de bild.pdf}
+
+test mdview-6.6 {a link in the text carries its target} -constraints haveTk -body {
+    set w [mdv "Siehe \[Teil\](teil.md#x) und <https://x.de>."]
+    set t [::tkutils::tkumdview::textWidget $w]
+    lmap tag [$t tag names [$t search Teil 1.0 end]] {
+        if {![string match lnk* $tag]} continue
+        dict get $::tkutils::tkumdview::state($w,links) $tag
+    }
+} -result teil.md#x
+
+test mdview-6.7 {find: all hits marked, next and previous cycle, empty clears} -constraints haveTk -body {
+    set w [mdv "Apfel und apfel\n\nnoch ein Apfel"]
+    set t [::tkutils::tkumdview::textWidget $w]
+    set r [::tkutils::tkumdview::find $w apfel]
+    lappend r [expr {[llength [$t tag ranges found]] / 2}] [$t index foundcur.first]
+    lappend r [::tkutils::tkumdview::findNext $w] [::tkutils::tkumdview::findNext $w]
+    lappend r [::tkutils::tkumdview::findNext $w] [::tkutils::tkumdview::findNext $w -backwards]
+    lappend r [::tkutils::tkumdview::find $w ""] [llength [$t tag ranges found]]
+} -result {3 3 1.0 1.10 2.9 1.0 2.9 0 0}
+
+test mdview-6.8 {outline follows the scrolled preview} -constraints haveTk -body {
+    set md "# Eins\n\n[string repeat "Zeile\n\n" 60]# Zwei\n\n[string repeat "Text\n\n" 60]"
+    set w [mdv $md -height 10]
+    pack $w -fill both -expand 1
+    wm deiconify .
+    update
+    set t [::tkutils::tkumdview::textWidget $w]
+    set toc [::tkutils::tkumdview::tocWidget $w]
+    $t yview mark1
+    update; after 50; update
+    set a [$toc item [$toc selection] -text]
+    $t yview moveto 0
+    update; after 50; update
+    list $a [$toc item [$toc selection] -text] [$t index @0,0]
+} -cleanup { pack forget .w ; wm withdraw . } -result {Zwei Eins 1.0}
+
+test mdview-6.9 {zoom changes the font sizes and back} -constraints haveTk -body {
+    set w [mdv "# T\n\ntext"]
+    set s0 [font configure mdvBase -size]
+    set z [::tkutils::tkumdview::zoom $w 2]
+    set s1 [font configure mdvBase -size]
+    ::tkutils::tkumdview::zoom $w reset
+    list $z [expr {abs($s1) - abs($s0)}] [expr {[font configure mdvBase -size] == $s0}] \
+        [catch {::tkutils::tkumdview::zoom $w gross}]
+} -result {2 2 1 1}
+
+test mdview-6.10 {footnotes at the end with anchors both ways} -constraints haveTk -body {
+    set w [mdv "Text\[^a\].\n\n\[^a\]: Die Note."]
+    set txt [mdvText $w]
+    list [string match "*Text1.*1. Die Note. ↩*" $txt] \
+        [::tkutils::tkumdview::follow $w #fn-1] [::tkutils::tkumdview::follow $w #fnref-1]
+} -result {1 anchor anchor}
+
+test mdview-6.11 {image relative to -dir, alt text when missing} -constraints haveTk -setup {
+    set dir [makeDirectory mdimg]
+    set img [image create photo -width 4 -height 4]
+    $img put red -to 0 0 4 4
+    $img write [file join $dir p.png] -format png
+    image delete $img
+} -body {
+    catch {destroy .w}
+    set w [::tkutils::tkumdview::widget .w]
+    ::tkutils::tkumdview::setMarkdown $w "!\[Bild\](p.png) !\[Fehlt\](weg.png)" -dir $dir
+    set t [::tkutils::tkumdview::textWidget $w]
+    list [llength [$t image names]] [string match "*\[Fehlt\]*" [mdvText $w]]
+} -cleanup {
+    removeDirectory mdimg
+} -result {1 1}
+
+test mdview-6.12 {options: -toolbar 0, unknown option} -constraints haveTk -body {
+    catch {destroy .w}
+    ::tkutils::tkumdview::widget .w -toolbar 0
+    set r [winfo exists .w.bar]
+    destroy .w
+    lappend r [catch {::tkutils::tkumdview::widget .w -farbe rot} m o] [lrange [dict get $o -errorcode] 0 2]
+} -result {0 1 {TKUTILS TKUMDVIEW OPTION}}
+
+test mdview-6.13 {toHtml passes options to tumd} -constraints haveTk -body {
+    set w [mdv "# T"]
+    string match "<!DOCTYPE html>*<h2 id=\"t\">T</h2>*" [::tkutils::tkumdview::toHtml $w -page 1 -headingoffset 1]
+} -result 1
+
+test mdview-6.14 {mouse click on a link, Ctrl+F, Alt+Left} -constraints haveTk -setup {
+    set dir [makeDirectory mdclick]
+    foreach {f c} {a.md "# A\n\n\[nach B\](b.md)\n" b.md "# B\n"} {
+        set ch [open [file join $dir $f] w]; puts -nonewline $ch $c; close $ch
+    }
+} -body {
+    catch {destroy .w}
+    set w [::tkutils::tkumdview::widget .w]
+    pack $w -fill both -expand 1
+    wm deiconify .
+    ::tkutils::tkumdview::loadFile $w [file join $dir a.md]
+    update
+    set t [::tkutils::tkumdview::textWidget $w]
+    lassign [$t bbox [$t search -exact "nach B" 1.0 end]] x y
+    incr x 3; incr y 3
+    event generate $t <Motion> -x $x -y $y
+    event generate $t <ButtonPress-1> -x $x -y $y
+    event generate $t <ButtonRelease-1> -x $x -y $y
+    update
+    set r [file tail [::tkutils::tkumdview::currentFile $w]]
+    focus -force $t
+    event generate $t <Control-f>
+    update
+    lappend r [expr {[focus] eq "$w.bar.find"}]
+    focus -force $t
+    event generate $t <Alt-Left>
+    update
+    lappend r [file tail [::tkutils::tkumdview::currentFile $w]] [$w.bar.fwd cget -state]
+} -cleanup {
+    pack forget .w ; wm withdraw .
+    removeDirectory mdclick
+} -result {b.md 1 a.md normal}
+
 cleanupTests

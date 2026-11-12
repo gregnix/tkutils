@@ -1,33 +1,97 @@
-.TH tkumdview n 0.1 tkutils
+.TH tkumdview n 0.2 tkutils
 .SH tkutils::tkumdview
 .PP
-Markdown viewer widget: a two\-pane frame with a headings outline on the left and a rendered preview on the right. The document is parsed and rendered through \fBtclutils::tumd\fR (a CommonMark subset), so the viewer needs no browser. Pure Tk/ttk; namespace \fB::tkutils::tkumdview\fR.
+Markdown viewer widget: a two\-pane frame with a headings outline on the left and a rendered preview on the right, with back/forward and search above. The document is parsed by \fBtclutils::tumd\fR (\fBparse\fR, \fBinline\fR), so the preview, the outline and \fBtoHtml\fR always agree, and the viewer needs no browser. Pure Tk/ttk; namespace \fB::tkutils::tkumdview\fR. Needs \fBtclutils::tumd\fR 0.3.
 .SS API
 .CS
-set w [::tkutils::tkumdview::widget .w ?-width N? ?-height N?]   ;# -> frame path
-::tkutils::tkumdview::loadFile    $w path     ;# read utf-8 file, render -> char count
-::tkutils::tkumdview::setMarkdown $w md       ;# set text, rebuild outline, render -> char count
-::tkutils::tkumdview::getMarkdown $w          ;# current document source
-::tkutils::tkumdview::headings    $w          ;# outline of the current document
-::tkutils::tkumdview::toHtml      $w          ;# HTML of the current document
-::tkutils::tkumdview::tocWidget   $w          ;# path of the outline list
-::tkutils::tkumdview::textWidget  $w          ;# path of the preview text widget
+set w [::tkutils::tkumdview::widget .w ?option value ...?]   ;# -> frame path
+::tkutils::tkumdview::loadFile    $w path            ;# read utf-8 file, render -> char count
+::tkutils::tkumdview::setMarkdown $w md ?-dir dir?   ;# set text, render -> char count
+::tkutils::tkumdview::getMarkdown $w                 ;# current document source
+::tkutils::tkumdview::currentFile $w                 ;# file shown, "" after setMarkdown
+::tkutils::tkumdview::headings    $w                 ;# outline of the current document
+::tkutils::tkumdview::toHtml      $w ?option ...?    ;# HTML (options of tumd::toHtml)
+::tkutils::tkumdview::follow      $w href            ;# act as a click on a link
+::tkutils::tkumdview::back        $w                 ;# previous document -> 1/0
+::tkutils::tkumdview::forward     $w                 ;# next document -> 1/0
+::tkutils::tkumdview::find        $w pattern         ;# mark hits -> count
+::tkutils::tkumdview::findNext    $w ?-backwards?    ;# next hit -> index
+::tkutils::tkumdview::zoom        $w ?delta|reset?   ;# font size step -> step
+::tkutils::tkumdview::tocWidget   $w                 ;# path of the outline list
+::tkutils::tkumdview::textWidget  $w                 ;# path of the preview text widget
 .CE
 .SS "Widget options"
+.TS
+l l l.
+option	default	meaning
+\fB\-width\fR, \fB\-height\fR	\fB72\fR, \fB26\fR	size of the preview in characters and lines
+\fB\-toolbar\fR	\fB1\fR	back, forward and the search field above the panes
+\fB\-findlabel\fR	\fBFind:\fR	label of the search field
+\fB\-linkcommand\fR		called with the target of a link that is no anchor and no Markdown file
+.TE
 .PP
-\fBwidget\fR returns the frame \fB$path\fR it creates (a \fBttk::frame\fR holding a horizontal \fBttk::panedwindow\fR: outline on the left, preview on the right). \fB\-width\fR and \fB\-height\fR (default \fB72\fR x \fB26\fR) size the preview text widget in characters and lines.
-.SS "Outline and navigation"
+An unknown option raises \fB{TKUTILS TKUMDVIEW OPTION name}\fR.
+.SS "What is rendered"
+.IP \(bu
+headings (\fB#\fR and setext), paragraphs, hard line breaks
+.IP \(bu
+lists, nested (deeper margin, bullets \fB•\fR, \fB◦\fR, \fB▪\fR), start number of a numbered list, task items as \fB☐\fR and \fB☑\fR, continuation lines
+.IP \(bu
+block quotes (grey margin), also with lists and code inside
+.IP \(bu
+fenced and indented code on a grey background
+.IP \(bu
+GitHub tables (below), horizontal rules
+.IP \(bu
+bold, italic, both, strikethrough, inline code, links, bare URLs, entities
+.IP \(bu
+images (PNG, GIF and what Tk reads) relative to the document; otherwise the alt text in brackets
+.IP \(bu
+footnotes: a small number in the text, the notes at the end, linked both ways
+.SS Links
 .PP
-The left pane lists the document's headings. Selecting an entry scrolls the matching heading into view in the preview, so the outline acts as a clickable table of contents. \fBtocWidget\fR and \fBtextWidget\fR return the two underlying widget paths if you need to restyle or bind them directly.
-.SS "Loading and rendering"
+A click on a link:
+.IP \(bu
+\fB#id\fR scrolls to the heading with that id (as \fBtumd\fR makes it) or to a footnote (\fB#fn\-1\fR, \fB#fnref\-1\fR);
+.IP \(bu
+a \fB.md\fR or \fB.markdown\fR file, relative to the document, opens in the viewer, with \fB#id\fR scrolled to; back and forward return;
+.IP \(bu
+anything else (a URL, another file as full path) goes to \fB\-linkcommand\fR, or, without it, to \fBtclutils::tuopen::launch\fR if that package is there.
 .PP
-\fBsetMarkdown\fR replaces the document, rebuilds the outline and re\-renders the preview, returning the character count. \fBloadFile\fR reads the file as utf\-8 and hands it to \fBsetMarkdown\fR, so a document renders identically under Tcl 8.6 and Tcl 9. \fBgetMarkdown\fR returns the current source.
+\fBfollow\fR does the same from a script and returns \fBanchor\fR, \fBfile\fR, \fBexternal\fR or \fB""\fR (anchor not found). A missing \fB.md\fR file raises \fB{TKUTILS TKUMDVIEW LINK}\fR. For text given with \fBsetMarkdown\fR, \fB\-dir\fR is the folder for relative links and images (default: the current directory). \fBloadFile\fR and \fBsetMarkdown\fR start a new history; following links adds to it.
+.SS "Outline, search and keys"
 .PP
-Parsing and HTML generation are delegated to \fBtclutils::tumd\fR: \fBheadings\fR and \fBtoHtml\fR are convenience pass\-throughs that run the engine over the current document, so the viewer and any export stay consistent.
+The left pane lists the document's headings. Selecting an entry scrolls the preview to it; when the preview is scrolled, the outline marks the heading at its top.
+.PP
+The search field marks every hit (case ignored) and goes to the first one below the top of the view; Return goes to the next, Shift+Return to the previous, Escape empties the field. The counter shows \fBhit/hits\fR.
+.TS
+l l.
+key	in the preview or outline
+Ctrl+F	to the search field
+Alt+Left, Alt+Right	back, forward
+Ctrl+plus, Ctrl+minus, Ctrl+0	larger, smaller, normal font
+Ctrl+mouse wheel	larger, smaller
+.TE
+.PP
+\fBzoom\fR changes the fonts of all viewers in the application (named fonts \fBmdvBase\fR, \fBmdvBold\fR, \fBmdvMono\fR, \fBmdvH1\fR ...) and keeps the view where it was.
+.SS Tables
+.PP
+A table is a header row, a separator row and body rows:
+.CS
+| Status | Meaning   | Amount |
+|:-------|:---------:|-------:|
+| paid   | `ok`      |   1,00 |
+| open   | *later*   |  10,00 |
+.CE
+.PP
+Columns are laid out with tab stops measured from the cell text in the fonts actually used, so they line up with proportional fonts too. The separator row sets the alignment (\fB:\-\-\fR left, \fB:\-:\fR centre, \fB\-\-:\fR right). The header is bold on a grey background, body rows alternate a light background, inline markup works inside cells, and \fB\e|\fR is a literal pipe. Table lines do not wrap; the preview has a horizontal scrollbar for wide tables. Lines with pipes but no separator row stay a paragraph. Each table gets its own tag (\fBtbl1\fR, \fBtbl2\fR, ...) carrying its tab stops; the shared tags are \fBtable\fR, \fBthead\fR and \fBtrowalt\fR.
+.SS Tags
+.PP
+Text tags of the preview, for restyling through \fBtextWidget\fR: \fBh1\fR ... \fBh6\fR, \fBpara\fR, \fBli\fR, \fBpre\fR, \fBquote\fR, \fBhr\fR, \fBcode\fR, \fBstrong\fR, \fBem\fR, \fBstrongem\fR, \fBdel\fR, \fBlink\fR, \fBsup\fR, \fBimgalt\fR, \fBtable\fR, \fBthead\fR, \fBtrowalt\fR, \fBfound\fR, \fBfoundcur\fR. Margins come from tags named \fBm<left>_<left2>_<quote>\fR.
 .CS
 package require tkutils::tkumdview
-set w [::tkutils::tkumdview::widget .v]
+set w [::tkutils::tkumdview::widget .v -findlabel Suchen:]
 pack $w -fill both -expand 1
 ::tkutils::tkumdview::loadFile $w README.md
-set html [::tkutils::tkumdview::toHtml $w]   ;# same render, as HTML
+set html [::tkutils::tkumdview::toHtml $w -page 1]   ;# same document, as a page
 .CE

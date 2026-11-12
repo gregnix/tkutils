@@ -1,0 +1,229 @@
+# tkutest.test -- in-process input simulation and dialog answers
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+set haveTk 1
+if {[catch {package require Tk 8.6-}]} { set haveTk 0 }
+testConstraint haveTk $haveTk
+set here [file dirname [file normalize [info script]]]
+set tmDir [file normalize [file join $here .. lib tm]]
+catch {tcl::tm::path add $tmDir}
+if {[info exists ::env(TKUTILS_TM)]}  { catch {tcl::tm::path add $::env(TKUTILS_TM)} }
+if {[info exists ::env(TCLUTILS_TM)]} { catch {tcl::tm::path add $::env(TCLUTILS_TM)} }
+if {![info exists ::env(TCLUTILS_TM)]} {
+    set _root [file dirname [file dirname $tmDir]]
+    foreach _c [lsort -decreasing [glob -nocomplain [file join [file dirname $_root] tclutils*/lib/tm]]] {
+        catch {tcl::tm::path add $_c}; break
+    }
+}
+if {$haveTk} {
+    package require tkutils::tkutest
+    package require tkutils::tkudialog
+    namespace import ::tkutils::tkutest::*
+}
+
+proc frisch {} {
+    foreach w [winfo children .] { destroy $w }
+    . configure -menu ""
+    update
+}
+
+test tkutest-1.1 {type: letters, digits, punctuation and umlauts reach an entry} -constraints haveTk -body {
+    frisch
+    pack [ttk::entry .e]
+    type .e {Grüße, 1.000,50 € (a+b)/2 = "x"}
+    .e get
+} -result {Grüße, 1.000,50 € (a+b)/2 = "x"}
+
+test tkutest-1.2 {type uses key events: a KeyPress binding sees ASCII keys} -constraints haveTk -body {
+    frisch
+    pack [ttk::entry .e]
+    set ::keys {}
+    bind .e <KeyPress> {lappend ::keys %A}
+    type .e "a1,"
+    set ::keys
+} -result {a 1 ,}
+
+test tkutest-1.3 {key: Return and Control-s reach bindings on the toplevel} -constraints haveTk -body {
+    frisch
+    pack [ttk::entry .e]
+    set ::r {}
+    bind . <Return> {lappend ::r ret}
+    bind . <Control-s> {lappend ::r save}
+    key .e <Return>
+    key .e <Control-s>
+    bind . <Return> {}
+    bind . <Control-s> {}
+    set ::r
+} -result {ret save}
+
+test tkutest-1.4 {clear empties entry and text} -constraints haveTk -body {
+    frisch
+    pack [ttk::entry .e] [text .t -height 2]
+    .e insert 0 abc
+    .t insert 1.0 xyz
+    clear .e
+    clear .t
+    list [.e get] [.t get 1.0 end-1c]
+} -result {{} {}}
+
+test tkutest-2.1 {click runs a ttk::button and a tk button command} -constraints haveTk -body {
+    frisch
+    set ::n 0
+    pack [ttk::button .b -text Go -command {incr ::n}] [button .c -text Go2 -command {incr ::n 10}]
+    click .b
+    click .c
+    set ::n
+} -result 11
+
+test tkutest-2.2 {click -double fires a Double-1 binding} -constraints haveTk -body {
+    frisch
+    set ::d 0
+    pack [ttk::label .l -text "doppelt"]
+    bind .l <Double-1> {incr ::d}
+    click .l -double 1
+    set ::d
+} -result 1
+
+test tkutest-2.3 {select sets a readonly combobox and fires ComboboxSelected; unknown value is an error} -constraints haveTk -body {
+    frisch
+    set ::sel ""
+    pack [ttk::combobox .c -state readonly -values {A B C}]
+    bind .c <<ComboboxSelected>> {set ::sel [.c get]}
+    select .c B
+    catch {select .c D} m o
+    list $::sel [dict get $o -errorcode]
+} -result {B {TKUTILS TKUTEST VALUE}}
+
+test tkutest-2.4 {check sets a checkbutton on and off, only invoking when needed} -constraints haveTk -body {
+    frisch
+    set ::v 0
+    set ::n 0
+    pack [ttk::checkbutton .c -variable ::v -command {incr ::n}]
+    check .c 1
+    check .c 1
+    set a $::v
+    check .c 0
+    list $a $::v $::n
+} -result {1 0 2}
+
+test tkutest-3.1 {menuInvoke follows labels through cascades} -constraints haveTk -body {
+    frisch
+    menu .m
+    menu .m.f -tearoff 0
+    menu .m.f.s -tearoff 0
+    .m add cascade -label Datei -menu .m.f
+    .m.f add command -label Neu -command {set ::m neu}
+    .m.f add separator
+    .m.f add cascade -label Export -menu .m.f.s
+    .m.f.s add command -label PDF… -command {set ::m pdf}
+    . configure -menu .m
+    menuInvoke .m Datei/Neu
+    set a $::m
+    menuInvoke .m Datei/Export/PDF…
+    catch {menuInvoke .m Datei/Fehlt} x o
+    list $a $::m [dict get $o -errorcode]
+} -result {neu pdf {TKUTILS TKUTEST MENU}}
+
+test tkutest-3.2 {treeItem and treeSelect find by text, value or column} -constraints haveTk -body {
+    frisch
+    pack [ttk::treeview .t -columns {nr name}]
+    .t insert {} end -id a -text Eins -values {1 Rose}
+    .t insert a end -id b -text Zwei -values {2 Tulpe}
+    set ::s ""
+    bind .t <<TreeviewSelect>> {set ::s [.t selection]}
+    list [treeItem .t Zwei] [treeItem .t Rose] [treeItem .t 2 -column nr] [treeSelect .t Tulpe] \
+        [expr {[update] eq "" ? $::s : ""}]
+} -result {b a b b b}
+
+test tkutest-3.3 {findButton by text or path; missing is an error} -constraints haveTk -body {
+    frisch
+    pack [ttk::frame .f]
+    pack [ttk::button .f.ok -text Speichern]
+    list [findButton . Speichern] [findButton . ok] [catch {findButton . Weg}]
+} -result {.f.ok .f.ok 1}
+
+test tkutest-4.1 {answer fills a tkudialog form and presses OK} -constraints haveTk -body {
+    frisch
+    set t [answer -title Neu -fields {name {Rose rot} menge 12 art B frei 1}]
+    set r [::tkutils::tkudialog::form {{name name} {name menge} {name art type combo state readonly values {A B C}}
+        {name frei type check}} -title Neu]
+    list $r [dict get [result $t] button]
+} -result {{name {Rose rot} menge 12 art B frei 1} OK}
+
+test tkutest-4.2 {answer presses Cancel; the form returns nothing} -constraints haveTk -body {
+    set t [answer -title Neu -button cancel]
+    list [::tkutils::tkudialog::form {{name a default x}} -title Neu] [dict get [result $t] button]
+} -result {{} Cancel}
+
+test tkutest-4.3 {answer a message dialog by button id and by label} -constraints haveTk -body {
+    set t1 [answer -button no]
+    set a [::tkutils::tkudialog::show .q1 -title Frage -message Sicher? -buttons {{yes Ja} {no Nein}} -default yes]
+    set t2 [answer -button Ja]
+    set b [::tkutils::tkudialog::show .q2 -title Frage -message Sicher? -buttons {{yes Ja} {no Nein}} -default no]
+    list $a $b [dict get [result $t1] button] [dict get [result $t2] button]
+} -result {no yes Nein Ja}
+
+test tkutest-4.4 {answer an input dialog through -script} -constraints haveTk -body {
+    set t [answer -title Grund -script {apply {{w} { ::tkutils::tkutest::type $w.e "falsch gebucht" }}}]
+    ::tkutils::tkudialog::input -title Grund -message "Warum?"
+} -result {falsch gebucht}
+
+test tkutest-4.5 {two answers in a row: a form, then the message it leads to} -constraints haveTk -body {
+    set t1 [answer -title Eingabe -fields {zahl abc}]
+    set t2 [answer -title Fehler -button ok]
+    set r [::tkutils::tkudialog::form {{name zahl}} -title Eingabe]
+    if {![string is integer -strict [dict get $r zahl]]} {
+        ::tkutils::tkudialog::showError "keine Zahl" -title Fehler
+    }
+    list $r [dict get [result $t1] title] [dict get [result $t2] title] [pending]
+} -result {{zahl abc} Eingabe Fehler {}}
+
+test tkutest-4.6 {a dialog that never comes: result reports TIMEOUT} -constraints haveTk -body {
+    set t [answer -title Niemals -timeout 200]
+    after 400 {set ::w 1}
+    vwait ::w
+    catch {result $t} m o
+    list [dict get $o -errorcode] [pending]
+} -result {{TKUTILS TKUTEST TIMEOUT} {}}
+
+test tkutest-4.7 {wait and waitWindow time out with TIMEOUT} -constraints haveTk -body {
+    list [catch {wait {0} -timeout 50} m o] [dict get $o -errorcode] \
+        [catch {waitWindow -title Nie -timeout 50} m o] [dict get $o -errorcode]
+} -result {1 {TKUTILS TKUTEST TIMEOUT} 1 {TKUTILS TKUTEST TIMEOUT}}
+
+test tkutest-4.8 {unknown option is an error} -constraints haveTk -body {
+    catch {answer -titel x} m o
+    lrange [dict get $o -errorcode] 0 2
+} -result {TKUTILS TKUTEST OPTION}
+
+test tkutest-5.1 {visible: inside the toplevel or cut off} -constraints haveTk -body {
+    frisch
+    toplevel .v
+    wm geometry .v 200x100
+    place [ttk::button .v.in -text in] -x 10 -y 10
+    place [ttk::button .v.out -text out] -x 180 -y 10
+    update
+    set r [list [visible .v.in] [visible .v.out]]
+    destroy .v
+    set r
+} -result {1 0}
+
+test tkutest-6.1 {guard closes a dialog nobody answers and reports it} -constraints haveTk -body {
+    guard -after 300
+    set r [::tkutils::tkudialog::show .unerwartet -title Huch -message "Etwas ging schief" \
+        -buttons {{ok OK}} -default ok -cancel ok]
+    set u [unexpected]
+    unguard
+    list $r $u
+} -result {ok {{Huch {Etwas ging schief}}}}
+
+test tkutest-6.2 {answerFile types a path into Tk's save dialog} -constraints haveTk -body {
+    set f [file join [tcltest::temporaryDirectory] probe.txt]
+    file delete $f
+    set t [answerFile -title Sichern $f]
+    set r [tk_getSaveFile -title Sichern -parent .]
+    list [expr {$r eq $f ? 1 : $r}] [result $t]
+} -result [list 1 [list window .__tk_filedialog title Sichern script [file join [tcltest::temporaryDirectory] probe.txt]]]
+
+cleanupTests

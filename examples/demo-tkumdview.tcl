@@ -23,7 +23,9 @@ rendered preview on the right.
 
 ## Inline formatting
 
-Supports **bold**, *italic*, `inline code` and [links](https://example.com).
+Supports **bold**, *italic*, ***both***, ~~struck~~, `inline code`,
+[links](https://example.com), bare URLs like https://www.tcl-lang.org and
+footnotes[^1]. Links to [a heading](#tables) scroll the preview.
 
 ## Code blocks
 
@@ -36,16 +38,32 @@ proc greet {who} {
 ## Lists
 
 - bullet one
+  continued on the next line
+  - nested
 - bullet two
+
+* [x] task done
+* [ ] task open
 
 1. step one
 2. step two
 
 > Block quotes are rendered with an indent.
 
+## Tables
+
+| Module | Version | Lines |
+|:-------|:-------:|------:|
+| **tkumdview** | `0.2` | 474 |
+| tkuballoon | `0.1` | 165 |
+| tumd | `0.3` | 990 |
+
 ---
 
-Select a heading on the left to jump to it.
+Select a heading on the left to jump to it. Ctrl+F searches, Ctrl+plus
+and Ctrl+minus change the font size.
+
+[^1]: A footnote, shown at the end and linked both ways.
 }
 
 wm title . "tkumdview demo"

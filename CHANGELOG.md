@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+- `tkumdview` 0.2: draws the blocks of `tumd::parse` (needs tclutils
+  `tumd` 0.3): GitHub tables, nested lists, task items, quotes with lists
+  and code, setext headings, footnotes, images, bold italic,
+  strikethrough. Links: anchors, `.md` files with back/forward, others to
+  `-linkcommand` or `tuopen`. Toolbar with search; the outline follows
+  the scrolled preview; zoom (Ctrl+plus/minus/0). New `follow`, `back`,
+  `forward`, `find`, `findNext`, `zoom`, `currentFile`; options
+  `-toolbar`, `-findlabel`, `-linkcommand`; `setMarkdown -dir`; `toHtml`
+  takes options. When copying over an older tree, delete
+  `tkumdview-0.1.tm`.
+- New `tkutest` 0.1: drive a Tk UI from a test in-process (type, key,
+  click, select, check, menuInvoke, treeSelect, fill) and answer modal
+  dialogs: `answer` registers a handler before the action, `result` reports
+  what it did; `answerFile` for Tk's file dialog; `guard` closes and records
+  dialogs no handler takes. Characters without a key on the map are
+  inserted. Doc, man page, demo, tests (8.6 and 9).
+- New `tkuxdo` 0.1: real keyboard and mouse input through xdotool for
+  end-to-end tests under Xvfb: `setup -layout`, `focusWindow`, `type`,
+  `key`, `click`, `menuSelect` (F10 traversal), `choose`/`chooseField`
+  (readonly combobox by keyboard), `clickField`, `dialog` (steps once the dialog is
+  mapped). Only on a display without a window manager (Xvfb) unless
+  `TKUXDO_DESKTOP=1`; tests skip otherwise. Doc, man page, tests.
 - New `tkutemplate` 0.1: editor for document templates in the format of
   `pdf4tcltemplate` -- place blocks (`tkulayoutcanvas`), edit their
   attributes and table columns, preview as PDF (pdf4tcllib loaded only for
@@ -20,6 +42,10 @@
 - `tkudialog.test` 6.x: the dialog is measured once it and its parent
   stand still (at most 40 x 50 ms); on a miss the two centres go to
   stderr.
+- `tkutest`, `tkuxdo`: docs list every command; man pages regenerated
+  (`check-docman` complete).
+- `tkutemplate.test` 5.6: counts temp files in a folder of its own
+  (`TMPDIR`, `TMP`, `TEMP`), not in the shared `/tmp`.
 - `tkudialog.test`: the late-move test had the id 6.5 twice; now 6.6.
   It moves the frame corner from `wm geometry` instead of the client
   area.
