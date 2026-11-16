@@ -15,7 +15,7 @@ wm geometry . 620x460
 
 set start [expr {$argc ? [lindex $argv 0] : [pwd]}]
 
-ttk::label .info -text "Double-click a directory to enter it. Type in Filter to narrow files." -anchor w
+ttk::label .info -text "Double-click a directory to enter it. Type in Filter to narrow files.\nRight-click a column header to show or hide columns." -anchor w -justify left
 set ::sel ""
 ttk::label .sel -textvariable ::sel -anchor w -foreground "#1565c0"
 
@@ -23,7 +23,14 @@ ttk::label .sel -textvariable ::sel -anchor w -foreground "#1565c0"
 ttk::frame .f
 ttk::label .f.l -text "Filter:"
 ttk::entry .f.e
+set ::hidden 0
+set ::noext 0
+ttk::checkbutton .f.h -text "Hidden files" -variable ::hidden \
+    -command {::tkutils::tkufilelist::setShowHidden .list $::hidden}
+ttk::checkbutton .f.x -text "Hide known extensions" -variable ::noext \
+    -command {::tkutils::tkufilelist::setHideExtensions .list $::noext}
 pack .f.l -side left -padx {0 4}
+pack .f.x .f.h -side right -padx {8 0}
 pack .f.e -side left -fill x -expand 1
 bind .f.e <KeyRelease> {
     set g [string trim [.f.e get]]

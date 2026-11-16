@@ -2,6 +2,60 @@
 
 ## Unreleased
 
+- `tkufilelist` 0.3: columns name, modified, type, size, extension
+  (`-columns`, `columns`, `setColumns`), shown and hidden from a menu on
+  the header; `-show both|files|dirs`; hidden entries by the rules of the
+  system (`-showsystem` for Windows system files); `-hideextensions` with
+  `-knownextensions`; `-dirsfirst`, also when sorted; `-timeformat`;
+  `-sizeunits` 1024/1000; several globs (`-filters`, `setFilters`);
+  `view`/`setView`, `setShowHidden`, `setHideExtensions`. Sizes and times
+  sort by value. State is released on destroy. Needs tclutils
+  `tuprovider` 0.4 for hidden files on Windows. When copying over an older
+  tree, delete `tkufilelist-0.2.tm`.
+- `tkufiledialog` 0.3: every extension of a file type counts (0.2 used the
+  first only); "Show hidden files" in the dialog; options `-columns`,
+  `-showsystem`, `-hideextensions`, `-timeformat`. Places on the left: home,
+  user folders (Linux: `user-dirs.dirs`), drives or root. With `-app`:
+  bookmarks (add, rename, remove), recent folders, last folder, view and
+  size per application (`tusettings`); new `bookmarks`, `setBookmarks`.
+  Windows: user folders from the registry (`User Shell Folders`, e.g. a
+  Desktop on OneDrive); no `//zipfs:/` among the places; a bookmark is
+  kept once however the path is written. Protected system files stay
+  hidden with "Show hidden files" (as in the Explorer); `-showsystem 1`
+  shows them. When copying over an older tree, delete
+  `tkufiledialog-0.2.tm`.
+- `tkufiletree` 0.3: hidden entries by the rule of `tkufilelist` -- on
+  Windows the attribute (hidden folders appear with `-showhidden`), new
+  `-showsystem`; with `-provider` the keys `hidden`/`system`. Needs
+  tclutils `tuprovider` 0.4. When copying over an older tree, delete
+  `tkufiletree-0.2.tm`.
+- `tkulauncher` 0.5: `checkEntries` checks every entry without launching
+  (program found, file exists, system tool here, URL answers -- redirects
+  followed and reported as moved; https through `tuhttps`, "unchecked"
+  with the reason when `tls` or a CA bundle is missing) and `checkDialog`
+  shows it as a table. Editor: only the fields of the chosen type; buttons
+  Apply, Save (applies, writes, updates), Save as..., Check...; Close asks
+  when something is unsaved. `editEntries` returns the editor also when it
+  is already open. Interpreter `current` (the wish of the running Tcl,
+  `currentWish`). When copying over an older tree, delete
+  `tkulauncher-0.4.tm`.
+- `tkuform` 0.2: `showField`, `showOnly`, `isShown`. When copying over an
+  older tree, delete `tkuform-0.1.tm`.
+- `apps/launcher`: Edit > Add tkutils apps (submenu "Apps" with the other
+  apps, also in a new menu); build notes without `-launch` (current
+  build-app); Edit > Check entries...; no placeholder script in the
+  starter menu; README matches the files (examples next to the app, no
+  `example-office.json`, `example-tclscripts.json` listed); smoke test
+  `tests/launcher.test`; no personal path in `build.md`.
+- `adressbuch`: finds tclutils/tkutils like the other apps (`_lib/paths.tcl`),
+  so it also starts from the launcher.
+- `tkdevtools`: new pages under Platform -- **Attributes** (Windows
+  attributes per entry, what `glob *` and `glob -types hidden` find, what
+  `tkufilelist` shows) and **Folders / drives** (volumes, profile, user
+  folders, on Windows from the registry, places of the file dialog,
+  `tusettings` config directory). The glob tab explains the Windows case
+  too; Programs says what `exec` from `wish` shows. The home directory comes
+  from `file home` on Tcl 9 (it showed `<cwd>/~`).
 - `tkumdview` 0.2: draws the blocks of `tumd::parse` (needs tclutils
   `tumd` 0.3): GitHub tables, nested lists, task items, quotes with lists
   and code, setext headings, footnotes, images, bold italic,

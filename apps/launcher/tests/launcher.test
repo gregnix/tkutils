@@ -1,0 +1,118 @@
+# launcher.test -- smoke test of the launcher app (no program is started).
+#
+#   tclsh tests/launcher.test        (needs a display; headless: xvfb-run -a)
+#
+# Builds the app into a scratch config directory, loads every example menu,
+# checks the menu bar, the starter menu and "Check entries" without network
+# (a fake fetch answers for the URLs).
+package require Tcl 8.6-
+package require tcltest
+namespace import ::tcltest::*
+
+set haveTk [expr {![catch {package require Tk}]}]
+if {$haveTk} { catch {wm withdraw .} }
+testConstraint tk $haveTk
+testConstraint haveTk $haveTk
+
+set here [file dirname [file normalize [info script]]]
+set app  [file dirname $here]
+set cfg  [makeDirectory launchercfg]
+set ::env(XDG_CONFIG_HOME) $cfg
+set ::env(APPDATA) $cfg
+set ::LAUNCHERAPP_TEST 1
+set ::loadErr ""
+if {$haveTk && [catch {source [file join $app launcher.tcl]; package require tkutils::tkulauncher 0.5} err]} {
+    set ::loadErr $err
+    testConstraint tk 0
+}
+test launcher-0.0 {the app and tkulauncher 0.5 load} -constraints haveTk -body {
+    set ::loadErr
+} -result {}
+
+# a URL answer without network
+proc fakeFetch {url} { return [dict create code 200 location "" error ""] }
+
+test launcher-1.1 {the default config is created from the starter menu} -constraints tk -body {
+    set f [::launcherapp::defaultConfig]
+    set fresh [::launcherapp::ensureConfig $f]
+    list $fresh [file exists $f] [string match $::cfg* $f]
+} -result {1 1 1}
+
+test launcher-1.2 {the starter menu has no placeholder script} -constraints tk -body {
+    string match *script.tcl* [::launcherapp::starterSpec]
+} -result 0
+
+test launcher-1.3 {every example menu loads} -constraints tk -body {
+    set out {}
+    foreach f [lsort [glob -directory $::app example-*.json]] {
+        set items [::tkutils::tkulauncher::load $f]
+        lappend out [file tail $f] [expr {[llength $items] > 0}]
+    }
+    set out
+} -result {example-developer.json 1 example-menu.json 1 example-minimal.json 1 example-sysadmin.json 1 example-tclscripts.json 1}
+
+test launcher-1.4 {the window: menu bar with Check entries, panel, status} -constraints tk -body {
+    toplevel .app
+    ::launcherapp::buildApp .app [file join $::app example-developer.json]
+    update
+    set labels {}
+    set m .app.menubar.edit
+    for {set i 0} {$i <= [$m index end]} {incr i} {
+        if {[$m type $i] eq "command"} { lappend labels [$m entrycget $i -label] }
+    }
+    set r [list [expr {"Check entries..." in $labels}] [winfo exists .app.panel] \
+        [string match Loaded* [.app.status cget -text]]]
+    destroy .app
+    set r
+} -result {1 1 1}
+
+test launcher-1.5 {every web address of the examples is checked, none is lost} -constraints tk -body {
+    set urls 0
+    set checked 0
+    foreach f [glob -directory $::app example-*.json] {
+        set items [::tkutils::tkulauncher::load $f]
+        foreach r [::tkutils::tkulauncher::checkEntries $items -fetch fakeFetch] {
+            if {[dict get $r type] eq "url"} {
+                incr urls
+                if {[dict get $r status] eq "ok"} { incr checked }
+            }
+        }
+    }
+    list [expr {$urls > 0}] [expr {$urls == $checked}]
+} -result {1 1}
+
+test launcher-1.6 {the starter menu: web addresses fine, nothing malformed} -constraints tk -body {
+    set bad {}
+    foreach r [::tkutils::tkulauncher::checkEntries [::launcherapp::starterSpec] -fetch fakeFetch] {
+        if {[dict get $r type] eq "url" && [dict get $r status] ne "ok"} { lappend bad [dict get $r label] }
+        if {[string match "no *" [dict get $r detail]]} { lappend bad [dict get $r label] }
+    }
+    set bad
+} -result {}
+
+if {$haveTk} { catch {destroy .app} }
+test launcher-8.1 {the tkutils apps next to the launcher, started with "current"} -constraints tk -body {
+    set apps [::launcherapp::appEntries]
+    list [expr {[llength $apps] >= 10}] \
+         [lsort -unique [lmap e $apps {dict get $e interp}]] \
+         [llength [lmap e $apps {expr {[file isfile [dict get $e target]] ? 1 : [continue]}}]] \
+         [expr {"Launcher" ni [lmap e $apps {dict get $e label}]}]
+} -result [list 1 current [llength [::launcherapp::appEntries]] 1]
+
+test launcher-8.2 {withApps adds "Apps" before the first separator, replaces it later} -constraints tk -body {
+    set apps [list {type tcl label A target /a.tcl interp current}]
+    set items {{type url label U target https://x} {type separator} {type exit label Quit}}
+    lassign [::launcherapp::withApps $items $apps] one n
+    set apps2 [list {type tcl label B target /b.tcl interp current}]
+    lassign [::launcherapp::withApps $one $apps2] two
+    list $n [lmap e $one {dict get $e type}] [llength $two] \
+         [dict get [lindex [dict get [lindex $two 1] items] 0] label]
+} -result {1 {url menu separator exit} 4 B}
+
+test launcher-8.3 {no apps (packaged launcher): the menu stays as it is} -constraints tk -body {
+    set none [::launcherapp::appEntries [tcltest::temporaryDirectory]]
+    lassign [::launcherapp::withApps {{type exit label Quit}} $none] items2 n2
+    list [llength $none] $n2 $items2
+} -result {0 0 {{type exit label Quit}}}
+
+cleanupTests

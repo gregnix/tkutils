@@ -30,7 +30,8 @@ package require Tk 8.6-
 
 namespace eval ::tkutils {}
 namespace eval ::tkutils::tkuform {
-    namespace export widget get setField values setValues fieldNames widgetOf
+    namespace export widget get setField values setValues fieldNames widgetOf \
+        showField showOnly isShown
     variable state
     variable fieldTypes {entry password check combo spin text}
 }
@@ -220,10 +221,35 @@ proc ::tkutils::tkuform::setValues {path dict} {
     return
 }
 
+# Show or hide a field (label and control); its value is kept. A hidden field
+# keeps its place, so showing it again puts it back where it was (0.2).
+proc ::tkutils::tkuform::showField {path name visible} {
+    variable state
+    _require $path $name
+    set i [lsearch -exact $state($path,names) $name]
+    foreach w [list $path.l$i [_ctl $path $name]] {
+        if {$visible} { grid $w } else { grid remove $w }
+    }
+    return
+}
+
+# Show exactly these fields, hide the others (0.2).
+proc ::tkutils::tkuform::showOnly {path names} {
+    variable state
+    foreach n $state($path,names) { showField $path $n [expr {$n in $names}] }
+    return
+}
+
+# Is the field shown? (0.2)
+proc ::tkutils::tkuform::isShown {path name} {
+    _require $path $name
+    return [expr {[winfo manager [_ctl $path $name]] ne ""}]
+}
+
 # Return the underlying control widget for a field (for custom tweaks).
 proc ::tkutils::tkuform::widgetOf {path name} {
     _require $path $name
     return [_ctl $path $name]
 }
 
-package provide tkutils::tkuform 0.1
+package provide tkutils::tkuform 0.2

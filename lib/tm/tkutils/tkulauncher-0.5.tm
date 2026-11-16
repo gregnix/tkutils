@@ -38,7 +38,7 @@ namespace eval ::tkutils {}
 namespace eval ::tkutils::tkulauncher {
     namespace export widget load resolve reload editConfig openLocation \
         resolveSystem systemItems systemIds systemTitle available showCalendar showCalculator \
-        saveEntries editEntries
+        saveEntries editEntries checkEntries checkDialog currentWish
     variable state
 }
 
@@ -407,10 +407,31 @@ namespace eval ::tkutils::tkulauncher {
     }
 }
 
-# the interpreter keys, for the editor dropdown
+# the interpreter keys, for the editor dropdown; "current" (0.5) is the wish
+# of the running interpreter
 proc ::tkutils::tkulauncher::tclInterpreters {} {
     variable tclInterp
-    return [dict keys $tclInterp]
+    return [linsert [dict keys $tclInterp] 0 current]
+}
+
+# The wish that belongs to the running interpreter (0.5): the executable
+# itself when it is a wish, else the wish next to it (tclsh9.0 -> wish9.0,
+# tclsh90.exe -> wish90.exe). A packaged program (zipkit) has none: error.
+proc ::tkutils::tkulauncher::currentWish {} {
+    set exe [file normalize [info nameofexecutable]]
+    set tail [file tail $exe]
+    if {[string match -nocase *wish* $tail]} { return $exe }
+    if {[string match -nocase *tclsh* $tail]} {
+        set cand [file join [file dirname $exe] [regsub -nocase tclsh $tail wish]]
+        if {[file exists $cand]} { return $cand }
+        # tclsh9.0 next to a plain "wish"
+        foreach w {wish wish.exe} {
+            set c [file join [file dirname $exe] $w]
+            if {[file exists $c]} { return $c }
+        }
+        error "no wish next to $exe"
+    }
+    error "\"current\" needs a wish or tclsh; this is a packaged program ($tail)"
 }
 
 # override or add an interpreter mapping, e.g.
@@ -428,6 +449,7 @@ proc ::tkutils::tkulauncher::setTclInterp {key args} {
 # resolve an interpreter key to the executable for this platform
 proc ::tkutils::tkulauncher::resolveTclInterp {key {platform ""}} {
     variable tclInterp
+    if {$key eq "current"} { return [currentWish] }
     if {$platform eq ""} { set platform $::tcl_platform(platform) }
     if {![dict exists $tclInterp $key]} { error "unknown interpreter: $key" }
     set m [dict get $tclInterp $key]
@@ -959,12 +981,12 @@ proc ::tkutils::tkulauncher::showCalculator {path} {
 # save target; otherwise Save asks via the file argument to saveEntries.
 proc ::tkutils::tkulauncher::editEntries {path} {
     variable state
-    if {[catch {package require tkutils::tkuform}]} {
+    if {[catch {package require tkutils::tkuform 0.2}]} {
         _error $path "The form widget (tkutils::tkuform) is not available."
         return
     }
     set top .tkulauncher_editor
-    if {[winfo exists $top]} { raise $top ; focus $top ; return }
+    if {[winfo exists $top]} { raise $top ; focus $top ; return $top }
     toplevel $top
     wm title $top "Edit launcher"
     catch {wm transient $top [winfo toplevel $path]}
@@ -1030,15 +1052,21 @@ proc ::tkutils::tkulauncher::editEntries {path} {
     ]
     ::tkutils::tkuform::widget $top.form $spec -padding 8
 
+    # 0.5: Apply changes the selected entry; Save applies it as well, writes
+    # the file and updates the launcher (up to 0.4 three buttons: Apply,
+    # Update launcher, Save to file...). Close asks when something is unsaved.
     ttk::frame $top.act
-    ttk::button $top.act.apply -text "Apply"          -command [list ::tkutils::tkulauncher::_edApply  $top]
-    ttk::button $top.act.upd   -text "Update launcher" -command [list ::tkutils::tkulauncher::_edUpdate $top]
-    ttk::button $top.act.save  -text "Save to file..." -command [list ::tkutils::tkulauncher::_edSave   $top]
-    ttk::button $top.act.close -text "Close"          -command [list destroy $top]
+    ttk::button $top.act.apply  -text "Apply"       -command [list ::tkutils::tkulauncher::_edApply  $top]
+    ttk::button $top.act.save   -text "Save"        -command [list ::tkutils::tkulauncher::_edSaveAll $top]
+    ttk::button $top.act.saveas -text "Save as..."  -command [list ::tkutils::tkulauncher::_edSaveAs $top]
+    ttk::button $top.act.check  -text "Check..."    -command [list ::tkutils::tkulauncher::_edCheck $top]
+    ttk::button $top.act.close  -text "Close"       -command [list ::tkutils::tkulauncher::_edClose $top]
+    pack $top.act.check -side left -padx 2
     pack $top.act.close -side right -padx 2
+    pack $top.act.saveas -side right -padx 2
     pack $top.act.save  -side right -padx 2
-    pack $top.act.upd   -side right -padx 2
     pack $top.act.apply -side right -padx 2
+    wm protocol $top WM_DELETE_WINDOW [list ::tkutils::tkulauncher::_edClose $top]
 
     grid $top.l    -row 0 -column 0 -sticky nsew -padx 6 -pady 6
     grid $top.form -row 0 -column 1 -sticky nsew -padx 6 -pady 6
@@ -1047,7 +1075,12 @@ proc ::tkutils::tkulauncher::editEntries {path} {
     grid columnconfigure $top 1 -weight 1
 
     bind $top.l.list <<ListboxSelect>> [list ::tkutils::tkulauncher::_edSelect $top]
+    # 0.5: only the fields of the chosen type are shown
+    bind [::tkutils::tkuform::widgetOf $top.form type] <<ComboboxSelected>> \
+        [list ::tkutils::tkulauncher::_edTypeChanged $top]
+    set state($top,saved) $state($top,items)
     _edRefill $top
+    _edFields $top ""
     return $top
 }
 
@@ -1180,6 +1213,32 @@ proc ::tkutils::tkulauncher::_edSelect {top} {
     set blank {type "" label "" cmd "" target "" id "" interp "" tcllibpath "" args "" dir "" icon "" tooltip "" terminal 0}
     ::tkutils::tkuform::setValues $top.form $blank
     ::tkutils::tkuform::setValues $top.form $e
+    _edFields $top [dict get $e type]
+}
+
+# The form fields that mean something for a type (0.5). Up to 0.4 the form
+# showed all twelve for every type -- Command, System id, Interpreter and
+# TCLLIBPATH also for a URL.
+proc ::tkutils::tkulauncher::_edFieldsFor {type} {
+    switch -- $type {
+        app      { return {type label cmd dir icon tooltip terminal} }
+        url      { return {type label target icon tooltip} }
+        open - file { return {type label target icon tooltip} }
+        system   { return {type label id icon tooltip} }
+        tcl      { return {type label target interp tcllibpath args dir icon tooltip terminal} }
+        menu     { return {type label} }
+        separator { return {type} }
+        calendar - calc { return {type label icon tooltip} }
+    }
+    return {type}
+}
+
+proc ::tkutils::tkulauncher::_edFields {top type} {
+    ::tkutils::tkuform::showOnly $top.form [_edFieldsFor $type]
+}
+
+proc ::tkutils::tkulauncher::_edTypeChanged {top} {
+    _edFields $top [::tkutils::tkuform::get $top.form type]
 }
 
 # ---------------------------------------------------------------------------
@@ -1405,7 +1464,20 @@ proc ::tkutils::tkulauncher::_edApply {top} {
     set sel [$top.l.list curselection]
     if {$sel eq ""} return
     set path [lindex $state($top,rows) [lindex $sel 0]]
-    set old [_edGet $top $path]
+    set e [_edEntryFromForm $top [_edGet $top $path]]
+    _edSet $top $path $e
+    _edRefill $top
+    # reselect the same row
+    set row 0
+    foreach p $state($top,rows) {
+        if {$p eq $path} { $top.l.list selection set $row ; break }
+        incr row
+    }
+}
+
+# The entry the form describes; OLD is the entry it edits (a menu keeps its
+# items). Only the fields of the chosen type are kept.
+proc ::tkutils::tkulauncher::_edEntryFromForm {top old} {
     set vals [::tkutils::tkuform::values $top.form]
     set type [dict get $vals type]
     set e [dict create type $type]
@@ -1437,14 +1509,7 @@ proc ::tkutils::tkulauncher::_edApply {top} {
             dict set e terminal 1
         }
     }
-    _edSet $top $path $e
-    _edRefill $top
-    # reselect the same row
-    set row 0
-    foreach p $state($top,rows) {
-        if {$p eq $path} { $top.l.list selection set $row ; break }
-        incr row
-    }
+    return $e
 }
 
 # helper: copy a non-empty form field into the entry dict
@@ -1620,12 +1685,420 @@ proc ::tkutils::tkulauncher::_edSave {top} {
     if {$file eq ""} {
         set file [tk_getSaveFile -parent $top \
             -filetypes {{JSON .json} {INI .ini}} -defaultextension .json]
-        if {$file eq ""} return
+        if {$file eq ""} { return 0 }
         set state($top,target) $file
     }
     if {[catch {saveEntries $state($top,items) $file} err]} {
         _error $state($top,owner) "Could not save: $err"
+        return 0
     }
+    set state($top,saved) $state($top,items)
+    return 1
+}
+
+# checkDialog path ?-items spec? ?-editor top? -- check the entries of the
+# launcher PATH (or -items) and show the result as a table (0.5). A double
+# click on a row opens the entry in the editor. Problems red, moved yellow,
+# unchecked grey.
+proc ::tkutils::tkulauncher::checkDialog {path args} {
+    variable state
+    array set o {-items "" -editor "" -timeout 8000}
+    array set o [::tkutils::tkuopts::merge TKULAUNCHER [array get o] $args]
+    set items $o(-items)
+    if {$items eq "" && [info exists state($path,items)]} { set items $state($path,items) }
+    set top .tkulauncher_check
+    catch {destroy $top}
+    toplevel $top
+    wm title $top "Check launcher entries"
+    catch {wm transient $top [winfo toplevel $path]}
+    set state($top,owner) $path
+    set state($top,items) $items
+    set state($top,editor) $o(-editor)
+    set state($top,timeout) $o(-timeout)
+    ttk::label $top.info -anchor w -padding {6 4}
+    ttk::frame $top.f
+    ttk::treeview $top.tv -columns {type status detail target} -show {tree headings} \
+        -yscrollcommand [list $top.sb set] -height 14
+    ttk::scrollbar $top.sb -orient vertical -command [list $top.tv yview]
+    $top.tv heading #0 -text Entry
+    foreach {c t w} {type Type 70 status Status 80 detail Detail 260 target Target 260} {
+        $top.tv heading $c -text $t
+        $top.tv column $c -width $w -stretch [expr {$c in {detail target}}]
+    }
+    $top.tv column #0 -width 160
+    $top.tv tag configure problem -background #ffd8d8
+    $top.tv tag configure moved -background #fff2c0
+    $top.tv tag configure unchecked -foreground #777777
+    grid $top.tv $top.sb -in $top.f -sticky nsew
+    grid rowconfigure $top.f 0 -weight 1
+    grid columnconfigure $top.f 0 -weight 1
+    ttk::frame $top.b
+    ttk::button $top.b.again -text "Check again" -command [list ::tkutils::tkulauncher::_checkRun $top]
+    ttk::button $top.b.close -text "Close" -command [list destroy $top]
+    pack $top.b.close $top.b.again -side right -padx 2
+    pack $top.info -side top -fill x
+    pack $top.b -side bottom -fill x -padx 6 -pady 6
+    pack $top.f -side top -fill both -expand 1 -padx 6
+    bind $top.tv <Double-1> [list ::tkutils::tkulauncher::_checkOpen $top]
+    bind $top <Escape> [list destroy $top]
+    bind $top <Destroy> [list ::tkutils::tkulauncher::_checkCleanup $top %W]
+    after idle [list ::tkutils::tkulauncher::_checkRun $top]
+    return $top
+}
+
+proc ::tkutils::tkulauncher::_checkCleanup {top w} {
+    variable state
+    if {$w eq $top} { array unset state $top,* }
+}
+
+proc ::tkutils::tkulauncher::_checkRun {top} {
+    variable state
+    if {![winfo exists $top]} return
+    # the progress callback calls update: a second start meanwhile (the idle
+    # start, a key) must not run a check inside the running one
+    if {[info exists state($top,running)] && $state($top,running)} return
+    set state($top,running) 1
+    try {
+        return [_checkRunOnce $top]
+    } finally {
+        if {[info exists state($top,running)]} { set state($top,running) 0 }
+    }
+}
+
+proc ::tkutils::tkulauncher::_checkRunOnce {top} {
+    variable state
+    $top.tv delete [$top.tv children {}]
+    $top.b.again state disabled
+    $top.info configure -text "Checking..."
+    update idletasks
+    set res [checkEntries $state($top,items) -timeout $state($top,timeout) \
+        -progress [list ::tkutils::tkulauncher::_checkProgress $top]]
+    if {![winfo exists $top]} return
+    set n [dict create ok 0 moved 0 problem 0 unchecked 0]
+    foreach r $res { dict incr n [dict get $r status] }
+    $top.info configure -text "[llength $res] entries: [dict get $n ok] ok,\
+        [dict get $n problem] problem(s), [dict get $n moved] moved,\
+        [dict get $n unchecked] not checked. Double-click a row to edit it."
+    $top.b.again state !disabled
+    return $res
+}
+
+proc ::tkutils::tkulauncher::_checkProgress {top done total r} {
+    variable state
+    if {![winfo exists $top]} return
+    set st [dict get $r status]
+    set id [$top.tv insert {} end -text [dict get $r label] \
+        -values [list [dict get $r type] $st [dict get $r detail] [dict get $r target]] \
+        -tags [expr {$st eq "ok" ? "" : $st}]]
+    dict set state($top,paths) $id [dict get $r path]
+    $top.info configure -text "Checking... $done of $total"
+    update
+}
+
+proc ::tkutils::tkulauncher::_checkOpen {top} {
+    variable state
+    set id [lindex [$top.tv selection] 0]
+    if {$id eq "" || ![dict exists $state($top,paths) $id]} return
+    set path [dict get $state($top,paths) $id]
+    set ed $state($top,editor)
+    if {$ed eq "" || ![winfo exists $ed]} {
+        set ed [editEntries $state($top,owner)]
+        if {$ed eq ""} return
+    }
+    raise $ed
+    set row 0
+    foreach p $state($ed,rows) {
+        if {$p eq $path} {
+            $ed.l.list selection clear 0 end
+            $ed.l.list selection set $row
+            $ed.l.list see $row
+            _edSelect $ed
+            break
+        }
+        incr row
+    }
+}
+
+# The Save button: apply the form to the selected entry, then save (0.5).
+proc ::tkutils::tkulauncher::_edSaveAll {top} {
+    if {[$top.l.list curselection] ne ""} { _edApply $top }
+    return [_edSave $top]
+}
+
+# Save as: another file, which then becomes the target (0.5).
+proc ::tkutils::tkulauncher::_edSaveAs {top} {
+    variable state
+    set file [tk_getSaveFile -parent $top \
+        -filetypes {{JSON .json} {INI .ini}} -defaultextension .json]
+    if {$file eq ""} { return 0 }
+    set state($top,target) $file
+    return [_edSaveAll $top]
+}
+
+# Unsaved changes? The entries differ from the last save, or the form holds a
+# change that was not applied.
+proc ::tkutils::tkulauncher::_edDirty {top} {
+    variable state
+    if {$state($top,items) ne $state($top,saved)} { return 1 }
+    set sel [$top.l.list curselection]
+    if {$sel eq ""} { return 0 }
+    set old [_edGet $top [lindex $state($top,rows) [lindex $sel 0]]]
+    return [expr {[_edEntryFromForm $top $old] ne $old}]
+}
+
+# Close: ask when something is unsaved (0.5).
+proc ::tkutils::tkulauncher::_edClose {top} {
+    if {[winfo exists $top] && [_edDirty $top]} {
+        set a [tk_messageBox -parent $top -type yesnocancel -icon question \
+            -title "Edit launcher" -message "Save the changes?"]
+        if {$a eq "cancel"} return
+        if {$a eq "yes" && ![_edSaveAll $top]} return
+    }
+    destroy $top
+}
+
+# Check... in the editor: check the entries as they are now (0.5).
+proc ::tkutils::tkulauncher::_edCheck {top} {
+    variable state
+    checkDialog $state($top,owner) -items $state($top,items) -editor $top
+}
+
+# ---- checking entries -----------------------------------------------------
+# checkEntries items ?-timeout ms? ?-fetch cmd? ?-progress cmd?
+#
+# Goes through the entries (also inside submenus) and says for each whether it
+# would work here -- without launching anything. Returns a list of dicts
+#   path    index list into the nested items (as the editor uses it)
+#   label   the shown label
+#   type    entry type
+#   target  what is checked (URL, file, program, system id)
+#   status  ok | moved | problem | unchecked
+#   detail  why (empty for ok)
+#
+#   url     fetched (HEAD, GET if the server refuses HEAD), redirects followed
+#           up to 5 times: 2xx ok, a different final address "moved" with the
+#           new one, 4xx/5xx or no answer "problem". https goes through
+#           tclutils::tuhttps (certificates verified); without the tls package
+#           or a CA bundle the URL is "unchecked" with the reason -- never
+#           "problem" for something the computer lacks.
+#   open    the file or folder exists (~ expanded)
+#   app     the program is found (auto_execok; on Windows a bare name counts,
+#           it may be registered under App Paths)
+#   tcl     the script exists and the interpreter is found
+#   system  the id has a command on this platform, and its program is found
+#   calendar, calc   built in: ok
+# Separators and menus themselves are not listed; a menu's entries are.
+#
+# -fetch cmd   replaces the network: called with a URL, returns a dict
+#              {code N location L error E} (for tests, or a proxy)
+# -progress cmd  called with (done, total, result dict) after each entry, so a
+#              GUI can update between the requests
+# -timeout ms  per request (default 8000)
+proc ::tkutils::tkulauncher::checkEntries {items args} {
+    array set o {-timeout 8000 -fetch "" -progress ""}
+    array set o [::tkutils::tkuopts::merge TKULAUNCHER [array get o] $args]
+    if {$o(-fetch) eq ""} {
+        set o(-fetch) [list ::tkutils::tkulauncher::_httpStatus $o(-timeout)]
+    }
+    set todo {}
+    _checkCollect $items {} todo
+    set out {}
+    set i 0
+    foreach pe $todo {
+        lassign $pe path e
+        set r [_checkOne $e $o(-fetch)]
+        dict set r path $path
+        dict set r label [_label $e]
+        dict set r type [dict get $e type]
+        lappend out $r
+        incr i
+        if {$o(-progress) ne ""} { uplevel #0 [list {*}$o(-progress) $i [llength $todo] $r] }
+    }
+    return $out
+}
+
+proc ::tkutils::tkulauncher::_checkCollect {items prefix outvar} {
+    upvar 1 $outvar out
+    set i 0
+    foreach e $items {
+        set path [concat $prefix $i]
+        switch -- [dict get $e type] {
+            separator {}
+            menu {
+                if {[dict exists $e items]} { _checkCollect [dict get $e items] $path out }
+            }
+            default { lappend out [list $path $e] }
+        }
+        incr i
+    }
+}
+
+proc ::tkutils::tkulauncher::_checkResult {status target {detail ""}} {
+    return [dict create status $status target $target detail $detail]
+}
+
+proc ::tkutils::tkulauncher::_checkOne {e fetch} {
+    set type [dict get $e type]
+    switch -- $type {
+        calendar - calc { return [_checkResult ok $type "built in"] }
+        url {
+            if {![dict exists $e target] || [dict get $e target] eq ""} {
+                return [_checkResult problem "" "no address"]
+            }
+            return [_checkUrl [dict get $e target] $fetch]
+        }
+        open - file {
+            if {![dict exists $e target] || [dict get $e target] eq ""} {
+                return [_checkResult problem "" "no target"]
+            }
+            set p [expandTilde [dict get $e target]]
+            if {[file exists $p]} { return [_checkResult ok $p] }
+            return [_checkResult problem $p "does not exist"]
+        }
+        app - command {
+            if {![dict exists $e cmd] || [llength [dict get $e cmd]] == 0} {
+                return [_checkResult problem "" "no command"]
+            }
+            set prog [lindex [dict get $e cmd] 0]
+            return [_checkProgram $prog]
+        }
+        tcl {
+            if {![dict exists $e target] || [dict get $e target] eq ""} {
+                return [_checkResult problem "" "no script"]
+            }
+            set script [expandTilde [dict get $e target]]
+            set key [expr {[dict exists $e interp] ? [dict get $e interp] : "wish9"}]
+            set problems {}
+            if {![file exists $script]} { lappend problems "script does not exist" }
+            if {[catch {resolveTclInterp $key} exe]} {
+                lappend problems $exe
+            } elseif {[auto_execok $exe] eq "" && ![file executable $exe]} {
+                lappend problems "interpreter $exe not found"
+            }
+            if {[llength $problems]} { return [_checkResult problem $script [join $problems "; "]] }
+            return [_checkResult ok $script]
+        }
+        system {
+            if {![dict exists $e id]} { return [_checkResult problem "" "no system id"] }
+            set id [dict get $e id]
+            if {[catch {resolveSystem $id} act]} {
+                return [_checkResult problem $id "not available on this system"]
+            }
+            if {[dict get $act kind] eq "exec"} {
+                set r [_checkProgram [lindex [dict get $act argv] 0]]
+                dict set r target "$id ([dict get $r target])"
+                return $r
+            }
+            return [_checkResult ok $id]
+        }
+    }
+    return [_checkResult unchecked "" "unknown type $type"]
+}
+
+proc ::tkutils::tkulauncher::_checkProgram {prog} {
+    if {[auto_execok $prog] ne ""} { return [_checkResult ok $prog] }
+    if {$::tcl_platform(platform) eq "windows" && ![string match {*[/\\]*} $prog]} {
+        return [_checkResult ok $prog "not on PATH; assumed under App Paths"]
+    }
+    if {[string match {*[/\\]*} $prog] && [file executable $prog]} { return [_checkResult ok $prog] }
+    return [_checkResult problem $prog "program not found"]
+}
+
+# A URL: follow redirects (at most 5) and judge the final answer.
+proc ::tkutils::tkulauncher::_checkUrl {url fetch} {
+    if {![regexp -nocase {^https?://} $url]} {
+        return [_checkResult unchecked $url "only http and https are checked"]
+    }
+    set cur $url
+    for {set hop 0} {$hop <= 5} {incr hop} {
+        set r [{*}$fetch $cur]
+        set code [expr {[dict exists $r code] ? [dict get $r code] : ""}]
+        set err  [expr {[dict exists $r error] ? [dict get $r error] : ""}]
+        if {$err ne ""} {
+            if {[dict exists $r unchecked] && [dict get $r unchecked]} {
+                return [_checkResult unchecked $url $err]
+            }
+            return [_checkResult problem $url "not reachable: $err"]
+        }
+        if {$code >= 300 && $code < 400 && [dict exists $r location] && [dict get $r location] ne ""} {
+            set cur [_joinUrl $cur [dict get $r location]]
+            continue
+        }
+        if {$code >= 200 && $code < 300} {
+            if {$cur ne $url} { return [_checkResult moved $url "now $cur"] }
+            return [_checkResult ok $url]
+        }
+        return [_checkResult problem $url "HTTP $code[expr {$cur ne $url ? " at $cur" : ""}]"]
+    }
+    return [_checkResult problem $url "too many redirects"]
+}
+
+# A Location header may be relative.
+proc ::tkutils::tkulauncher::_joinUrl {base loc} {
+    if {[regexp -nocase {^[a-z][a-z0-9+.-]*://} $loc]} { return $loc }
+    regexp -nocase {^([a-z]+://[^/]+)(/[^?#]*)?} $base -> origin bpath
+    if {[string match //* $loc]} { return "[lindex [split $base :] 0]:$loc" }
+    if {[string match /* $loc]} { return $origin$loc }
+    set dir [string range $bpath 0 [string last / $bpath]]
+    if {$dir eq ""} { set dir / }
+    return $origin$dir$loc
+}
+
+# The default fetch: one request with the http package, https through
+# tclutils::tuhttps. Returns {code N location L error E unchecked 0|1}.
+proc ::tkutils::tkulauncher::_httpStatus {timeout url} {
+    package require http
+    set https [string match -nocase https://* $url]
+    if {$https} {
+        if {[catch {package require tclutils::tuhttps} err]} {
+            return [dict create error "tclutils::tuhttps not found" unchecked 1]
+        }
+        regexp -nocase {^https://([^/:]+)} $url -> host
+        if {[catch {::tclutils::tuhttps::socketCmd -host $host} prefix opts]} {
+            set ec [dict get $opts -errorcode]
+            switch -- [lindex $ec end] {
+                NOTLS   { set why "the tls package is missing" }
+                NOCA    { set why "no CA bundle for tls [package provide tls]; set SSL_CERT_FILE" }
+                default { set why $prefix }
+            }
+            return [dict create error $why unchecked 1]
+        }
+    }
+    # some servers answer the default agent or HEAD with 403/405
+    set agent [::http::config -useragent]
+    ::http::config -useragent "Mozilla/5.0 (tkulauncher link check)"
+    try {
+        set res [_httpOnce $url $timeout 1 [expr {$https ? $prefix : ""}]]
+        if {[dict get $res error] eq "" && [dict get $res code] in {400 403 405 501}} {
+            set res [_httpOnce $url $timeout 0 [expr {$https ? $prefix : ""}]]
+        }
+    } finally {
+        ::http::config -useragent $agent
+    }
+    return $res
+}
+
+proc ::tkutils::tkulauncher::_httpOnce {url timeout head prefix} {
+    set script [list ::http::geturl $url -validate $head -timeout $timeout -keepalive 0]
+    if {[catch {
+        if {$prefix ne ""} {
+            set tok [::tclutils::tuhttps::with $prefix $script]
+        } else {
+            set tok [{*}$script]
+        }
+    } err]} {
+        return [dict create code "" location "" error $err unchecked 0]
+    }
+    set st [::http::status $tok]
+    set code [::http::ncode $tok]
+    set loc ""
+    foreach {k v} [::http::meta $tok] {
+        if {[string equal -nocase $k location]} { set loc $v }
+    }
+    ::http::cleanup $tok
+    if {$st eq "timeout"} { return [dict create code "" location "" error "no answer within $timeout ms" unchecked 0] }
+    if {$st ne "ok"} { return [dict create code "" location "" error $st unchecked 0] }
+    return [dict create code $code location $loc error "" unchecked 0]
 }
 
 proc ::tkutils::tkulauncher::_cleanup {path w} {
@@ -2012,4 +2485,4 @@ proc ::tkutils::tkulauncher::systemIds {} {
     return [lsort [dict keys $sysCat]]
 }
 
-package provide tkutils::tkulauncher 0.4
+package provide tkutils::tkulauncher 0.5

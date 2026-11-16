@@ -1,7 +1,7 @@
-.TH tkufiledialog n 0.2 tkutils
+.TH tkufiledialog n 0.3 tkutils
 .SH tkutils::tkufiledialog
 .PP
-Modal \fBopen / save / directory\fR chooser on top of \fBtkupath\fR + \fBtkufilelist\fR. Same look as the explorer stack; local \fBtuprovider\fR by default, optional \fB\-provider\fR for ZIP/remote. Returns a path (or a list with \fB\-multiple\fR), or \fB""\fR / \fB{}\fR if cancelled. Tk 8.6+ and 9.x.
+Modal \fBopen / save / directory\fR chooser on top of \fBtkupath\fR + \fBtkufilelist\fR. Same look as the explorer stack; local \fBtuprovider\fR by default, optional \fB\-provider\fR for ZIP/remote. On the left \fBPlaces\fR: the home folder and the user folders, drives or the root, and \-\- with \fB\-app\fR \-\- bookmarks and recent folders. Returns a path (or a list with \fB\-multiple\fR), or \fB""\fR / \fB{}\fR if cancelled. Tk 8.6+ and 9.x.
 .PP
 Not a full file manager — a compact dialog for “pick this file/folder”.
 .SS API
@@ -9,6 +9,8 @@ Not a full file manager — a compact dialog for “pick this file/folder”.
 ::tkutils::tkufiledialog::open      ?options?
 ::tkutils::tkufiledialog::save      ?options?
 ::tkutils::tkufiledialog::directory ?options?
+::tkutils::tkufiledialog::bookmarks    app        ;# list of {label path}
+::tkutils::tkufiledialog::setBookmarks app list   ;# replace them
 .CE
 .SS Options
 .TS
@@ -16,11 +18,17 @@ l l.
 Option	Meaning
 \fB\-parent w\fR	toplevel for transient / placement
 \fB\-title t\fR	window title
-\fB\-initialdir d\fR	start directory (default: \fB$HOME\fR or \fBpwd\fR)
+\fB\-initialdir d\fR	start directory (default: the last one with \fB\-app\fR, else \fB$HOME\fR or \fBpwd\fR)
 \fB\-provider p\fR	\fBtuprovider\fR (default: fresh local)
-\fB\-filetypes {{Label {.ext}}…}\fR	type combobox → list filter (first ext used)
+\fB\-filetypes {{Label {.ext …}}…}\fR	type combobox → list filter; every extension of a type counts
 \fB\-multiple 0|1\fR	open only: return a list of paths
-\fB\-showhidden 0|1\fR	show dotfiles
+\fB\-showhidden 0|1\fR	show hidden files (the dialog has a check box for it)
+\fB\-showsystem 0|1\fR	Windows: also show hidden system files
+\fB\-hideextensions 0|1\fR	hide known extensions in the names
+\fB\-columns keys\fR	columns of the list (\fBname mtime type size ext\fR)
+\fB\-timeformat f\fR	\fBclock format\fR of the Modified column
+\fB\-app name\fR	remember bookmarks, recent folders, last folder, view and size for this application
+\fB\-places 0|1\fR	the Places pane (default 1; only with the local provider)
 \fB\-initialfile name\fR	save only: prefill name entry
 \fB\-defaultextension .ext\fR	save only: append if name has no extension
 .TE
@@ -31,19 +39,36 @@ Double\-click a \fBdirectory\fR → navigate; double\-click a \fBfile\fR → OK 
 Escape / Cancel → empty result; OK / Return in the name field → confirm.
 .IP \(bu
 Directory mode lists folders only; OK returns the selected folder or the current path.
+.IP \(bu
+\fBShow hidden files\fR at the bottom switches hidden files on and off. On Windows, protected system files (hidden \fBand\fR system, such as \fBdesktop.ini\fR) stay hidden, as in the Explorer; only \fB\-showsystem 1\fR in the call shows them.
+.IP \(bu
+A right\-click on the column headers shows and hides columns.
+.IP \(bu
+\fBPlaces\fR (local provider only): Home, Desktop, Documents, Downloads \-\- on Linux the folders named in \fB~/.config/user\-dirs.dirs\fR, so a German "Schreibtisch" is found; on Windows the folders from the registry (\fBUser Shell Folders\fR, read only), so a Desktop moved to OneDrive is found \-\- then the drives (Windows; not Tcl 9's \fB//zipfs:/\fR) or the root.
+.SS "Bookmarks and settings (\fB\-app\fR)"
+.PP
+With \fB\-app name\fR the dialog keeps, per application, in the config directory of \fBname\fR (\fBtclutils::tusettings\fR: \fB%APPDATA%\ename\fR, \fB~/.config/name\fR, \fB~/Library/Application Support/name\fR):
+.IP \(bu
+\fBfiledialog.ini\fR \-\- the bookmarks, the view (columns, hidden files, extensions, sorting), the window size and the last folder;
+.IP \(bu
+\fBfiledialog\-dirs.txt\fR \-\- the last ten folders confirmed with OK.
+.PP
+"+ Bookmark this folder" adds the current folder, once: paths are compared normalized, on Windows without regard to case. A right\-click on a bookmark offers Rename and Remove. A bookmark or recent folder that no longer exists (a USB stick pulled out) is shown grey and kept. Without \fB\-app\fR nothing is written. An option given in the call wins over the saved view.
 .SS Use
 .CS
 package require tkutils::tkufiledialog
 
-set f [::tkutils::tkufiledialog::open -parent . \
-    -title "Open text" -initialdir [pwd] \
-    -filetypes {{Text {.txt .md}} {All *}}]
+set f [::tkutils::tkufiledialog::open -parent . -app myapp \
+    -title "Open text" -filetypes {{Text {.txt .md}} {All *}}]
 
 set d [::tkutils::tkufiledialog::directory -parent . -initialdir /tmp]
 
-set s [::tkutils::tkufiledialog::save -parent . \
+set s [::tkutils::tkufiledialog::save -parent . -app myapp \
     -initialfile out.txt -defaultextension .txt]
 .CE
+.SS Texts
+.PP
+Labels are English and go through \fBmsgcat\fR (namespace \fB::tkutils\fR), like \fBtkufilelist\fR: \fBPlaces\fR, \fBBookmarks\fR, \fBRecent\fR, \fBHome\fR, \fBDesktop\fR, \fBDocuments\fR, \fBDownloads\fR, \fBComputer\fR, \fB+ Bookmark this folder\fR, \fBShow hidden files\fR, \fBRename...\fR, \fBRemove\fR, \fBRename bookmark\fR, \fBOpen\fR, \fBSave\fR, \fBChoose folder\fR, \fBName\fR, \fBFolder\fR, \fBType\fR, \fBOK\fR, \fBCancel\fR, \fBAll files\fR.
 .SS "See also"
 .PP
-\fBtkufilelist\fR, \fBtkupath\fR, \fBtkudialog\fR, \fBtclutils::tuprovider\fR
+\fBtkufilelist\fR, \fBtkupath\fR, \fBtkudialog\fR, \fBtclutils::tuprovider\fR, \fBtclutils::tusettings\fR

@@ -1,4 +1,4 @@
-.TH tkulauncher n 0.4 tkutils
+.TH tkulauncher n 0.5 tkutils
 .SH tkutils::tkulauncher
 .PP
 An application launcher widget, in two shapes from one widget: a \fBmenu\fR (a ttk::menubutton with nested cascades \-\- a "Start" menu) or a \fBlist\fR (a vertical column of ttk::buttons \-\- a launcher panel). Entries start a program, open a URL, or open a file/folder. \fBCross\-platform\fR: URLs and files are opened with the OS default through \fBtclutils::tuopen\fR (xdg\-open / open / cmd start), so nothing is tied to a desktop environment \-\- the same launcher works on Windows and Linux. Tk 8.6+ and 9.x.
@@ -15,6 +15,8 @@ An application launcher widget, in two shapes from one widget: a \fBmenu\fR (a t
 ::tkutils::tkulauncher::showCalculator path  ;# open the built-in calculator window
 ::tkutils::tkulauncher::editEntries   path  ;# open the form-based entry editor
 ::tkutils::tkulauncher::saveEntries   items file  ;# write entries (JSON or INI by extension)
+::tkutils::tkulauncher::checkEntries  items ?opts? ;# check entries without launching (0.5)
+::tkutils::tkulauncher::checkDialog   path ?opts?  ;# the same as a table (0.5)
 ::tkutils::tkulauncher::systemIds            ;# all known system ids (for pickers)
 .CE
 .SS Options
@@ -141,13 +143,37 @@ App entries whose program is \fBnot found\fR are shown \fBgreyed out\fR (disable
 .CE
 .SS "Editing the menu with a form"
 .PP
-When a launcher is built with \fB\-file\fR and \fB\-settings 1\fR, the Settings submenu offers "Edit menu (form)..." next to the plain text editor. A launcher built with \fB\-editable 1\fR (even from \fB\-items\fR, with no Settings group) can also be edited by right\-clicking it and choosing "Edit..." \-\- handy for a list\-mode panel. The Type field is a dropdown, and for \fBsystem\fR entries the System id field is a dropdown of every known system id (sound, bluetooth, display, ...), so you pick instead of type. It opens a form\-based editor (needs \fBtkutils::tkuform\fR): a list of entries on the left, a form on the right. New/Delete manage the list, and a "New in:" dropdown chooses which menu a new entry is created in. Up/Down reorder the selected entry within its menu, and "Move to..." moves it into another menu (top level or any submenu). Apply copies the form into the selected entry; "Update launcher" applies the changes to the live launcher; and "Save to file..." writes them back \-\- as JSON (full fidelity) or INI (flat prefix form) chosen by the file extension \-\- then reloads the launcher. \fBsaveEntries\fR writes through a temporary file (\fBtclutils::common::replaceFile\fR, 0.4): a failed write leaves the old file and no open channel.
+When a launcher is built with \fB\-file\fR and \fB\-settings 1\fR, the Settings submenu offers "Edit menu (form)..." next to the plain text editor. A launcher built with \fB\-editable 1\fR (even from \fB\-items\fR, with no Settings group) can also be edited by right\-clicking it and choosing "Edit..." \-\- handy for a list\-mode panel. The Type field is a dropdown, and for \fBsystem\fR entries the System id field is a dropdown of every known system id (sound, bluetooth, display, ...), so you pick instead of type. It opens a form\-based editor (needs \fBtkutils::tkuform\fR): a list of entries on the left, a form on the right; the form shows only the fields of the chosen type (0.5). New/Delete manage the list, and a "New in:" dropdown chooses which menu a new entry is created in. Up/Down reorder the selected entry within its menu, and "Move to..." moves it into another menu (top level or any submenu). Apply copies the form into the selected entry; "Save" applies it as well, writes the entries back \-\- as JSON (full fidelity) or INI (flat prefix form) chosen by the file extension \-\- and updates the launcher; "Save as..." writes another file, which then becomes the target; "Check..." checks the entries as they stand in the editor. "Close" asks when something is unsaved (0.5; up to 0.4 the buttons were Apply, Update launcher, Save to file...). \fBsaveEntries\fR writes through a temporary file (\fBtclutils::common::replaceFile\fR, 0.4): a failed write leaves the old file and no open channel.
 .CS
 ::tkutils::tkulauncher::editEntries .launcher    ;# open the editor
 ::tkutils::tkulauncher::saveEntries $items menu.json  ;# or menu.ini
 .CE
 .PP
 Saving is symmetric with loading: \fBmenu.json\fR round\-trips every field including nested submenus; \fBmenu.ini\fR maps top\-level menus to sections and entries to \fBlabel = prefix: value\fR lines (\fBapp:\fR, \fBurl:\fR, \fBopen:\fR, \fBfile:\fR, \fBsystem:\fR).
+.SS "Checking entries"
+.PP
+\fBcheckEntries items ?\-timeout ms? ?\-fetch cmd? ?\-progress cmd?\fR goes through the entries, also inside submenus, and says for each whether it would work here \-\- without launching anything. It returns a list of dicts with \fBpath\fR (index list, as the editor uses it), \fBlabel\fR, \fBtype\fR, \fBtarget\fR, \fBstatus\fR and \fBdetail\fR. \fBstatus\fR is one of \fBok\fR, \fBmoved\fR, \fBproblem\fR, \fBunchecked\fR:
+.TS
+l l.
+Type	Checked
+\fBurl\fR	fetched (HEAD, GET when the server refuses HEAD), redirects followed up to 5 times: 2xx \fBok\fR, another final address \fBmoved\fR with the new one, 4xx/5xx or no answer \fBproblem\fR
+\fBopen\fR, \fBfile\fR	the file or folder exists (\fB~\fR expanded)
+\fBapp\fR	the program is found (\fBauto_execok\fR; on Windows a bare name counts \-\- it may be under App Paths)
+\fBtcl\fR	the script exists and the interpreter is found
+\fBsystem\fR	the id has a command here, and its program is found
+\fBcalendar\fR, \fBcalc\fR	built in: \fBok\fR
+.TE
+.PP
+https goes through \fBtclutils::tuhttps\fR, so certificates are verified. Without the \fBtls\fR package, or with tls 1.x and no CA bundle (set \fBSSL_CERT_FILE\fR), a URL is \fBunchecked\fR with the reason \-\- never \fBproblem\fR for something the computer lacks. \fB\-fetch\fR replaces the network (a command called with the URL, returning \fB{code N location L error E}\fR), \fB\-progress\fR is called with (done, total, result) after each entry, \fB\-timeout\fR is per request (default 8000 ms).
+.PP
+\fBcheckDialog path ?\-items spec?\fR shows the same as a table: problems red, moved yellow, unchecked grey; a double\-click opens the entry in the editor.
+.CS
+foreach r [::tkutils::tkulauncher::checkEntries [::tkutils::tkulauncher::load menu.json]] {
+    if {[dict get $r status] ne "ok"} {
+        puts "[dict get $r label]: [dict get $r status] [dict get $r detail]"
+    }
+}
+.CE
 .SS "Calendar and calculator"
 .PP
 A \fBcalendar\fR entry opens a small calendar window, and a \fBcalc\fR entry opens the built\-in calculator (\fBtkucalc\fR, with keyboard input and history) \-\- both in a reusable window that stays above the launcher (a transient satellite of it) and minimizes with it.
@@ -205,7 +231,7 @@ The commands are sensible defaults; adjust the \fBsysCat\fR catalogue for site s
 \fBtclutils::tuopen\fR, \fBtclutils::tujson\fR, \fBtclutils::tuini\fR, \fBtkumenu\fR
 .SS "Launching Tcl/Tk scripts (\fBtcl\fR entries)"
 .PP
-A \fBtcl\fR entry runs a Tcl/Tk script with a chosen interpreter, cross\-platform. Fields: \fBtarget\fR (the script path), \fBinterp\fR (one of \fBwish9\fR, \fBwish8\fR, \fBtclsh9\fR, \fBtclsh8\fR; default \fBwish9\fR), optional \fBtcllibpath\fR (set as \fBTCLLIBPATH\fR for the child \-\- the essence of a tcl8env/tcl9env setup), optional \fBargs\fR, \fBdir\fR, and \fBterminal\fR (for \fBtclsh\fR scripts). Interpreter keys map per platform:
+A \fBtcl\fR entry runs a Tcl/Tk script with a chosen interpreter, cross\-platform. Fields: \fBtarget\fR (the script path), \fBinterp\fR (one of \fBcurrent\fR, \fBwish9\fR, \fBwish8\fR, \fBtclsh9\fR, \fBtclsh8\fR; default \fBwish9\fR), optional \fBtcllibpath\fR (set as \fBTCLLIBPATH\fR for the child \-\- the essence of a tcl8env/tcl9env setup), optional \fBargs\fR, \fBdir\fR, and \fBterminal\fR (for \fBtclsh\fR scripts). Interpreter keys map per platform:
 .TS
 l l l.
 key	Linux	Windows
@@ -215,7 +241,9 @@ tclsh9	tclsh9.0	tclsh90.exe
 tclsh8	tclsh8.6	tclsh86t.exe
 .TE
 .PP
-The command \fBtclInterpreters\fR returns the available interpreter keys (used by the editor dropdown), \fBresolveTclInterp key ?platform?\fR maps a key to the executable for a platform, and \fBsetTclInterp\fR overrides a mapping.
+\fBcurrent\fR is the wish of the running interpreter: the executable itself when it is a wish, else the wish next to it (\fBtclsh9.0\fR \-> \fBwish9.0\fR). A packaged program has none; then the entry reports an error. \fBcurrentWish\fR returns it.
+.PP
+The command \fBtclInterpreters\fR returns the available interpreter keys, \fBcurrent\fR first (used by the editor dropdown), \fBresolveTclInterp key ?platform?\fR maps a key to the executable for a platform, and \fBsetTclInterp\fR overrides a mapping.
 .PP
 Override a mapping (e.g. an absolute path) with \fB::tkutils::tkulauncher::setTclInterp wish9 \-linux /opt/tcl9/bin/wish9.0 \-windows C:/Tcl/bin/wish90.exe\fR. Example entry: \fB{type tcl label "My App" target ~/app.tcl interp wish9 tcllibpath "~/lib/tcl9.0 ~/lib/tcltk"}\fR.
 .SS "Home directory and \fB~\fR (Tcl 9)"

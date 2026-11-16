@@ -12,6 +12,17 @@ if {$haveTk} {
     set tmDir [file normalize [file join $here .. lib tm]]
     catch {tcl::tm::path add $tmDir}
     if {[info exists ::env(TKUTILS_TM)]} { catch {tcl::tm::path add $::env(TKUTILS_TM)} }
+    # tclutils discovery (CONVENTIONS 11.2): 0.3 needs tclutils::tuprovider
+    if {[info exists ::env(TCLUTILS_TM)]} {
+        catch {tcl::tm::path add $::env(TCLUTILS_TM)}
+    } else {
+        set _tkuRoot [file dirname [file dirname $tmDir]]
+        foreach _c [lsort -decreasing \
+                [glob -nocomplain [file join [file dirname $_tkuRoot] tclutils*/lib/tm]]] {
+            tcl::tm::path add $_c
+            break
+        }
+    }
     package require tkutils::tkufiletree
 }
 set ns ::tkutils::tkufiletree
@@ -98,10 +109,11 @@ test tkufiletree-1.6 {-showhidden includes dot entries} -constraints tk -setup {
 test tkufiletree-1.7 {-showhidden: dot entries once, also where "*" matches them (Windows)} \
     -constraints tk -setup {
     set r [mktree]
-    # Emulate Windows glob: "*" also returns dot files.
-    proc ::tkutils::tkufiletree::glob {args} {
+    # Emulate Windows glob: "*" also returns dot files. Since 0.3 the names
+    # come from tuprovider::localNames, so the emulation goes there.
+    proc ::tclutils::tuprovider::glob {args} {
         set res [::glob {*}$args]
-        if {[lindex $args end] eq "*"} {
+        if {[lindex $args end] eq "*" && "hidden" ni $args} {
             lappend res {*}[::glob {*}[lrange $args 0 end-1] .*]
         }
         return $res
@@ -113,7 +125,7 @@ test tkufiletree-1.7 {-showhidden: dot entries once, also where "*" matches them
     set n [names [$tv children $rootid]]
     expr {".hidden" in $n && [llength $n] == [llength [lsort -unique $n]]}
 } -cleanup {
-    rename ::tkutils::tkufiletree::glob {}
+    rename ::tclutils::tuprovider::glob {}
     catch {destroy .t}
     ::tcltest::removeDirectory ft
 } -result 1
@@ -274,5 +286,57 @@ test tkufiletree-9.3 {an unknown option is still rejected} -constraints tk -body
     catch {::tkutils::tkufiletree::widget .ftp -provder x} m o
     dict get $o -errorcode
 } -cleanup { catch {destroy .ftp} } -result {TKUTILS TKUFILETREE OPTION -provder}
+
+testConstraint winFs  [expr {$::tcl_platform(platform) eq "windows"}]
+
+test tkufiletree-1.8 {Windows: attribute rules for files and folders} -constraints {tk winFs} -setup {
+    set r [::tcltest::makeDirectory ftattr]
+    foreach {n attrs} {norm {} sys {-system 1} hid {-hidden 1} both {-hidden 1 -system 1}} {
+        set f [file join $r $n.txt]; set fh [open $f w]; puts $fh x; close $fh
+        set d [file join $r ${n}dir]; file mkdir $d
+        if {[llength $attrs]} { file attributes $f {*}$attrs; file attributes $d {*}$attrs }
+    }
+    set fh [open [file join $r .dot.txt] w]; puts $fh x; close $fh
+    proc kids {args} {
+        $::ns\::widget .t -root $::r {*}$args
+        set tv [$::ns\::treeview .t]
+        set n [names [$tv children [lindex [$tv children ""] 0]]]
+        destroy .t
+        return $n
+    }
+} -body {
+    list [kids] [kids -showhidden 1] [kids -showhidden 1 -showsystem 1]
+} -cleanup {
+    foreach f [::tclutils::tuprovider::localNames $r] { catch {file attributes $f -hidden 0 -system 0} }
+    catch {destroy .t}
+    ::tcltest::removeDirectory ftattr
+} -result {{normdir sysdir .dot.txt norm.txt sys.txt} {hiddir normdir sysdir .dot.txt hid.txt norm.txt sys.txt} {bothdir hiddir normdir sysdir .dot.txt both.txt hid.txt norm.txt sys.txt}}
+
+test tkufiletree-1.9 {with -provider the keys hidden and system decide, not the dot} -constraints tk -setup {
+    oo::class create TreeProv {
+        method list {d} {
+            if {$d ne "/r"} { return {} }
+            return [list \
+                [dict create name .gitignore path /r/.gitignore type file hidden 0 system 0] \
+                [dict create name geheim path /r/geheim type dir hidden 1 system 0] \
+                [dict create name desktop.ini path /r/desktop.ini type file hidden 1 system 1] \
+                [dict create name .ohne path /r/.ohne type file]]
+        }
+        method stat {p} { return [dict create name [file tail $p] path $p type dir] }
+    }
+    set p [TreeProv new]
+    proc pkids {args} {
+        $::ns\::widget .t -root /r -provider $::p {*}$args
+        set tv [$::ns\::treeview .t]
+        set n [names [$tv children [lindex [$tv children ""] 0]]]
+        destroy .t
+        return $n
+    }
+} -body {
+    list [pkids] [pkids -showhidden 1] [pkids -showhidden 1 -showsystem 1]
+} -cleanup {
+    catch {destroy .t}
+    $p destroy; TreeProv destroy
+} -result {.gitignore {geheim .gitignore .ohne} {geheim .gitignore .ohne desktop.ini}}
 
 cleanupTests

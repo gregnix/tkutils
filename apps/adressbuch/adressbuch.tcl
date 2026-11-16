@@ -25,6 +25,9 @@ set ::appdir [file dirname [file normalize [info script]]]
 # lib/tm daneben in die Modulsuche haengen, damit die Anwendung ohne
 # gesetzte Umgebungsvariable laeuft -- wer sie auspackt und startet,
 # soll nicht erst TCL9_0_TM_PATH setzen muessen.
+# tclutils/tkutils wie bei den anderen Apps suchen (fehlt der Ordner
+# _lib, etwa im ausgepackten Einzelpaket, bleibt es bei der Modulsuche)
+catch {source [file join $::appdir .. _lib paths.tcl]}
 set ::abmodules [file join $::appdir lib tm]
 if {[file isdirectory $::abmodules]
         && $::abmodules ni [::tcl::tm::path list]} {

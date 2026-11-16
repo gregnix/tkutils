@@ -47,7 +47,13 @@ rebuilds from the root instead.
 - `-filter {pat ...}` — glob patterns; only matching files are shown
   (directories are always shown). Empty = all files. Case-insensitive.
 - `-files 0|1` — show files at all (default 1; 0 = directories only).
-- `-showhidden 0|1` — include dot-entries (default 0).
+- `-showhidden 0|1` — include hidden entries (default 0). What is hidden
+  follows the system, as in `tkufilelist`: on Windows the *hidden* attribute
+  (a leading dot means nothing there), elsewhere a leading dot. With
+  `-provider`, the entry keys `hidden`/`system` decide when the provider
+  sets them, else the dot.
+- `-showsystem 0|1` — Windows: also show entries that are hidden **and**
+  system, such as `desktop.ini` (default 0).
 - `-provider obj` — a `tclutils::tuprovider` object (0.2). Directories are
   listed and tested through it (`list`, `stat`), so a ZIP or WebDAV tree shows
   the provider's content. Without it the local filesystem is used. Provider

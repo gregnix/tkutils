@@ -148,4 +148,29 @@ test tkuform-3.7 {unknown option names the known ones} -constraints haveTk -body
     set m
 } -result "unknown option \"-bogus\"\nKnown: -columns -padding"
 
+# --- 0.2: show and hide fields -------------------------------------------------
+test tkuform-4.1 {showOnly hides the other fields and keeps their values} -constraints haveTk -body {
+    catch {destroy .f4}
+    set w [::tkutils::tkuform::widget .f4 {{name a} {name b} {name c}}]
+    pack $w; update
+    ::tkutils::tkuform::setField $w b kept
+    ::tkutils::tkuform::showOnly $w {a c}
+    update
+    set r [list [::tkutils::tkuform::isShown $w a] [::tkutils::tkuform::isShown $w b] \
+        [winfo ismapped $w.l1] [::tkutils::tkuform::get $w b]]
+    ::tkutils::tkuform::showField $w b 1
+    update
+    lappend r [::tkutils::tkuform::isShown $w b] [lindex [grid info $w.f1] [lsearch [grid info $w.f1] -row]+1]
+    destroy $w
+    set r
+} -result {1 0 0 kept 1 1}
+
+test tkuform-4.2 {showField on an unknown field errors} -constraints haveTk -body {
+    catch {destroy .f5}
+    set w [::tkutils::tkuform::widget .f5 {{name a}}]
+    catch {::tkutils::tkuform::showField $w nope 0} m o
+    destroy $w
+    dict get $o -errorcode
+} -result {TKUTILS TKUFORM NOFIELD}
+
 cleanupTests

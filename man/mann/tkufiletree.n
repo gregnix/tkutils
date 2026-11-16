@@ -1,4 +1,4 @@
-.TH tkufiletree n 0.2 tkutils
+.TH tkufiletree n 0.3 tkutils
 .SH tkutils::tkufiletree
 .PP
 A lazy file\-system tree built on \fBtkutils::tkutree\fR. Shows a directory hierarchy under a root; subdirectories are read from disk only when expanded (no full walk). Files can be filtered by glob patterns, and activating a file fires a callback with its full path. Tk 8.6+ and 9.x.
@@ -29,7 +29,9 @@ A lazy file\-system tree built on \fBtkutils::tkutree\fR. Shows a directory hier
 .IP \(bu
 \fB\-files 0|1\fR — show files at all (default 1; 0 = directories only).
 .IP \(bu
-\fB\-showhidden 0|1\fR — include dot\-entries (default 0).
+\fB\-showhidden 0|1\fR — include hidden entries (default 0). What is hidden follows the system, as in \fBtkufilelist\fR: on Windows the \fIhidden\fR attribute (a leading dot means nothing there), elsewhere a leading dot. With \fB\-provider\fR, the entry keys \fBhidden\fR/\fBsystem\fR decide when the provider sets them, else the dot.
+.IP \(bu
+\fB\-showsystem 0|1\fR — Windows: also show entries that are hidden \fBand\fR system, such as \fBdesktop.ini\fR (default 0).
 .IP \(bu
 \fB\-provider obj\fR — a \fBtclutils::tuprovider\fR object (0.2). Directories are listed and tested through it (\fBlist\fR, \fBstat\fR), so a ZIP or WebDAV tree shows the provider's content. Without it the local filesystem is used. Provider paths are taken as they are (no \fBfile normalize\fR). Up to 0.1 this option did not exist and was silently ignored, so such trees showed the local disk.
 .IP \(bu

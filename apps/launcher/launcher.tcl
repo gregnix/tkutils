@@ -74,6 +74,82 @@ proc ::launcherapp::defaultConfig {} {
     return [file join $base menu.json]
 }
 
+# ---- the other tkutils apps -----------------------------------------------
+# The apps next to this one (tkutils/apps/<folder>/<script>), started with the
+# wish of the running interpreter (interpreter "current"). Only those whose
+# script exists are offered -- inside a packaged launcher there are none.
+# build-app (tclutils) is not here: it is a command-line tool without a window.
+namespace eval ::launcherapp {
+    variable appCatalog {
+        "Address book"        adressbuch          adressbuch.tcl
+        "CSV editor"          csv-editor          csv_editor.tcl
+        "Knowledge base"      knowledge           knowledge-base.tcl
+        "Notes"               notes-app           notes_app.tcl
+        "SQLite editor"       sqlite-editor       sqlite-editor.tcl
+        "SQLite editor (TDBC)" tdbc-sqlite-editor tdbc-sqlite-editor.tcl
+        "PostgreSQL editor"   postgresql-editor   postgresql-editor.tcl
+        "Oracle editor"       oracle-editor       oracle-editor.tcl
+        "Search and replace"  search-replace-tool search_replace_tool.tcl
+        "Developer toolbox"   tkdevtools          tkdevtools.tcl
+        "GUI designer"        tkudesigner         tkudesigner.tcl
+    }
+}
+
+# The apps folder: the parent of this app's folder.
+proc ::launcherapp::appsDir {} {
+    return [file dirname [file dirname [file normalize [info script]]]]
+}
+# remember it while sourcing: [info script] is empty later
+set ::launcherapp::appsDirAtLoad [::launcherapp::appsDir]
+
+# Entries for the apps that exist, as a spec list.
+proc ::launcherapp::appEntries {{dir ""}} {
+    variable appCatalog
+    if {$dir eq ""} { set dir $::launcherapp::appsDirAtLoad }
+    set out {}
+    foreach {label folder script} $appCatalog {
+        set f [file join $dir $folder $script]
+        if {[file isfile $f]} {
+            lappend out [dict create type tcl label $label target $f interp current]
+        }
+    }
+    return $out
+}
+
+# Put the apps into the menu as the submenu "Apps": replace it when there is
+# one, else add it before the first separator (or at the end). Returns the
+# number of apps. Without an apps list it looks for them (appEntries).
+proc ::launcherapp::withApps {items args} {
+    set apps [expr {[llength $args] ? [lindex $args 0] : [appEntries]}]
+    if {![llength $apps]} { return [list $items 0] }
+    set menu [dict create type menu label Apps items $apps]
+    set i 0
+    foreach e $items {
+        if {[dict get $e type] eq "menu" && [dict exists $e label] && [dict get $e label] eq "Apps"} {
+            return [list [lreplace $items $i $i $menu] [llength $apps]]
+        }
+        incr i
+    }
+    set at [lsearch -exact [lmap e $items {dict get $e type}] separator]
+    if {$at < 0} { set at end }
+    return [list [linsert $items $at $menu] [llength $apps]]
+}
+
+# Edit > Add tkutils apps: into the config file, then reload.
+proc ::launcherapp::doAddApps {} {
+    variable S
+    set items [::tkutils::tkulauncher::load $S(config)]
+    lassign [withApps $items] items n
+    if {$n == 0} {
+        _status "No tkutils apps found next to the launcher"
+        return 0
+    }
+    ::tkutils::tkulauncher::saveEntries $items $S(config)
+    doReload
+    _status "Submenu \"Apps\" with $n app(s) -- they start with [file tail [::tkutils::tkulauncher::currentWish]]"
+    return $n
+}
+
 # The starter menu written on first run. Uses platform-neutral system entries
 # and a Tcl-script example instead of hard-coded xterm/xdg-open commands, and a
 # separate "System" submenu built from the launcher's own system catalogue.
@@ -93,9 +169,6 @@ proc ::launcherapp::starterSpec {} {
             {type url label "Tcl/Tk Manual" target "https://www.tcl.tk/man/tcl9.0/"}
             {type url label "Tcl Wiki"      target "https://wiki.tcl-lang.org/"}
         }}
-        {type menu label "Tcl" items {
-            {type tcl label "Run a script (wish 9)" target "~/script.tcl" interp wish9}
-        }}
         {type separator}
         {type calendar}
         {type calc}
@@ -103,15 +176,20 @@ proc ::launcherapp::starterSpec {} {
     }
 }
 
+# The starter menu plus the apps found next to the launcher (0.5).
+proc ::launcherapp::starterWithApps {} {
+    return [lindex [withApps [starterSpec]] 0]
+}
+
 # Make sure the config file exists; create it from the starter spec if not.
 # Returns 1 if it created a fresh config (so the app can show a first-run hint).
 proc ::launcherapp::ensureConfig {path} {
     variable S
-    package require tkutils::tkulauncher
+    package require tkutils::tkulauncher 0.5
     set fresh 0
     if {![file exists $path]} {
         file mkdir [file dirname $path]
-        ::tkutils::tkulauncher::saveEntries [starterSpec] $path
+        ::tkutils::tkulauncher::saveEntries [starterWithApps] $path
         set fresh 1
     }
     return $fresh
@@ -121,7 +199,7 @@ proc ::launcherapp::ensureConfig {path} {
 proc ::launcherapp::buildApp {toplevel config} {
     variable S
     package require Tk 8.6-
-    package require tkutils::tkulauncher
+    package require tkutils::tkulauncher 0.5
 
     set S(config) $config
     set fresh [ensureConfig $config]
@@ -201,6 +279,9 @@ proc ::launcherapp::_buildMenuBar {top} {
     $medit add command -label "Edit menu..."       -command ::launcherapp::doEdit
     $medit add command -label "Add suggestions..." -command ::launcherapp::doSuggest
     $medit add command -label "Quick add defaults" -command ::launcherapp::doQuickAdd
+    $medit add command -label "Add tkutils apps"   -command ::launcherapp::doAddApps
+    $medit add separator
+    $medit add command -label "Check entries..."   -command ::launcherapp::doCheck
 
     set mhelp $mb.help
     menu $mhelp -tearoff 0
@@ -223,7 +304,7 @@ proc ::launcherapp::_editorTop {} {
 
 proc ::launcherapp::doEdit {} {
     _editorTop
-    _status "Editing menu -- Apply, then Update launcher or Save to file"
+    _status "Editing menu -- Save writes the file and updates the launcher"
 }
 
 proc ::launcherapp::doSuggest {} {
@@ -239,7 +320,15 @@ proc ::launcherapp::doQuickAdd {} {
     if {[llength [info commands ::tkutils::tkulauncher::_edQuickAdd]]} {
         ::tkutils::tkulauncher::_edQuickAdd $top
     }
-    _status "Added a default set -- Update launcher or Save to file to keep it"
+    _status "Added a default set -- Save to keep it"
+}
+
+# Check every entry -- programs, files, system tools, and whether the web
+# addresses still answer -- and list the result (tkulauncher::checkDialog).
+proc ::launcherapp::doCheck {} {
+    variable S
+    ::tkutils::tkulauncher::checkDialog $S(win)
+    _status "Checking entries -- double-click a row to edit it"
 }
 
 proc ::launcherapp::doReload {} {

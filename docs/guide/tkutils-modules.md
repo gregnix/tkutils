@@ -17,11 +17,11 @@
 | `tkutils::tkudialog` | 0.4 | dialogs with copyable message text | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkudialog-0.4.tm` | msgcat,tkutils::tkuform |
 | `tkutils::tkudiff` | 0.1 | line diff viewer | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkudiff-0.1.tm` | tclutils::tudiff,tclutils::common |
 | `tkutils::tkueditor` | 0.4 | text editor widget | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkueditor-0.4.tm` | tclutils::tuiconv,tkutils::tkuicon,tkutils::tkutoolbar,tkutils::tkustatus |
-| `tkutils::tkufiledialog` | 0.2 | modal open/save/directory dialogs on top of tkufilelist | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkufiledialog-0.2.tm` | tkutils::tkuopts,tkutils::tkufilelist,tkutils::tkupath,msgcat,tclutils::tuprovider |
-| `tkutils::tkufilelist` | 0.2 | a detail file list, filled from a storage provider | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkufilelist-0.2.tm` | tkutils::tkuopts,tkutils::tkutablelist,tclutils::tuprovider |
-| `tkutils::tkufiletree` | 0.2 | a lazy file-system tree built on tkutils::tkutree. | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkufiletree-0.2.tm` | tkutils::tkuopts,tkutils::tkutree |
+| `tkutils::tkufiledialog` | 0.3 | modal open/save/directory dialogs on top of tkufilelist | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkufiledialog-0.3.tm` | tkutils::tkuopts,tkutils::tkufilelist,tkutils::tkupath,tclutils::tusettings,msgcat,tclutils::tuprovider |
+| `tkutils::tkufilelist` | 0.3 | a detail file list, filled from a storage provider | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkufilelist-0.3.tm` | tkutils::tkuopts,tkutils::tkutablelist,msgcat,tclutils::tuprovider |
+| `tkutils::tkufiletree` | 0.3 | a lazy file-system tree built on tkutils::tkutree. | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkufiletree-0.3.tm` | tkutils::tkuopts,tkutils::tkutree,tclutils::tuprovider |
 | `tkutils::tkufilterbar` | 0.2 | a per-column filter bar: one small entry per column, each typing a substring that the consumer ANDs together. | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkufilterbar-0.2.tm` | tkutils::tkuopts |
-| `tkutils::tkuform` | 0.1 | declarative form widget | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuform-0.1.tm` |  |
+| `tkutils::tkuform` | 0.2 | declarative form widget | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuform-0.2.tm` |  |
 | `tkutils::tkufuzzy` | 0.1 | incremental fuzzy filter | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkufuzzy-0.1.tm` | tclutils::tufuzzy |
 | `tkutils::tkugeometry` | 0.1 | save and restore a toplevel's size, position and zoom state, kept on the screen | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkugeometry-0.1.tm` | tclutils::common,tclutils::tusettings |
 | `tkutils::tkuhexedit` | 0.2 | small Tk hex viewer/editor | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuhexedit-0.2.tm` | tclutils::tubin,tclutils::tuhexdump,tclutils::common |
@@ -32,7 +32,7 @@
 | `tkutils::tkujson` | 0.1 | JSON tree viewer | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkujson-0.1.tm` | tclutils::tujson,tclutils::common |
 | `tkutils::tkukeynav` | 0.1 | keyboard focus navigation helpers | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkukeynav-0.1.tm` |  |
 | `tkutils::tkulabeled` | 0.1 | labeled input composites (label + control in one) | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkulabeled-0.1.tm` |  |
-| `tkutils::tkulauncher` | 0.4 | an application launcher widget, as a menu or a list | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkulauncher-0.4.tm` | tkutils::tkuopts,tclutils::tuopen,tkutils::tkuscrolledframe,tkutils::tkuwheel,tkutils::tkuballoon,tclutils::tujson,tclutils::tuini,tkutils::tkutical,tkutils::tkucalendar,tkutils::tkucal,tkutils::tkucalc,tkutils::tkuform |
+| `tkutils::tkulauncher` | 0.5 | an application launcher widget, as a menu or a list | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkulauncher-0.5.tm` | tkutils::tkuopts,tclutils::tuopen,tclutils::tuhttps,tkutils::tkuscrolledframe,tkutils::tkuwheel,tkutils::tkuballoon,tclutils::tujson,tclutils::tuini,tkutils::tkutical,tkutils::tkucalendar,tkutils::tkucal,tkutils::tkucalc,tkutils::tkuform |
 | `tkutils::tkulayoutcanvas` | 0.2 | visual block layout designer on a Tk canvas | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkulayoutcanvas-0.2.tm` | tclutils::tulayout |
 | `tkutils::tkuldif` | 0.3 | LDIF entry viewer/editor | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuldif-0.3.tm` | tkutils::tkuopts,tclutils::tuldif |
 | `tkutils::tkuload` | 0.3 | instantiate a tkudesigner `.tkd` layout as a live Tk widget tree (no code export) | Tk · widgets | Y | Y | Y | tkutils | `lib/tm/tkutils/tkuload-0.3.tm` | tkutils::tkurender |

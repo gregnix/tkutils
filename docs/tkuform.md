@@ -18,7 +18,14 @@ set w [::tkutils::tkuform::widget .w $fieldspec ?-padding P? ?-columns N?]
 ::tkutils::tkuform::setValues  $w dict        ;# unknown keys ignored
 ::tkutils::tkuform::fieldNames $w
 ::tkutils::tkuform::widgetOf   $w name        ;# the control widget
+::tkutils::tkuform::showField  $w name 0|1    ;# hide / show a field (0.2)
+::tkutils::tkuform::showOnly   $w names       ;# show these, hide the rest (0.2)
+::tkutils::tkuform::isShown    $w name        ;# 1 if shown (0.2)
 ```
+
+A hidden field keeps its value and its place; showing it again puts it back
+where it was. The launcher editor uses this to show only the fields of the
+chosen entry type.
 
 The setter is `setField` (not `set`) so it does not shadow the Tcl `set`
 builtin.

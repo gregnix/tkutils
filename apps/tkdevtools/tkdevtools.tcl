@@ -1102,7 +1102,7 @@ proc osFill {} {
         uname    {exec uname -a}
         whoami   {exec whoami}
         pwd      {pwd}
-        home     {file normalize ~}
+        home     {homeDir}
     } {
         if {[catch {set v [{*}$cmd]} err]} { set v "(n/a: $err)" }
         runtimeAddRow $t $k $v
@@ -1997,6 +1997,199 @@ proc gpFill {} {
         append ::gpStatus "\nHere \"*\" skips the $hidden dot file(s); on Windows it\
             matches them, and \"*\" plus \".*\" lists them twice."
     }
+    # on Windows the sentence where it applies (2026-11-14): "*" matches dot
+    # names, and what has the hidden attribute only "-types hidden" finds
+    if {$::gpPat eq "*" && $::tcl_platform(platform) eq "windows"} {
+        set dotsInStar [llength [lmap x [glob -nocomplain -directory $::gpDir -- *] {
+            if {![string match .* [file tail $x]]} continue ; set x }]]
+        set attrHidden [llength [glob -nocomplain -directory $::gpDir -types hidden -- *]]
+        if {$dotsInStar} {
+            append ::gpStatus "\nHere \"*\" already matches $dotsInStar dot name(s);\
+                \"*\" plus \".*\" lists them twice."
+        }
+        if {$attrHidden} {
+            append ::gpStatus "\n$attrHidden entr[expr {$attrHidden == 1 ? "y has" : "ies have"}]\
+                the hidden attribute: \"*\" skips them, \"-types hidden *\" finds them\
+                (page Attributes)."
+        }
+    }
+}
+
+# ============================ Platform: attributes =========================
+# What the system hides in a directory and why: per entry the attributes
+# (Windows hidden/system/readonly), whether "glob *" and "glob -types hidden"
+# find it, and whether tkufilelist shows it with the two switches below.
+# Read only. The rule: hidden needs "hidden entries", hidden and system needs
+# both; system alone hides nothing; on Unix the leading dot is "hidden".
+proc buildAttrProbe {f} {
+    set bar [frame $f.bar]
+    label $bar.dl -text "Directory:"
+    entry $bar.d -textvariable ::atDir -width 40
+    ttk::button $bar.b -text "..." -width 3 -command {
+        set d [tk_chooseDirectory -initialdir $::atDir -mustexist 1]
+        if {$d ne ""} { set ::atDir $d ; atFill }
+    }
+    checkbutton $bar.h -text "hidden entries" -variable ::atHidden -command atFill
+    checkbutton $bar.s -text "system files" -variable ::atSystem -command atFill
+    pack $bar.dl $bar.d $bar.b $bar.h $bar.s -side left -padx 3
+    pack $bar -fill x -pady 3
+    label $f.st -textvariable ::atStatus -anchor w -justify left -fg #225 -wraplength 820
+    pack $f.st -fill x -padx 6 -pady 3
+    set t [scrolledTable $f {30 Name left 6 Type left 7 hidden center 7 system center
+        8 readonly center 9 {glob *} center 13 {-types hidden} center 12 tkufilelist center} -height 16]
+    set ::atTable $t
+    catch {::tkutils::tkutlclip::installBindings $t}
+    bind $bar.d <Return> atFill
+    set ::atDir [pwd]
+    set ::atHidden 0
+    set ::atSystem 0
+    atFill
+}
+proc atAttr {f name} {
+    if {[catch {file attributes $f -$name} v]} { return "–" }
+    return [expr {$v ? "yes" : ""}]
+}
+proc atFill {} {
+    set t $::atTable
+    if {![winfo exists $t]} return
+    $t delete 0 end
+    if {[catch {package require tclutils::tuprovider 0.4} err]
+            || [catch {package require tkutils::tkufilelist 0.3} err]} {
+        set ::atStatus "needs tclutils::tuprovider 0.4 and tkutils::tkufilelist 0.3: $err"
+        return
+    }
+    set dir $::atDir
+    if {![file isdirectory $dir]} { set ::atStatus "not a directory: $dir"; return }
+    set star [lmap x [glob -nocomplain -directory $dir -- *] {file tail $x}]
+    set hid  [lmap x [glob -nocomplain -directory $dir -types hidden -- *] {file tail $x}]
+    # what the list really shows: a list widget that is never mapped
+    catch {destroy .atProbe}
+    ::tkutils::tkufilelist::widget .atProbe -dir $dir \
+        -showhidden $::atHidden -showsystem $::atSystem
+    set lt [::tkutils::tkutablelist::tableWidget .atProbe]
+    set shown {}
+    for {set i 0} {$i < [$lt size]} {incr i} {
+        lappend shown [dict get [$lt rowattrib $i entry] name]
+    }
+    destroy .atProbe
+    set n 0
+    set names [lmap x [::tclutils::tuprovider::localNames $dir] {file tail $x}]
+    foreach name [lsort -dictionary $names] {
+        set f [file join $dir $name]
+        set ty [expr {[file isdirectory $f] ? "dir" : "file"}]
+        set inStar [llength [lsearch -all -exact $star $name]]
+        set row [list $name $ty [atAttr $f hidden] [atAttr $f system] [atAttr $f readonly] \
+            [expr {$inStar > 1 ? "twice" : ($inStar ? "yes" : "")}] \
+            [expr {$name in $hid ? "yes" : ""}] [expr {$name in $shown ? "shown" : ""}]]
+        $t insert end $row
+        if {$name ni $shown} { $t rowconfigure end -foreground #888 }
+        incr n
+    }
+    if {$::tcl_platform(platform) eq "windows"} {
+        set rule "Windows: the hidden attribute hides, a leading dot does not. Hidden and\
+            system (desktop.ini) needs both switches; system alone hides nothing."
+    } else {
+        set rule "Here the leading dot hides; Windows attributes do not exist (–)."
+    }
+    set ::atStatus "$n entries, tkufilelist shows [llength $shown].  $rule\
+        \n\"glob *\" alone misses what \"-types hidden\" finds; tuprovider::localNames\
+        joins both, each name once."
+}
+
+# ============================ Platform: folders and drives =================
+# Drives (file volumes), the profile, the user folders -- by name under the
+# profile and, on Windows, as the registry has them (a Desktop on OneDrive)
+# -- what tkufiledialog offers as places, and where tusettings keeps the
+# settings of an application. Read only.
+proc buildFolderProbe {f} {
+    set bar [frame $f.bar]
+    ttk::button $bar.refresh -text "Refresh" -command fdFill
+    label $bar.al -text "Application name (tusettings):"
+    entry $bar.a -textvariable ::fdApp -width 16
+    pack $bar.refresh $bar.al $bar.a -side left -padx 3
+    pack $bar -fill x -pady 3
+    label $f.st -textvariable ::fdStatus -anchor w -justify left -fg #225 -wraplength 820
+    pack $f.st -fill x -padx 6 -pady 3
+    set t [scrolledTable $f {24 Key left 52 Value left 30 Note left} -height 20]
+    set ::fdTable $t
+    catch {::tkutils::tkutlclip::installBindings $t}
+    bind $bar.a <Return> fdFill
+    set ::fdApp myapp
+    fdFill
+}
+# The home directory. Tcl 9 does not expand "~" any more ("file normalize ~"
+# gives <cwd>/~); it has "file home" instead.
+proc homeDir {} {
+    if {![catch {file home} h]} { return [file normalize $h] }
+    return [file normalize ~]
+}
+proc fdRow {key value {note ""} {mark 0}} {
+    $::fdTable insert end [list $key $value $note]
+    if {$mark} { $::fdTable rowconfigure end -background #ffd8d8 }
+}
+proc fdFill {} {
+    set t $::fdTable
+    if {![winfo exists $t]} return
+    $t delete 0 end
+    set win [expr {$::tcl_platform(platform) eq "windows"}]
+    foreach v [file volumes] {
+        if {[string match //* $v]} {
+            fdRow volume $v "virtual file system of Tcl 9, no drive; the file tree and dialog leave it out" 1
+        } else {
+            fdRow volume $v [expr {[file isdirectory $v] ? "" : "not reachable"}]
+        }
+    }
+    set home [homeDir]
+    fdRow "home" $home [expr {[catch {file home}] ? "file normalize ~ (Tcl 8.6)" : "file home (Tcl 9 does not expand ~)"}]
+    foreach k {HOME USERPROFILE APPDATA LOCALAPPDATA HOMEDRIVE HOMEPATH TEMP XDG_CONFIG_HOME} {
+        if {[info exists ::env($k)]} {
+            set note ""
+            if {$k eq "HOME" && $win} { set note "set by Tcl itself when empty (= USERPROFILE)" }
+            fdRow "env($k)" $::env($k) $note
+        }
+    }
+    foreach name {Desktop Documents Downloads} {
+        set p [file join $home $name]
+        fdRow "home/$name" $p [expr {[file isdirectory $p] ? "exists" : "missing"}]
+    }
+    if {$win} {
+        if {[catch {package require registry} err]} {
+            fdRow registry "" "package registry: $err" 1
+        } else {
+            set key {HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders}
+            foreach {value name} {Desktop Desktop Personal Documents
+                    {{374DE290-123F-4565-9164-39C4925E467B}} Downloads} {
+                if {[catch {registry get $key $value} raw]} {
+                    fdRow "registry $name" "" "not set"
+                    continue
+                }
+                set exp $raw
+                catch {package require tkutils::tkufiledialog 0.3; set exp [::tkutils::tkufiledialog::_expandEnv $raw]}
+                set p [file normalize $exp]
+                set under [file normalize [file join $home $name]]
+                set moved [expr {![string equal -nocase $p $under]}]
+                fdRow "registry $name" $p "$raw[expr {$moved ? " -- moved, not home/$name" : ""}]" $moved
+            }
+        }
+    }
+    if {![catch {package require tkutils::tkufiledialog 0.3}]} {
+        foreach p [::tkutils::tkufiledialog::_userDirs] {
+            fdRow "dialog place" [lindex $p 1] [lindex $p 0]
+        }
+        foreach p [::tkutils::tkufiledialog::_volumes] {
+            fdRow "dialog place" [lindex $p 1] [lindex $p 0]
+        }
+    } else {
+        fdRow "dialog place" "" "tkutils::tkufiledialog 0.3 not found"
+    }
+    if {![catch {package require tclutils::tusettings} err]} {
+        if {[catch {::tclutils::tusettings::dir config $::fdApp} d]} {
+            fdRow "tusettings config" "" $d 1
+        } else {
+            fdRow "tusettings config" $d "where tkufiledialog -app $::fdApp keeps filedialog.ini (not created here)"
+        }
+    }
+    set ::fdStatus "[$t size] rows. Read only: nothing is created or written."
 }
 
 # ============================ Platform: programs ===========================
@@ -2053,6 +2246,16 @@ proc prFill {} {
         append ::prStatus "\nPATHEXT: [join [lrange $exts 1 end] { }]\
             -- a launcher that goes through \"cmd /c start\" also finds programs\
             registered under App Paths, which are not on PATH."
+        # 2026-11-14: wish has no console
+        if {[info commands console] ne "" || [string match -nocase *wish* [file tail [info nameofexecutable]]]} {
+            append ::prStatus "\nThis is wish, without a console: exec still returns the\
+                program's output as its result, but a program started with & or one\
+                that writes to the console directly shows nothing, and puts stdout of\
+                this process goes to the Tk console (console show)."
+        } else {
+            append ::prStatus "\nThis is tclsh with a console: exec returns the output;\
+                a program started with & writes into this console."
+        }
     }
 }
 
@@ -2296,6 +2499,8 @@ set ::toolTree {
     "Platform" {
         pathp   "Paths"            buildPathProbe
         globp   "glob"             buildGlobProbe
+        attrp   "Attributes"       buildAttrProbe
+        folderp "Folders / drives" buildFolderProbe
         progp   "Programs"         buildProgProbe
         encprof "Encoding profiles" buildEncProfile
     }

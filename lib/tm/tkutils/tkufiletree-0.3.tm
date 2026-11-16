@@ -17,7 +17,10 @@
 #   -filter {pat..}  glob patterns; only matching files are shown (dirs always).
 #                    Empty = all files. Matching is case-insensitive.
 #   -files 0|1       show files at all (default 1; 0 = directories only)
-#   -showhidden 0|1  include dot-entries (default 0)
+#   -showhidden 0|1  include hidden entries (default 0): on Windows those with
+#                    the hidden attribute, elsewhere dot names (0.3)
+#   -showsystem 0|1  Windows: also entries that are hidden AND system, such
+#                    as desktop.ini (default 0), as in tkufilelist (0.3)
 #   -onactivate cmd  called with the full path when a FILE is activated
 #   -onselect cmd    called with the full path on selection change
 #   -height n        visible rows (default 16)
@@ -29,6 +32,7 @@ package require Tcl 8.6-
 package require tkutils::tkuopts 0.1
 package require Tk 8.6-
 package require tkutils::tkutree
+package require tclutils::tuprovider 0.4
 
 namespace eval ::tkutils {}
 namespace eval ::tkutils::tkufiletree {
@@ -70,7 +74,7 @@ proc ::tkutils::tkufiletree::_cleanup {path w} {
 proc ::tkutils::tkufiletree::widget {path args} {
     variable state
     array set o {
-        -root "" -filter {} -files 1 -showhidden 0
+        -root "" -filter {} -files 1 -showhidden 0 -showsystem 0
         -onactivate "" -onselect "" -height 16 -isolatekeys 0 -provider ""
     }
     array set o [::tkutils::tkuopts::merge TKUFILETREE [array get o] $args]
@@ -89,6 +93,7 @@ proc ::tkutils::tkufiletree::widget {path args} {
     set state($path,filter) $o(-filter)
     set state($path,files)  $o(-files)
     set state($path,hidden) $o(-showhidden)
+    set state($path,system) $o(-showsystem)
     set state($path,onact)  $o(-onactivate)
     set state($path,onsel)  $o(-onselect)
 
@@ -280,25 +285,32 @@ proc ::tkutils::tkufiletree::_populate {path id dir} {
     return
 }
 
+# Hidden from view? The same rule as tkufilelist: an entry the system hides
+# needs -showhidden, one that is also a Windows system file -showsystem too.
+proc ::tkutils::tkufiletree::_hiddenFromView {path hidden system} {
+    variable state
+    if {!$hidden} { return 0 }
+    if {!$state($path,hidden)} { return 1 }
+    return [expr {$system && !$state($path,system)}]
+}
+
 # Directory listing as a sorted list of {type name fullpath}, directories first.
+#
+# 0.3: names from tuprovider::localNames -- "*" plus what the system hides,
+# each once -- and hidden by attribute on Windows (hiddenFlags). Up to 0.2
+# "* .*" plus the leading dot: on Windows a hidden folder never appeared and
+# a dot name without the attribute could not be shown (found 2026-11-14).
 proc ::tkutils::tkufiletree::_scan {path dir} {
     variable state
     variable VOLUMES
     if {$dir eq $VOLUMES} { return [_volumeList] }
     if {$state($path,prov) ne ""} { return [_scanProvider $path $dir] }
-    set all [glob -nocomplain -directory $dir -- *]
-    if {$state($path,hidden)} {
-        catch {lappend all {*}[glob -nocomplain -directory $dir -- .*]}
-        # On Windows "*" already matches dot files: drop the duplicates,
-        # otherwise the treeview raises ITEM_EXISTS for their ids.
-        set all [lsort -unique $all]
-    }
     set dirs {}
     set files {}
-    foreach f $all {
+    foreach f [::tclutils::tuprovider::localNames $dir] {
         set name [file tail $f]
-        if {$name eq "." || $name eq ".."} { continue }
-        if {!$state($path,hidden) && [string match ".*" $name]} { continue }
+        lassign [::tclutils::tuprovider::hiddenFlags $f $name] hidden system
+        if {[_hiddenFromView $path $hidden $system]} { continue }
         if {[file isdirectory $f]} {
             lappend dirs [list dir $name $f]
         } elseif {$state($path,files) && [_matches $path $name]} {
@@ -310,17 +322,22 @@ proc ::tkutils::tkufiletree::_scan {path dir} {
     return [concat $dirs $files]
 }
 
-# _scanProvider -- like _scan, through the -provider object.
+# _scanProvider -- like _scan, through the -provider object. The entry keys
+# hidden/system decide when the provider sets them, else the leading dot.
 proc ::tkutils::tkufiletree::_scanProvider {path dir} {
     variable state
     set prov $state($path,prov)
     if {[catch {$prov list $dir} entries]} { return {} }
     set dirs {}
     set files {}
+    set seen [dict create]
     foreach e $entries {
         set name [dict get $e name]
-        if {$name eq "." || $name eq ".."} { continue }
-        if {!$state($path,hidden) && [string match ".*" $name]} { continue }
+        if {$name eq "." || $name eq ".." || [dict exists $seen $name]} { continue }
+        dict set seen $name 1
+        set hidden [expr {[dict exists $e hidden] ? [dict get $e hidden] : [string match ".*" $name]}]
+        set system [expr {[dict exists $e system] && [dict get $e system]}]
+        if {[_hiddenFromView $path $hidden $system]} { continue }
         if {[dict get $e type] eq "dir"} {
             lappend dirs [list dir $name [dict get $e path]]
         } elseif {$state($path,files) && [_matches $path $name]} {
@@ -385,4 +402,4 @@ proc ::tkutils::tkufiletree::_onselect {path sel} {
     return
 }
 
-package provide tkutils::tkufiletree 0.2
+package provide tkutils::tkufiletree 0.3

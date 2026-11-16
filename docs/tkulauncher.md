@@ -22,6 +22,8 @@ Tk 8.6+ and 9.x.
 ::tkutils::tkulauncher::showCalculator path  ;# open the built-in calculator window
 ::tkutils::tkulauncher::editEntries   path  ;# open the form-based entry editor
 ::tkutils::tkulauncher::saveEntries   items file  ;# write entries (JSON or INI by extension)
+::tkutils::tkulauncher::checkEntries  items ?opts? ;# check entries without launching (0.5)
+::tkutils::tkulauncher::checkDialog   path ?opts?  ;# the same as a table (0.5)
 ::tkutils::tkulauncher::systemIds            ;# all known system ids (for pickers)
 ```
 
@@ -191,12 +193,16 @@ right-clicking it and choosing "Edit..." -- handy for a list-mode panel. The Typ
 dropdown, and for `system` entries the System id field is a dropdown of every
 known system id (sound, bluetooth, display, ...), so you pick instead of type. It opens a form-based
 editor (needs `tkutils::tkuform`): a list of entries on the left, a form on the
-right. New/Delete manage the list, and a "New in:" dropdown chooses which menu a new
+right; the form shows only the fields of the chosen type (0.5). New/Delete manage
+the list, and a "New in:" dropdown chooses which menu a new
 entry is created in. Up/Down reorder the selected entry within its menu, and
 "Move to..." moves it into another menu (top level or any submenu). Apply copies the form into the
-selected entry; "Update launcher" applies the changes to the live launcher; and
-"Save to file..." writes them back -- as JSON (full fidelity) or INI (flat prefix form)
-chosen by the file extension -- then reloads the launcher. `saveEntries`
+selected entry; "Save" applies it as well, writes the entries back -- as JSON
+(full fidelity) or INI (flat prefix form) chosen by the file extension -- and
+updates the launcher; "Save as..." writes another file, which then becomes the
+target; "Check..." checks the entries as they stand in the editor. "Close" asks
+when something is unsaved (0.5; up to 0.4 the buttons were Apply, Update
+launcher, Save to file...). `saveEntries`
 writes through a temporary file (`tclutils::common::replaceFile`, 0.4): a
 failed write leaves the old file and no open channel.
 
@@ -208,6 +214,41 @@ failed write leaves the old file and no open channel.
 Saving is symmetric with loading: `menu.json` round-trips every field including
 nested submenus; `menu.ini` maps top-level menus to sections and entries to
 `label = prefix: value` lines (`app:`, `url:`, `open:`, `file:`, `system:`).
+
+## Checking entries
+
+`checkEntries items ?-timeout ms? ?-fetch cmd? ?-progress cmd?` goes through the
+entries, also inside submenus, and says for each whether it would work here --
+without launching anything. It returns a list of dicts with `path` (index list,
+as the editor uses it), `label`, `type`, `target`, `status` and `detail`.
+`status` is one of `ok`, `moved`, `problem`, `unchecked`:
+
+| Type | Checked |
+|------|---------|
+| `url` | fetched (HEAD, GET when the server refuses HEAD), redirects followed up to 5 times: 2xx `ok`, another final address `moved` with the new one, 4xx/5xx or no answer `problem` |
+| `open`, `file` | the file or folder exists (`~` expanded) |
+| `app` | the program is found (`auto_execok`; on Windows a bare name counts -- it may be under App Paths) |
+| `tcl` | the script exists and the interpreter is found |
+| `system` | the id has a command here, and its program is found |
+| `calendar`, `calc` | built in: `ok` |
+
+https goes through `tclutils::tuhttps`, so certificates are verified. Without
+the `tls` package, or with tls 1.x and no CA bundle (set `SSL_CERT_FILE`), a URL
+is `unchecked` with the reason -- never `problem` for something the computer
+lacks. `-fetch` replaces the network (a command called with the URL, returning
+`{code N location L error E}`), `-progress` is called with (done, total, result)
+after each entry, `-timeout` is per request (default 8000 ms).
+
+`checkDialog path ?-items spec?` shows the same as a table: problems red, moved
+yellow, unchecked grey; a double-click opens the entry in the editor.
+
+```tcl
+foreach r [::tkutils::tkulauncher::checkEntries [::tkutils::tkulauncher::load menu.json]] {
+    if {[dict get $r status] ne "ok"} {
+        puts "[dict get $r label]: [dict get $r status] [dict get $r detail]"
+    }
+}
+```
 
 ## Calendar and calculator
 
@@ -299,8 +340,8 @@ performing it, so a caller (or a test) can see what a click would do:
 ## Launching Tcl/Tk scripts (`tcl` entries)
 
 A `tcl` entry runs a Tcl/Tk script with a chosen interpreter, cross-platform.
-Fields: `target` (the script path), `interp` (one of `wish9`, `wish8`, `tclsh9`,
-`tclsh8`; default `wish9`), optional `tcllibpath` (set as `TCLLIBPATH` for the
+Fields: `target` (the script path), `interp` (one of `current`, `wish9`, `wish8`,
+`tclsh9`, `tclsh8`; default `wish9`), optional `tcllibpath` (set as `TCLLIBPATH` for the
 child -- the essence of a tcl8env/tcl9env setup), optional `args`, `dir`, and
 `terminal` (for `tclsh` scripts). Interpreter keys map per platform:
 
@@ -311,7 +352,11 @@ child -- the essence of a tcl8env/tcl9env setup), optional `args`, `dir`, and
 | tclsh9 | tclsh9.0   | tclsh90.exe    |
 | tclsh8 | tclsh8.6   | tclsh86t.exe   |
 
-The command `tclInterpreters` returns the available interpreter keys (used by
+`current` is the wish of the running interpreter: the executable itself when
+it is a wish, else the wish next to it (`tclsh9.0` -> `wish9.0`). A packaged
+program has none; then the entry reports an error. `currentWish` returns it.
+
+The command `tclInterpreters` returns the available interpreter keys, `current` first (used by
 the editor dropdown), `resolveTclInterp key ?platform?` maps a key to the
 executable for a platform, and `setTclInterp` overrides a mapping.
 

@@ -888,7 +888,7 @@ test tkulauncher-19.1 {interpreter keys and per-platform resolution} -constraint
     list [${ns}::tclInterpreters] \
          [${ns}::resolveTclInterp wish9 linux] [${ns}::resolveTclInterp wish9 windows] \
          [${ns}::resolveTclInterp tclsh8 linux] [${ns}::resolveTclInterp tclsh8 windows]
-} -result {{wish9 wish8 tclsh9 tclsh8} wish9.0 wish90.exe tclsh8.6 tclsh86t.exe}
+} -result {{current wish9 wish8 tclsh9 tclsh8} wish9.0 wish90.exe tclsh8.6 tclsh86t.exe}
 
 test tkulauncher-19.2 {resolve builds an exec act for a tcl entry} -constraints tk -body {
     expr {[${ns}::resolve {type tcl target /p/app.tcl interp wish9}]
@@ -912,6 +912,12 @@ test tkulauncher-19.5 {setTclInterp overrides an interpreter path} -constraints 
     ${ns}::setTclInterp wish9 -linux wish9.0   ;# restore default
     set r
 } -result /opt/tcl9/bin/wish9.0
+
+test tkulauncher-19.5a {"current" is the wish of the running interpreter} -constraints tk -body {
+    set w [${ns}::resolveTclInterp current]
+    list [string match -nocase *wish* [file tail $w]] [file exists $w] \
+         [expr {[file dirname $w] eq [file dirname [file normalize [info nameofexecutable]]]}]
+} -result {1 1 1}
 
 test tkulauncher-19.6 {editor round-trips a tcl entry} -constraints tk -body {
     ${ns}::widget .ltcl -mode list -items {
@@ -1029,5 +1035,137 @@ test tkulauncher-30.1 {a failed save leaves the old file, no temp file, no chann
     if {[llength [info commands ::_realPuts]]} { rename ::puts {}; rename ::_realPuts ::puts }
     removeFile tkulauncher-30.1.json
 } -result {1 PRECIOUS 0 0}
+
+# --- 0.5: checking entries, editor fields, Save / Close ------------------------
+# A small HTTP server on 127.0.0.1 for the real request path (no network).
+proc srvAccept {ch addr port} {
+    fconfigure $ch -translation crlf -buffering line
+    fileevent $ch readable [list srvRead $ch]
+}
+proc srvRead {ch} {
+    if {[gets $ch line] < 0} { close $ch; return }
+    if {![regexp {^(\S+) (\S+)} $line -> m p]} { return }
+    while {[gets $ch h] > 0} {}
+    set extra ""
+    switch -- $p {
+        /ok     { set head "200 OK" }
+        /old    { set head "301 Moved Permanently"; set extra "Location: /ok\n" }
+        /a/rel  { set head "302 Found"; set extra "Location: ok\n" }
+        /a/ok   { set head "200 OK" }
+        /nohead { set head [expr {$m eq "HEAD" ? "405 Method Not Allowed" : "200 OK"}] }
+        /loop   { set head "302 Found"; set extra "Location: /loop\n" }
+        default { set head "404 Not Found" }
+    }
+    puts -nonewline $ch "HTTP/1.1 $head\n${extra}Content-Length: 2\nConnection: close\n\n"
+    if {$m ne "HEAD"} { puts -nonewline $ch "hi" }
+    close $ch
+}
+if {$ok} {
+    set ::srv [socket -server srvAccept -myaddr 127.0.0.1 0]
+    set ::base http://127.0.0.1:[lindex [fconfigure $::srv -sockname] 2]
+}
+proc stat {items} { lmap r [${::ns}::checkEntries $items -timeout 3000] {list [dict get $r status] [dict get $r detail]} }
+
+test tkulauncher-40.1 {URLs: ok, moved (absolute and relative), 404, HEAD refused, loop} -constraints tk -body {
+    stat [list [list type url target $::base/ok] [list type url target $::base/old] \
+        [list type url target $::base/a/rel] [list type url target $::base/gone] \
+        [list type url target $::base/nohead] [list type url target $::base/loop]]
+} -result [list {ok {}} [list moved "now $::base/ok"] [list moved "now $::base/a/ok"] {problem {HTTP 404}} {ok {}} {problem {too many redirects}}]
+
+test tkulauncher-40.2 {an unreachable server is a problem, mailto is not checked} -constraints tk -body {
+    set r [stat [list {type url target http://127.0.0.1:1/x} {type url target mailto:a@b.example}]]
+    list [lindex $r 0 0] [lindex $r 1]
+} -result {problem {unchecked {only http and https are checked}}}
+
+test tkulauncher-40.3 {files, programs, built-ins, system ids; menus are walked} -constraints tk -setup {
+    set d [makeDirectory chk40]
+} -body {
+    set items [list [list type menu label M items [list [list type open label D target $d] \
+        [list type open label X target [file join $d gibtsnicht]] {type separator}]] \
+        [list type app label Tcl cmd [list [info nameofexecutable]]] {type app label No cmd {gibtsnicht-prog-40}} \
+        {type calc} {type calendar} {type system id gibtsnicht} {type app label Empty}]
+    set out {}
+    foreach r [${ns}::checkEntries $items] {
+        lappend out [list [dict get $r path] [dict get $r status]]
+    }
+    set out
+} -cleanup {
+    removeDirectory chk40
+} -result [list {{0 0} ok} {{0 1} problem} {1 ok} [list 2 [expr {$::tcl_platform(platform) eq "windows" ? "ok" : "problem"}]] {3 ok} {4 ok} {5 problem} {6 problem}]
+
+test tkulauncher-40.4 {a fetch that cannot check says unchecked, not problem} -constraints tk -body {
+    proc noTls {url} { return [dict create error "the tls package is missing" unchecked 1] }
+    set r [lindex [${ns}::checkEntries {{type url target https://example.org/}} -fetch noTls] 0]
+    list [dict get $r status] [dict get $r detail]
+} -result {unchecked {the tls package is missing}}
+
+test tkulauncher-40.5 {-progress is called after each entry} -constraints tk -body {
+    set ::prog {}
+    ${ns}::checkEntries {{type calc} {type calendar}} -progress {apply {{d t r} {lappend ::prog $d/$t}}}
+    set ::prog
+} -result {1/2 2/2}
+
+test tkulauncher-40.6 {relative Location headers} -constraints tk -body {
+    list [${ns}::_joinUrl http://h/a/b x] [${ns}::_joinUrl http://h/a/b /x] \
+        [${ns}::_joinUrl https://h/a //o/x] [${ns}::_joinUrl http://h/a https://n/]
+} -result {http://h/a/x http://h/x https://o/x https://n/}
+
+test tkulauncher-41.1 {the editor shows only the fields of the type} -constraints tk -body {
+    set f [file join [file dirname [info script]] _ed41.json]
+    ${ns}::saveEntries {{type url label Tcl target https://tcl.tk} {type app label E cmd e}} $f
+    ${ns}::widget .e41 -file $f
+    set top [${ns}::editEntries .e41]
+    $top.l.list selection set 0; ${ns}::_edSelect $top
+    set a [lmap n {target cmd interp id} {::tkutils::tkuform::isShown $top.form $n}]
+    $top.l.list selection clear 0 end; $top.l.list selection set 1; ${ns}::_edSelect $top
+    set b [lmap n {target cmd terminal id} {::tkutils::tkuform::isShown $top.form $n}]
+    ::tkutils::tkuform::setField $top.form type system
+    ${ns}::_edTypeChanged $top
+    set c [lmap n {cmd id} {::tkutils::tkuform::isShown $top.form $n}]
+    destroy $top .e41; file delete $f
+    list $a $b $c
+} -result {{1 0 0 0} {0 1 1 0} {0 1}}
+
+test tkulauncher-41.2 {Save applies the form, writes the file, updates the launcher} -constraints tk -body {
+    set f [file join [file dirname [info script]] _ed41.json]
+    ${ns}::saveEntries {{type app label A cmd a}} $f
+    ${ns}::widget .e42 -file $f
+    set top [${ns}::editEntries .e42]
+    $top.l.list selection set 0; ${ns}::_edSelect $top
+    ::tkutils::tkuform::setField $top.form label Neu
+    set dirty [${ns}::_edDirty $top]
+    ${ns}::_edSaveAll $top
+    set r [list $dirty [${ns}::_edDirty $top] [dict get [lindex [${ns}::load $f] 0] label] \
+        [dict get [lindex $::tkutils::tkulauncher::state(.e42,items) 0] label]]
+    destroy $top .e42; file delete $f
+    set r
+} -result {1 0 Neu Neu}
+
+test tkulauncher-41.3 {Close without changes closes at once} -constraints tk -body {
+    set f [file join [file dirname [info script]] _ed41.json]
+    ${ns}::saveEntries {{type app label A cmd a}} $f
+    ${ns}::widget .e43 -file $f
+    set top [${ns}::editEntries .e43]
+    $top.l.list selection set 0; ${ns}::_edSelect $top
+    ${ns}::_edClose $top
+    set r [winfo exists $top]
+    destroy .e43; file delete $f
+    set r
+} -result 0
+
+test tkulauncher-41.4 {checkDialog lists the entries; a double-click opens the editor on it} -constraints tk -body {
+    ${ns}::widget .e44 -items {{type calc} {type menu label M items {{type calendar}}}}
+    set top [${ns}::checkDialog .e44]
+    ${ns}::_checkRun $top
+    set rows [lmap id [$top.tv children {}] {$top.tv item $id -text}]
+    $top.tv selection set [lindex [$top.tv children {}] 1]
+    ${ns}::_checkOpen $top
+    set ed .tkulauncher_editor
+    set sel [$ed.l.list get [$ed.l.list curselection]]
+    destroy $top $ed .e44
+    list $rows [string trim $sel]
+} -result {{Calculator Calendar} {Calendar  (calendar)}}
+
+if {$ok} { catch {close $::srv} }
 
 cleanupTests

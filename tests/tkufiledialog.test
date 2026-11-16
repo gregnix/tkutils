@@ -116,4 +116,192 @@ test tkufiledialog-1.5 {unknown option names the known ones} -constraints tk -bo
     list [dict get $o -errorcode] [string match "*Known:*-title*" $m]
 } -result {{TKUTILS TKUFILEDIALOG OPTION -titel} 1}
 
+# --- 0.3 ---------------------------------------------------------------------
+# A helper that runs SCRIPT on the open dialog (as $w), then closes it with OK
+# or cancel. The dialog is modal (vwait), so the script runs from "after".
+proc onDialog {script {finish ok}} {
+    after 80 [list apply {{script finish} {
+        set w ""
+        foreach t [winfo children .] {
+            if {[string match .tkufiledialog* $t]} { set w $t; break }
+        }
+        if {$w eq ""} return
+        update
+        set ::dlgResult [uplevel #0 [list apply [list w $script] $w]]
+        if {$finish eq "ok"} {
+            ::tkutils::tkufiledialog::_finishOk $w
+        } else {
+            ::tkutils::tkufiledialog::_choose $w cancel
+        }
+    }} $script $finish]
+}
+proc listNames {lst} {
+    set t [::tkutils::tkutablelist::tableWidget $lst]
+    set c [$t columnindex name]
+    set out {}
+    for {set i 0} {$i < [$t size]} {incr i} { lappend out [$t cellcget $i,$c -text] }
+    return $out
+}
+
+set cfg [makeDirectory fdcfg]
+# empty, also after an aborted run
+file delete -force $cfg
+file mkdir $cfg
+# the settings go to a test directory: XDG_CONFIG_HOME on Unix, APPDATA on
+# Windows (tusettings) -- never into the real profile
+set ::oldXdg [expr {[info exists ::env(XDG_CONFIG_HOME)] ? $::env(XDG_CONFIG_HOME) : ""}]
+set ::oldAppdata [expr {[info exists ::env(APPDATA)] ? $::env(APPDATA) : ""}]
+set ::env(XDG_CONFIG_HOME) $cfg
+set ::env(APPDATA) $cfg
+set d3 [makeDirectory fd3]
+foreach n {a.txt b.md c.log .verborgen} { set fh [open [file join $d3 $n] w]; puts $fh x; close $fh }
+# on Windows the attribute hides, not the dot
+if {$::tcl_platform(platform) eq "windows"} { file attributes [file join $d3 .verborgen] -hidden 1 }
+makeDirectory unter $d3
+testConstraint unixFs [expr {$::tcl_platform(platform) eq "unix"}]
+testConstraint winFs  [expr {$::tcl_platform(platform) eq "windows"}]
+
+test tkufiledialog-3.1 {a file type with several extensions shows all of them} -constraints tk -body {
+    onDialog { listNames $w.list } cancel
+    ${ns}::open -parent . -initialdir $::d3 -filetypes {{Text {.txt .md}} {All *}}
+    set ::dlgResult
+} -result {unter a.txt b.md}
+
+test tkufiledialog-3.2 {"Show hidden files" switches the list} -constraints tk -body {
+    onDialog {
+        set a [expr {".verborgen" in [listNames $w.list]}]
+        set ::tkutils::tkufiledialog::state($w,showhidden) 1
+        ::tkutils::tkufiledialog::_toggleHidden $w
+        list $a [expr {".verborgen" in [listNames $w.list]}] [winfo exists $w.btns.hidden]
+    } cancel
+    ${ns}::open -parent . -initialdir $::d3
+    set ::dlgResult
+} -result {0 1 1}
+
+test tkufiledialog-3.3 {columns and timeformat reach the list} -constraints tk -body {
+    onDialog { ::tkutils::tkufilelist::columns $w.list } cancel
+    ${ns}::open -parent . -initialdir $::d3 -columns {name size ext}
+    set ::dlgResult
+} -result {name size ext}
+
+test tkufiledialog-3.4 {places: home and root, no bookmarks without -app} -constraints tk -body {
+    onDialog {
+        set t $w.places
+        list [$t children {}] [expr {[llength [$t children places]] >= 2}] [winfo exists $w.addmark]
+    } cancel
+    ${ns}::open -parent . -initialdir $::d3
+    set ::dlgResult
+} -result {places 1 0}
+
+test tkufiledialog-3.5 {no places for a provider that is not local} -constraints tk -body {
+    oo::class create OtherProv {
+        method list {d} { return [list [dict create name x.txt path /x.txt type file size 1 mtime 0]] }
+    }
+    set p [OtherProv new]
+    onDialog { winfo exists $w.places } cancel
+    ${ns}::open -parent . -provider $p -initialdir /
+    $p destroy; OtherProv destroy
+    set ::dlgResult
+} -result 0
+
+test tkufiledialog-3.6 {without -app nothing is written} -constraints tk -body {
+    onDialog { } ok
+    ${ns}::directory -parent . -initialdir $::d3
+    glob -nocomplain -directory $::cfg *
+} -result {}
+
+test tkufiledialog-3.7 {-app: bookmark, recent folder, last folder, view are kept} -constraints tk -body {
+    onDialog {
+        ::tkutils::tkufiledialog::_addBookmark $w
+        ::tkutils::tkufiledialog::_addBookmark $w   ;# twice: once only
+        ::tkutils::tkufilelist::setColumns $w.list {name size}
+        list [$w.places children bookmarks]
+    } ok
+    set r1 [${ns}::directory -parent . -initialdir $::d3 -app fdtest]
+    # second call without -initialdir: starts in the last folder
+    onDialog {
+        set t $w.places
+        list $::tkutils::tkufiledialog::state($w,dir) \
+            [$t item [lindex [$t children bookmarks] 0] -text] \
+            [llength [$t children recent]] \
+            [::tkutils::tkufilelist::columns $w.list]
+    } cancel
+    ${ns}::open -parent . -app fdtest
+    list [expr {$r1 eq $::d3}] [lrange $::dlgResult 0 0] [lrange $::dlgResult 1 end] \
+        [${ns}::bookmarks fdtest] [file exists [file join $::cfg fdtest filedialog.ini]]
+} -result [list 1 [list $d3] [list fd3 1 {name size}] [list [list fd3 $d3]] 1]
+
+test tkufiledialog-3.8 {rename and remove a bookmark} -constraints tk -body {
+    ${ns}::setBookmarks fdtest [list [list Eins $::d3] [list Weg [file join $::d3 gibtsnicht]]]
+    onDialog {
+        set t $w.places
+        set tags [$t item [lindex [$t children bookmarks] 1] -tags]
+        ::tkutils::tkufiledialog::_renameBookmark $w 0 Projekt
+        ::tkutils::tkufiledialog::_removeBookmark $w 1
+        set tags
+    } cancel
+    ${ns}::open -parent . -app fdtest -initialdir $::d3
+    list $::dlgResult [${ns}::bookmarks fdtest]
+} -result [list missing [list [list Projekt $d3]]]
+
+test tkufiledialog-3.9 {user folders from user-dirs.dirs} -constraints {tk unixFs} -setup {
+    set home [makeDirectory fdhome]
+    makeDirectory Schreibtisch $home
+    set oldHome $::env(HOME)
+    set ::env(HOME) $home
+    set fh [open [file join $::cfg user-dirs.dirs] w]
+    puts $fh {XDG_DESKTOP_DIR="$HOME/Schreibtisch"}
+    puts $fh {XDG_DOCUMENTS_DIR="$HOME/gibtsnicht"}
+    close $fh
+} -body {
+    set r [${ns}::_userDirs]
+    list [llength $r] [lindex $r 1 0] [file tail [lindex $r 1 1]]
+} -cleanup {
+    set ::env(HOME) $oldHome
+    file delete [file join $::cfg user-dirs.dirs]
+    removeDirectory fdhome
+} -result {2 Desktop Schreibtisch}
+
+test tkufiledialog-3.10 {a bad -app name is an error} -constraints tk -body {
+    catch {${ns}::open -app {a/b}} m o
+    lrange [dict get $o -errorcode] 0 1
+} -result {TCLUTILS TUSETTINGS}
+
+test tkufiledialog-3.11 {no //zipfs:/ among the places} -constraints tk -body {
+    lsearch -glob -inline -all [lmap v [${ns}::_volumes] {lindex $v 1}] //*
+} -result {}
+
+test tkufiledialog-3.12 {%NAME% from the environment, unknown names stay} -body {
+    set ::env(TKUFD_TEST) C:/Users/x
+    set r [${ns}::_expandEnv {%TKUFD_TEST%\OneDrive\Desktop %NIXDA% 100%}]
+    unset ::env(TKUFD_TEST)
+    set r
+} -result {C:/Users/x\OneDrive\Desktop %NIXDA% 100%}
+
+test tkufiledialog-3.13 {the same folder is one bookmark} -constraints tk -body {
+    ${ns}::setBookmarks fdtest {}
+    onDialog {
+        ::tkutils::tkufiledialog::_addBookmark $w $::d3
+        ::tkutils::tkufiledialog::_addBookmark $w $::d3/
+        ::tkutils::tkufiledialog::_addBookmark $w [file join $::d3 unter ..]
+        if {$::tcl_platform(platform) eq "windows"} {
+            ::tkutils::tkufiledialog::_addBookmark $w [string toupper [file nativename $::d3]]
+        }
+    } cancel
+    ${ns}::open -parent . -app fdtest -initialdir $::d3
+    llength [${ns}::bookmarks fdtest]
+} -result 1
+
+test tkufiledialog-3.14 {Windows: moved user folders from the registry} -constraints {tk winFs} -body {
+    # read only: whatever the registry says must exist as a folder
+    set ok 1
+    dict for {label p} [${ns}::_winShellFolders] {
+        if {![file isdirectory $p] || $label ni {Desktop Documents Downloads}} { set ok 0 }
+    }
+    set ok
+} -result 1
+
+if {$::oldXdg eq ""} { unset -nocomplain ::env(XDG_CONFIG_HOME) } else { set ::env(XDG_CONFIG_HOME) $::oldXdg }
+if {$::oldAppdata eq ""} { unset -nocomplain ::env(APPDATA) } else { set ::env(APPDATA) $::oldAppdata }
+
 cleanupTests

@@ -97,4 +97,237 @@ test tkufilelist-1.6 {directories-only mode hides files} -constraints tk -body {
     set n
 } -result 1
 
+# --- 0.3 ---------------------------------------------------------------------
+set dir3 [makeDirectory fl3]
+foreach {n bytes} {bericht.pdf 2048 notiz.txt 10 .versteckt 1 README 5 alt.tar.gz 3000} {
+    set fh [open [file join $dir3 $n] w]; fconfigure $fh -translation binary
+    puts -nonewline $fh [string repeat x $bytes]; close $fh
+}
+file mtime [file join $dir3 notiz.txt] [clock scan 2026-01-02 -format %Y-%m-%d]
+# Windows hides by attribute, not by the dot: give .versteckt the attribute,
+# so the cases below mean the same on every system (found 2026-11-14)
+if {$::tcl_platform(platform) eq "windows"} {
+    file attributes [file join $dir3 .versteckt] -hidden 1
+}
+makeDirectory zordner $dir3
+makeDirectory aordner.v2 $dir3
+proc names {w} {
+    set t [::tkutils::tkutablelist::tableWidget $w]
+    set c [$t columnindex name]
+    set out {}
+    for {set i 0} {$i < [$t size]} {incr i} { lappend out [$t cellcget $i,$c -text] }
+    return $out
+}
+proc cell {w name col} {
+    set t [::tkutils::tkutablelist::tableWidget $w]
+    set r [lsearch -exact [names $w] $name]
+    return [$t cellcget $r,[$t columnindex $col] -text]
+}
+proc shown {w name col} {
+    set t [::tkutils::tkutablelist::tableWidget $w]
+    set c [$t columnindex $col]
+    set r [lsearch -exact [names $w] $name]
+    set cmd [$t columncget $c -formatcommand]
+    if {$cmd eq ""} { return [$t cellcget $r,$c -text] }
+    return [{*}$cmd [$t cellcget $r,$c -text]]
+}
+
+test tkufilelist-3.1 {default columns, Explorer order; name always first} -constraints tk -body {
+    ${ns}::widget .m1 -dir $::dir3
+    set r [${ns}::columns .m1]
+    ${ns}::setColumns .m1 {size ext}
+    lappend r [${ns}::columns .m1]
+    destroy .m1
+    set r
+} -result {name mtime type size {name size ext}}
+
+test tkufilelist-3.2 {unknown column is an error with the known ones} -constraints tk -body {
+    catch {${ns}::widget .m2 -dir $::dir3 -columns {name colour}} m o
+    catch {destroy .m2}
+    list [dict get $o -errorcode] [string match "*mtime*" $m]
+} -result {{TKUTILS TKUFILELIST COLUMN} 1}
+
+test tkufilelist-3.3 {dirs first, dotfile hidden, then shown} -constraints tk -body {
+    ${ns}::widget .m3 -dir $::dir3
+    set r [list [names .m3]]
+    ${ns}::setShowHidden .m3 1
+    lappend r [expr {".versteckt" in [names .m3]}]
+    destroy .m3
+    set r
+} -result {{aordner.v2 zordner alt.tar.gz bericht.pdf notiz.txt README} 1}
+
+test tkufilelist-3.4 {-show files and dirs; -files 0 still works} -constraints tk -body {
+    ${ns}::widget .m4a -dir $::dir3 -show files
+    ${ns}::widget .m4b -dir $::dir3 -show dirs
+    ${ns}::widget .m4c -dir $::dir3 -files 0
+    set r [list [llength [names .m4a]] [names .m4b] [names .m4c]]
+    destroy .m4a .m4b .m4c
+    set r
+} -result {4 {aordner.v2 zordner} {aordner.v2 zordner}}
+
+test tkufilelist-3.5 {cells hold raw values, shown formatted} -constraints tk -body {
+    ${ns}::widget .m5 -dir $::dir3 -columns {name mtime type size ext} -sizeunits 1024
+    set r [list [cell .m5 bericht.pdf size] [shown .m5 bericht.pdf size] \
+        [shown .m5 zordner size] [cell .m5 zordner size] \
+        [shown .m5 notiz.txt mtime] [cell .m5 bericht.pdf type] [cell .m5 zordner type] \
+        [cell .m5 README type] [cell .m5 alt.tar.gz ext]]
+    destroy .m5
+    set r
+} -result {2048 {2.0 KB} {} -1 {02.01.2026 00:00} {PDF file} Folder File gz}
+
+test tkufilelist-3.6 {sizeunits 1000 and timeformat} -constraints tk -body {
+    ${ns}::widget .m6 -dir $::dir3 -sizeunits 1000 -timeformat %Y-%m-%d
+    set r [list [shown .m6 bericht.pdf size] [shown .m6 notiz.txt mtime]]
+    destroy .m6
+    set r
+} -result {{2.0 kB} 2026-01-02}
+
+test tkufilelist-3.7 {hideextensions: known ones only, folders untouched} -constraints tk -body {
+    ${ns}::widget .m7 -dir $::dir3 -hideextensions 1 -knownextensions {pdf .TXT}
+    set r [names .m7]
+    set e [${ns}::selectedEntry .m7]
+    destroy .m7
+    set r
+} -result {aordner.v2 zordner alt.tar.gz bericht notiz README}
+
+test tkufilelist-3.8 {several filters} -constraints tk -body {
+    ${ns}::widget .m8 -dir $::dir3 -filters {*.pdf *.TXT}
+    set r [list [names .m8]]
+    ${ns}::setFilters .m8 {}
+    lappend r [llength [names .m8]]
+    destroy .m8
+    set r
+} -result {{aordner.v2 zordner bericht.pdf notiz.txt} 6}
+
+test tkufilelist-3.9 {sorting by size keeps folders first, arrow on the column} -constraints tk -body {
+    ${ns}::widget .m9 -dir $::dir3
+    set t [::tkutils::tkutablelist::tableWidget .m9]
+    ${ns}::_sortClick .m9 $t [$t columnindex size]
+    set a [names .m9]
+    ${ns}::_sortClick .m9 $t [$t columnindex size]
+    set b [names .m9]
+    set r [list $a $b [$t columncget [$t sortcolumn] -name] [$t sortorder]]
+    destroy .m9
+    set r
+} -result {{aordner.v2 zordner README notiz.txt bericht.pdf alt.tar.gz} {aordner.v2 zordner alt.tar.gz bericht.pdf notiz.txt README} size decreasing}
+
+test tkufilelist-3.10 {dirsfirst 0 mixes them when sorted} -constraints tk -body {
+    ${ns}::widget .m10 -dir $::dir3 -dirsfirst 0
+    set t [::tkutils::tkutablelist::tableWidget .m10]
+    ${ns}::_sortClick .m10 $t [$t columnindex name]
+    set r [names .m10]
+    destroy .m10
+    set r
+} -result {alt.tar.gz aordner.v2 bericht.pdf notiz.txt README zordner}
+
+test tkufilelist-3.11 {the entry follows the row after a sort} -constraints tk -body {
+    ${ns}::widget .m11 -dir $::dir3
+    set t [::tkutils::tkutablelist::tableWidget .m11]
+    ${ns}::_sortClick .m11 $t [$t columnindex size]
+    set i [lsearch -exact [names .m11] bericht.pdf]
+    $t selection set $i
+    set r [dict get [${ns}::selectedEntry .m11] name]
+    destroy .m11
+    set r
+} -result bericht.pdf
+
+test tkufilelist-3.12 {view and setView round-trip; unknown column dropped} -constraints tk -body {
+    ${ns}::widget .m12 -dir $::dir3
+    ${ns}::setView .m12 {columns {name size colour} showhidden 1 hideextensions 1 sortcolumn size sortorder decreasing}
+    set v [${ns}::view .m12]
+    set r [list [dict get $v columns] [dict get $v showhidden] [dict get $v sortcolumn] \
+        [expr {".versteckt" in [names .m12]}] [lindex [names .m12] 2]]
+    destroy .m12
+    set r
+} -result {{name size} 1 size 1 alt.tar}
+
+test tkufilelist-3.13 {hidden key from the provider wins over the dot} -constraints tk -body {
+    oo::class create FakeProv {
+        method list {dir} {
+            return [list [dict create name .gitignore path /x/.gitignore type file size 1 mtime 0 hidden 0 system 0] \
+                [dict create name geheim.txt path /x/geheim.txt type file size 1 mtime 0 hidden 1 system 0] \
+                [dict create name desktop.ini path /x/desktop.ini type file size 1 mtime 0 hidden 1 system 1]]
+        }
+    }
+    set p [FakeProv new]
+    ${ns}::widget .m13 -provider $p -dir /x
+    set r [list [names .m13]]
+    ${ns}::setShowHidden .m13 1
+    lappend r [names .m13]
+    destroy .m13
+    ${ns}::widget .m13 -provider $p -dir /x -showhidden 1 -showsystem 1
+    lappend r [names .m13]
+    destroy .m13
+    $p destroy; FakeProv destroy
+    set r
+} -result {.gitignore {.gitignore geheim.txt} {.gitignore desktop.ini geheim.txt}}
+
+test tkufilelist-3.14 {column menu toggles a column; name cannot be switched off} -constraints tk -body {
+    ${ns}::widget .m14 -dir $::dir3
+    ${ns}::_toggleColumn .m14 type
+    set r [list [${ns}::columns .m14]]
+    ${ns}::_toggleColumn .m14 ext
+    lappend r [${ns}::columns .m14]
+    ${ns}::setColumns .m14 {}
+    lappend r [${ns}::columns .m14]
+    destroy .m14
+    set r
+} -result {{name mtime size} {name mtime size ext} name}
+
+test tkufilelist-3.15 {state is released on destroy} -constraints tk -body {
+    ${ns}::widget .m15 -dir $::dir3
+    destroy .m15
+    llength [array names ${ns}::state .m15,*]
+} -result 0
+
+testConstraint winFs  [expr {$::tcl_platform(platform) eq "windows"}]
+testConstraint unixFs [expr {$::tcl_platform(platform) eq "unix"}]
+
+# the four cases of the Explorer, each as a file and as a folder
+proc hiddenMatrix {dd} {
+    foreach {n attrs} {dot {} norm {} sys {-system 1} hid {-hidden 1} both {-hidden 1 -system 1}} {
+        set f [file join $dd [expr {$n eq "dot" ? ".dot" : $n}].txt]
+        set d [file join $dd [expr {$n eq "dot" ? ".dot" : $n}]dir]
+        set fh [open $f w]; puts $fh x; close $fh
+        file mkdir $d
+        if {[llength $attrs]} { file attributes $f {*}$attrs; file attributes $d {*}$attrs }
+    }
+}
+proc unhide {dd} {
+    foreach f [::tclutils::tuprovider localNames $dd] { catch {file attributes $f -hidden 0 -system 0} }
+}
+
+test tkufilelist-3.16 {Windows: attribute rules for files and folders, each once} -constraints {tk winFs} -setup {
+    set dd [makeDirectory fl316]
+    hiddenMatrix $dd
+} -body {
+    ${ns}::widget .m16 -dir $dd
+    set r [list [names .m16]]
+    ${ns}::setShowHidden .m16 1
+    lappend r [names .m16]
+    destroy .m16
+    ${ns}::widget .m16 -dir $dd -showhidden 1 -showsystem 1
+    lappend r [names .m16]
+    destroy .m16
+    set r
+} -cleanup {
+    unhide $dd
+    removeDirectory fl316
+} -result {{.dotdir normdir sysdir .dot.txt norm.txt sys.txt} {.dotdir hiddir normdir sysdir .dot.txt hid.txt norm.txt sys.txt} {.dotdir bothdir hiddir normdir sysdir .dot.txt both.txt hid.txt norm.txt sys.txt}}
+
+test tkufilelist-3.16a {Unix: the dot hides files and folders} -constraints {tk unixFs} -setup {
+    set dd [makeDirectory fl316a]
+    foreach n {.dot.txt norm.txt} { set fh [open [file join $dd $n] w]; puts $fh x; close $fh }
+    file mkdir [file join $dd .dotdir] [file join $dd normdir]
+} -body {
+    ${ns}::widget .m16 -dir $dd
+    set r [list [names .m16]]
+    ${ns}::setShowHidden .m16 1
+    lappend r [names .m16]
+    destroy .m16
+    set r
+} -cleanup {
+    removeDirectory fl316a
+} -result {{normdir norm.txt} {.dotdir normdir .dot.txt norm.txt}}
+
 cleanupTests

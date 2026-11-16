@@ -1,5 +1,11 @@
 # Launcher
 
+> Current build-app (Tcl/Tk 9 only): `-launch` is not needed -- the program
+> starts the app through its own argv0 guard; the SQL editors bring their
+> shared code from `_lib/sqledit` themselves (no `-include`); the prober
+> looks in the Tcl running build-app when `-extlib` is missing. See
+> `build-app-README.md` (tclutils/apps/build-app/doc).
+
 A standalone start menu / launcher panel built on the tkutils `tkulauncher`
 widget. It shows a **Start** menu button plus a two-column, scrollable launcher
 panel, both loaded from one JSON config file and editable in place
@@ -30,6 +36,21 @@ The window has a **File / Edit / Help** menu bar:
 - **Edit**: **Edit menu...** (opens the form editor), **Add suggestions...**
   (opens the editor and the suggestion catalogue), **Quick add defaults**
   (inserts a sensible default set). Great when you are not sure what to add.
+  **Check entries...** goes through every entry without starting anything:
+  is the program found, does the file or folder exist, does the system tool
+  exist here, does the web address still answer (redirects are followed and
+  shown as "moved" with the new address). https needs the `tls` package; a
+  page that cannot be checked on this computer (no `tls`, no CA bundle) is
+  listed as "not checked" with the reason, not as a problem. Double-click a
+  row to edit the entry.
+  **Add tkutils apps** puts the other apps of this folder (address book,
+  CSV editor, knowledge base, notes, the SQL editors, search and replace,
+  developer toolbox, GUI designer) into a submenu **Apps**; run again, it
+  replaces that submenu. They start with the same Tcl/Tk as the launcher
+  (interpreter `current`). A new menu already has it. A packaged launcher
+  has no apps next to it and says so. An editor whose database package is
+  missing (Oratcl, the PostgreSQL driver) shows that on start;
+  **Check entries...** only checks that the script and wish exist.
 - **Help**: About.
 
 A status line at the bottom shows what happened; on first run it points you to
@@ -39,9 +60,13 @@ A status line at the bottom shows what happened; on first run it points you to
 
 Right-click the Start button or the panel and choose **Edit...** to open the
 form editor: a list of entries (submenus shown indented), a form on the right
-(Type and System id are dropdowns), a **New in:** picker to choose which menu a
-new entry lands in, **Update launcher** to apply live, and **Save to file...**
-to persist. Because the app is file-backed, saved changes survive a restart.
+that shows only the fields of the chosen type (Type and System id are
+dropdowns), and a **New in:** picker to choose which menu a new entry lands in.
+**Apply** changes the selected entry; **Save** applies it too, writes the
+config file and updates the launcher; **Save as...** writes another file;
+**Check...** checks the entries as they are in the editor. **Close** asks
+when something is unsaved. Because the app is file-backed, saved changes
+survive a restart.
 
 ## Building a standalone program
 
@@ -59,16 +84,14 @@ This is a **GUI** app, so it needs a **wish** basekit. From
 xvfb-run -a ./build-app-zipkit-linux -kind gui -out tkulauncher \
     -basekit basekit-tk \
     -app ../../../tkutils/apps/launcher -main launcher.tcl \
-    -launch '::launcherapp::main $argv' \
     -tm ../../lib/tm -tm ../../../tkutils/lib/tm \
     -extlib /path/to/tklib/modules
 ```
 
 Notes:
 
-- `-launch '::launcherapp::main $argv'` -- always double-quote `-launch`; the
-  argv0 guard in `launcher.tcl` does not fire inside a zipkit, so build-app
-  starts the app through this call.
+- no `-launch`: build-app sets `argv0` to `launcher.tcl`, so its argv0
+  guard starts the app inside the zipkit, too.
 - `-tm` twice: the `tkutils` and `tclutils` module trees.
 - `-extlib` points at a tklib `modules` dir so the prober can bundle
   Tablelist/scrollutil for the scrollable panel. Add `-probe 0` to skip probing
@@ -87,21 +110,24 @@ worked examples (notes-app, sqlite-editor, ...).
 
 ## Menu templates
 
-Ready-made configs to start from are in `examples/`. Point the app at one:
+Ready-made configs to start from lie next to `launcher.tcl`. Point the app at
+one:
 
 ```bash
-wish launcher.tcl examples/example-developer.json
+wish launcher.tcl example-developer.json
 ```
 
 - `example-developer.json` -- terminal/editor/file manager, Tcl/Tk docs, dev web
   links, a System submenu, calculator + calendar, a Projects shortcut.
-- `example-office.json` -- documents, web mail/calendar links, a Printing
-  submenu, calendar + calculator.
 - `example-sysadmin.json` -- System / Network / Maintenance / Power submenus
   wired to the built-in system entries (task manager, services, firewall,
   updates, restart/shutdown, ...), plus terminal and file manager.
+- `example-tclscripts.json` -- Tcl scripts started with wish/tclsh 8.6 or 9,
+  with `TCLLIBPATH` per entry. The paths are placeholders (`~/projects/...`):
+  adjust them; **Check entries...** shows which ones are missing.
 - `example-minimal.json` -- just terminal, file manager, calculator, calendar,
   Home. A clean starting point.
+- `example-menu.json` -- the short sample used in the docs.
 
 Copy one to your config location (see "Running" above) and edit it in place via
 right-click -> Edit..., or just pass it on the command line. System entries
@@ -119,9 +145,10 @@ is a separate PE resource -- see `windows-icon.md` for how to change that.
 - `launcher.tcl`      the application
 - `icon.png`          window/taskbar icon (bundled automatically)
 - `windows-icon.md`   how to change the .exe file icon (rcedit)
-- `example-menu.json` a sample config you can pass on the command line
-- `examples/`         ready-made menu templates (developer, office, sysadmin, minimal)
-- `tests/`            a headless smoke test
+- `build.md`          the build command for a Windows .exe in short
+- `example-*.json`    ready-made menu templates (see above)
+- `tests/launcher.test`  smoke test: `tclsh tests/launcher.test` (needs a
+  display, headless under `xvfb-run -a`)
 
 ## Cross-building a Windows .exe on Linux
 
@@ -135,7 +162,6 @@ wish9.0 build-app.tcl \
   -kind gui -out tkulauncher.exe \
   -basekit /path/to/zipkit-9_0_4-win64-intel-tk.exe \
   -app ../../../tkutils/apps/launcher -main launcher.tcl \
-  -launch '::launcherapp::main $argv' \
   -tm ../../lib/tm -tm ../../../tkutils/lib/tm \
   -include /path/to/tklib/modules/scrollutil=pkgs/scrollutil \
   -include /path/to/tical=pkgs/tical \

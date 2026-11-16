@@ -81,9 +81,21 @@ noetig. Tablelist muss auf dem `auto_path` liegen.
   Unix-Regeln (`/x` und `C:x` sind unter Windows volumerelative).
 - **glob** — was ein Muster in einem Verzeichnis trifft, mit `-types`.
   Zeigt, wie viele Punkt-Dateien `*` hier auslaesst; unter Windows trifft
-  `*` sie, und `*` plus `.*` liefert sie doppelt.
+  `*` sie, und `*` plus `.*` liefert sie doppelt -- dort nennt der Tab auch,
+  wie viele Eintraege das Attribut hidden haben und nur `-types hidden` findet.
+- **Attributes** — je Eintrag eines Ordners die Windows-Attribute (hidden,
+  system, readonly), ob `glob *` und ob `glob -types hidden` ihn findet und
+  ob `tkufilelist` ihn mit den beiden Schaltern (versteckte Eintraege,
+  Systemdateien) zeigt. Nur lesen.
+- **Folders / drives** — `file volumes` (`//zipfs:/` unter Tcl 9 markiert),
+  Profil und Umgebung (`HOME`, `USERPROFILE`, `APPDATA` ...), Desktop,
+  Dokumente, Downloads unter dem Profil und unter Windows aus der Registry
+  (`User Shell Folders`, etwa ein Desktop auf OneDrive), die Orte des
+  Dateidialogs und der Konfigurationsordner von `tusettings` fuer einen
+  App-Namen. Nur lesen, legt nichts an.
 - **Programs** — `auto_execok` fuer einen Namen und die PATH-Eintraege mit
-  Treffern; Trennzeichen und unter Windows PATHEXT.
+  Treffern; Trennzeichen und unter Windows PATHEXT, dazu was `exec` aus
+  `wish` (ohne Konsole) zeigt.
 - **Encoding profiles** — Bytes (hex) in einer Kodierung mit den Profilen
   `strict`, `replace` und `tcl8` gelesen (Tcl 9); `strict` bricht beim
   ersten ungueltigen Byte ab, wie ein Kanal mit Standard-Profil.
